@@ -1,0 +1,19 @@
+# Build directories
+/build/
+/cmake-build-*/
+
+# Binaries
+*.exe
+*.out
+*.o
+*.obj
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editor configs (tune to taste)
+.vscode/
+.idea/
+*.swp
+
