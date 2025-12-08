@@ -1,0 +1,8 @@
+# descriptions.txt
+# id = description text
+
+start = You stand in a rough-hewn stone chamber, its walls damp and cold.
+
+north_room = The air grows cooler here; faint scratch marks mar the stone.
+south_room = A lingering smell of smoke and goblin sweat hangs in the air.
+

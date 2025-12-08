@@ -6,9 +6,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(bx_crawl
     src/main.cpp
+    src/game.cpp
+    src/map.cpp
+    src/description.cpp
 )
 
-# If you want warnings cranked up:
+target_include_directories(bx_crawl PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
 if (MSVC)
     target_compile_options(bx_crawl PRIVATE /W4)
 else()
