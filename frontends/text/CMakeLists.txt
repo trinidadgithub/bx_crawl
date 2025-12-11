@@ -1,0 +1,14 @@
+# frontends/text/CMakeLists.txt
+
+add_executable(bx_crawl_text
+    src/main.cpp
+)
+
+target_include_directories(bx_crawl_text PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(bx_crawl_text PRIVATE
+    bx_engine
+)
+
