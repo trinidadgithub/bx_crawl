@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cmath>
 #include <string>
+#include <sstream>
 
 // ---------------------------
 // Random helper
@@ -19,6 +20,27 @@ int roll_d(Game& g, int sides) {
 // Internal helpers
 // ---------------------------
 namespace {
+
+void log_event(Game& g, const std::string& msg) {
+    g.event_log.push_back(msg);
+    // keep the log small (e.g., last 8 messages)
+    const std::size_t max_events = 8;
+    if (g.event_log.size() > max_events) {
+        g.event_log.erase(g.event_log.begin(),
+                          g.event_log.begin() + (g.event_log.size() - max_events));
+    }
+}
+
+// Same B/X-ish modifier table as chargen, for display/logging.
+int ability_modifier_display(int score) {
+    if (score <= 3)  return -3;
+    if (score <= 5)  return -2;
+    if (score <= 8)  return -1;
+    if (score <= 12) return 0;
+    if (score <= 15) return 1;
+    if (score <= 17) return 2;
+    return 3;
+}
 
 // Check if a tile is occupied by any living entity (hero or monsters).
 bool is_occupied(const Game& g, int x, int y, const Entity* ignore = nullptr) {
@@ -110,17 +132,18 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
     int total  = roll + attacker.attack_bonus + bonus_to_hit;
     int target = defender.ac; // ascending AC: higher = harder
 
-    std::cout << attacker.name << " attacks " << defender.name
-              << " (d20 = " << roll
-              << ", total " << total
-              << " vs AC " << target << ")\n";
+    {
+        std::ostringstream oss;
+        oss << attacker.name << " attacks " << defender.name
+            << " (d20 = " << roll
+            << ", total " << total
+            << " vs AC " << target << ")";
+        log_event(g, oss.str());
+    }
 
     bool defender_is_monster =
         (defender.type != EntityType::Hero) && (defender.morale > 0);
 
-    // Only care about free attacks / morale if:
-    // - morale triggering is enabled
-    // - attacker is the hero (for now)
     int free_attacks_remaining = 0;
     if (trigger_morale && attacker.type == EntityType::Hero) {
         free_attacks_remaining = attacker.attacks_per_turn;
@@ -129,22 +152,30 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
     if (total >= target) {
         int dmg = roll_d(g, attacker.damage_die);
         defender.hp -= dmg;
-        std::cout << "Hit! " << defender.name << " takes "
-                  << dmg << " damage.\n";
+
+        {
+            std::ostringstream oss;
+            oss << "Hit! " << defender.name << " takes "
+                << dmg << " damage.";
+            log_event(g, oss.str());
+        }
 
         if (defender.hp <= 0) {
             defender.hp    = 0;
             defender.alive = false;
-            std::cout << defender.name << " is slain!\n";
+
+            {
+                std::ostringstream oss;
+                oss << defender.name << " is slain!";
+                log_event(g, oss.str());
+            }
 
             if (trigger_morale && defender_is_monster &&
                 attacker.type == EntityType::Hero) {
-                // Allies of the fallen may need to check morale.
                 morale_allies_on_death(g, defender, attacker,
                                        free_attacks_remaining);
             }
         } else {
-            // Defender survived but is hurt; monsters may check morale.
             if (trigger_morale && defender_is_monster &&
                 attacker.type == EntityType::Hero) {
                 try_morale_check(g, defender, attacker,
@@ -152,12 +183,10 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
             }
         }
     } else {
-        std::cout << "Miss!\n";
+        log_event(g, "Miss!");
     }
 
-    std::cout << "Press Enter to continue...";
-    std::string dummy;
-    std::getline(std::cin, dummy);
+    // No more "Press Enter to continue..." here
 }
 
 // Morale: single monster check
@@ -168,39 +197,52 @@ void try_morale_check(Game& g, Entity& m, Entity& attacker,
     if (m.morale <= 0) return;
 
     int roll = roll_2d6(g);
-    std::cout << m.name << " makes a morale check (" << reason
-              << "): 2d6 = " << roll << " vs morale " << m.morale << "\n";
 
-    // B/X-style: succeed on <= morale, fail on > morale.
+    {
+        std::ostringstream oss;
+        oss << m.name << " makes a morale check (" << reason
+            << "): 2d6 = " << roll << " vs morale " << m.morale;
+        log_event(g, oss.str());
+    }
+
     if (roll > m.morale) {
-        std::cout << m.name << " panics and attempts to flee!\n";
+        {
+            std::ostringstream oss;
+            oss << m.name << " panics and attempts to flee!";
+            log_event(g, oss.str());
+        }
         m.fleeing = true;
 
-        // If the attacker has attacks remaining this turn,
-        // they get a free attack on the fleeing foe at +2.
         if (free_attacks_remaining > 0 &&
             attacker.alive &&
             attacker.type == EntityType::Hero) {
-            std::cout << attacker.name
-                      << " gains a free attack on the fleeing "
-                      << m.name << "!\n";
+            {
+                std::ostringstream oss;
+                oss << attacker.name
+                    << " gains a free attack on the fleeing "
+                    << m.name << "!";
+                log_event(g, oss.str());
+            }
             --free_attacks_remaining;
-            attack_internal(g, attacker, m, /*bonus=*/2,
+            attack_internal(g, attacker, m, /*bonus_to_hit=*/2,
                             /*trigger_morale=*/false);
 
             if (!m.alive) {
-                std::cout << m.name
-                          << " is cut down while fleeing!\n";
+                std::ostringstream oss;
+                oss << m.name
+                    << " is cut down while fleeing!";
+                log_event(g, oss.str());
             }
         }
     } else {
-        std::cout << m.name << " holds its ground.\n";
+        {
+            std::ostringstream oss;
+            oss << m.name << " holds its ground.";
+            log_event(g, oss.str());
+        }
     }
-
-    std::cout << "Press Enter to continue...";
-    std::string dummy;
-    std::getline(std::cin, dummy);
 }
+
 
 // Morale: allies of the fallen may break
 void morale_allies_on_death(Game& g, const Entity& fallen, Entity& attacker,
@@ -252,10 +294,9 @@ void flee_ai(Game& g, Entity& m) {
     if (m.pos.x == 0 || m.pos.x == g.width - 1 ||
         m.pos.y == 0 || m.pos.y == g.height - 1) {
         m.alive = false;
-        std::cout << m.name << " flees into the darkness!\n";
-        std::cout << "Press Enter to continue...";
-        std::string dummy;
-        std::getline(std::cin, dummy);
+	std::ostringstream oss;
+        oss << m.name << " flees into the darkness!";
+        log_event(g, oss.str());
     }
 }
 
@@ -265,13 +306,6 @@ void attack(Game& g, Entity& attacker, Entity& defender) {
     attack_internal(g, attacker, defender,
                     /*bonus_to_hit=*/0,
                     /*trigger_morale=*/true);
-}
-
-void attack_with_bonus(Game& g, Entity& attacker, Entity& defender, int bonus) {
-    // Free attack vs fleeing enemies: do NOT trigger more morale.
-    attack_internal(g, attacker, defender,
-                    /*bonus_to_hit=*/bonus,
-                    /*trigger_morale=*/false);
 }
 
 } // end anonymous namespace
@@ -388,6 +422,20 @@ void render(const Game& g) {
     std::cout << g.hero.name   << " HP: " << g.hero.hp   << "/" << g.hero.max_hp
               << "  AC: " << g.hero.ac << "\n";
 
+    // Display hero abilities
+    int str_mod = ability_modifier_display(g.hero.abilities.str);
+    int dex_mod = ability_modifier_display(g.hero.abilities.dex);
+    int con_mod = ability_modifier_display(g.hero.abilities.con);
+
+    std::cout << "STR: " << g.hero.abilities.str
+              << " (" << (str_mod >= 0 ? "+" : "") << str_mod << ")  ";
+
+    std::cout << "DEX: " << g.hero.abilities.dex
+              << " (" << (dex_mod >= 0 ? "+" : "") << dex_mod << ")  ";
+
+    std::cout << "CON: " << g.hero.abilities.con
+              << " (" << (con_mod >= 0 ? "+" : "") << con_mod << ")\n";
+
     std::cout << "Monsters:\n";
     for (const auto& m : g.monsters) {
         std::cout << " - " << m.name
@@ -407,6 +455,11 @@ void render(const Game& g) {
 
     std::cout << "Commands: move with q w e / a s d / z x c (x = quit).\n";
     std::cout << "Bump into a monster to attack.\n";
+
+    std::cout << "\nRecent events:\n";
+    for (const auto& msg : g.event_log) {
+    	std::cout << "  " << msg << "\n";
+    }
 }
 
 // ---------------------------
