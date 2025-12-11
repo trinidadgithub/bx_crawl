@@ -17,6 +17,9 @@ struct Game {
 
     DescriptionStore descriptions;
     std::string current_location_id;
+
+    // Event log
+    std::vector<std::string> event_log;
 };
 
 // Random helper
