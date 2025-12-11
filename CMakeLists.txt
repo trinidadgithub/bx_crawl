@@ -9,6 +9,7 @@ add_executable(bx_crawl
     src/game.cpp
     src/map.cpp
     src/description.cpp
+    src/chargen.cpp
 )
 
 target_include_directories(bx_crawl PRIVATE
@@ -21,3 +22,6 @@ else()
     target_compile_options(bx_crawl PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
+# --- Tests ---
+enable_testing()
+add_subdirectory(tests)

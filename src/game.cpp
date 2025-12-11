@@ -1,5 +1,6 @@
 #include "game.hpp"
 #include "map.hpp"
+#include "chargen.hpp"
 
 #include <iostream>
 #include <chrono>
@@ -23,8 +24,15 @@ char glyph_for(const Entity& e) {
     switch (e.type) {
         case EntityType::Hero:   return '@';
         case EntityType::Goblin: return 'g';
+        case EntityType::Kobold: return 'k';
         default:                 return '?';
     }
+}
+
+int sign(int v) {
+    if (v < 0) return -1;
+    if (v > 0) return 1;
+    return 0;
 }
 
 void move_entity(Game& g, Entity& e, int dx, int dy) {
@@ -37,41 +45,14 @@ void move_entity(Game& g, Entity& e, int dx, int dy) {
     }
 }
 
-void attack(Game& g, Entity& attacker, Entity& defender) {
-    if (!attacker.alive || !defender.alive) return;
-
-    int roll   = roll_d(g, 20);
-    int total  = roll + attacker.attack_bonus;
-    int target = defender.ac; // ascending AC: higher = harder
-
-    std::cout << attacker.name << " attacks " << defender.name
-              << " (d20 = " << roll << ", total " << total
-              << " vs AC " << target << ")\n";
-
-    if (total >= target) {
-        int dmg = roll_d(g, attacker.damage_die);
-        defender.hp -= dmg;
-        std::cout << "Hit! " << defender.name << " takes "
-                  << dmg << " damage.\n";
-        if (defender.hp <= 0) {
-            defender.hp    = 0;
-            defender.alive = false;
-            std::cout << defender.name << " is slain!\n";
-        }
-    } else {
-        std::cout << "Miss!\n";
-    }
-
-    std::cout << "Press Enter to continue...";
-    std::string dummy;
-    std::getline(std::cin, dummy);
+// 2d6 morale roll
+int roll_2d6(Game& g) {
+    return roll_d(g, 6) + roll_d(g, 6);
 }
 
-int sign(int v) {
-    if (v < 0) return -1;
-    if (v > 0) return 1;
-    return 0;
-}
+// Forward decls of morale helpers
+void try_morale_check(Game& g, Entity& m, const std::string& reason);
+void morale_allies_on_death(Game& g, const Entity& fallen);
 
 // Find the first living monster at (x, y), or nullptr if none.
 Entity* monster_at(Game& g, int x, int y) {
@@ -93,6 +74,82 @@ void update_location_description(Game& g) {
     }
 }
 
+// Core attack function with morale hooks
+void attack(Game& g, Entity& attacker, Entity& defender) {
+    if (!attacker.alive || !defender.alive) return;
+
+    int roll   = roll_d(g, 20);
+    int total  = roll + attacker.attack_bonus;
+    int target = defender.ac; // ascending AC: higher = harder
+
+    std::cout << attacker.name << " attacks " << defender.name
+              << " (d20 = " << roll << ", total " << total
+              << " vs AC " << target << ")\n";
+
+    if (total >= target) {
+        int dmg = roll_d(g, attacker.damage_die);
+        defender.hp -= dmg;
+        std::cout << "Hit! " << defender.name << " takes "
+                  << dmg << " damage.\n";
+
+        if (defender.hp <= 0) {
+            defender.hp    = 0;
+            defender.alive = false;
+            std::cout << defender.name << " is slain!\n";
+
+            // If a monster dies, its allies may need to check morale.
+            if (defender.type != EntityType::Hero && defender.morale > 0) {
+                morale_allies_on_death(g, defender);
+            }
+        } else {
+            // Defender survived but is hurt; monsters may check morale.
+            if (defender.type != EntityType::Hero && defender.morale > 0) {
+                try_morale_check(g, defender, "is wounded");
+            }
+        }
+    } else {
+        std::cout << "Miss!\n";
+    }
+
+    std::cout << "Press Enter to continue...";
+    std::string dummy;
+    std::getline(std::cin, dummy);
+}
+
+// Morale: single monster check
+void try_morale_check(Game& g, Entity& m, const std::string& reason) {
+    if (!m.alive) return;
+    if (m.type == EntityType::Hero) return;
+    if (m.morale <= 0) return;
+
+    int roll = roll_2d6(g);
+    std::cout << m.name << " makes a morale check (" << reason
+              << "): 2d6 = " << roll << " vs morale " << m.morale << "\n";
+
+    // B/X-style: succeed on <= morale, fail on > morale.
+    if (roll > m.morale) {
+        std::cout << m.name << " panics and flees!\n";
+        m.alive = false; // Treat as having left the battle.
+    } else {
+        std::cout << m.name << " holds its ground.\n";
+    }
+
+    std::cout << "Press Enter to continue...";
+    std::string dummy;
+    std::getline(std::cin, dummy);
+}
+
+// Morale: allies of the fallen may break
+void morale_allies_on_death(Game& g, const Entity& fallen) {
+    for (auto& m : g.monsters) {
+        if (!m.alive) continue;
+        if (m.type != fallen.type) continue;
+        if (m.morale <= 0) continue;
+
+        try_morale_check(g, m, "an ally dies");
+    }
+}
+
 } // namespace
 
 // ---------------------------
@@ -111,42 +168,56 @@ void init_game(Game& g) {
     init_map(g);
 
     // Load descriptions
-    // NOTE: path assumes you're running from build/ directory
-    // and data/ is in the project root: adjust if needed.
     if (!g.descriptions.load_from_file("../data/descriptions.txt")) {
         std::cerr << "Warning: failed to load descriptions.txt\n";
     }
 
-    // Hero (B/X-ish fighter)
-    g.hero.name         = "Hero";
-    g.hero.type         = EntityType::Hero;
-    g.hero.pos          = {2, 2};
-    g.hero.max_hp       = 8;
-    g.hero.hp           = 8;
-    g.hero.attack_bonus = 2;
-    g.hero.damage_die   = 8;
-    g.hero.ac           = 14;
-    g.hero.alive        = true;
+    // Create hero via Fighter-only chargen
+    g.hero = create_fighter_hero(g);
+
+    // Startin position in the dungeon
+    g.hero.pos = {2, 2};
 
     g.monsters.clear();
 
+    // Goblin template
+    Entity goblin;
+    goblin.name         = "Goblin";
+    goblin.type         = EntityType::Goblin;
+    goblin.max_hp       = 5;
+    goblin.hp           = 5;
+    goblin.attack_bonus = 1;
+    goblin.damage_die   = 6;
+    goblin.ac           = 12;
+    goblin.morale       = 8;    // reasonably tough
+    goblin.alive        = true;
+
     // Goblin #1
-    Entity goblin1;
-    goblin1.name         = "Goblin";
-    goblin1.type         = EntityType::Goblin;
-    goblin1.pos          = {g.width - 3, g.height - 3};
-    goblin1.max_hp       = 5;
-    goblin1.hp           = 5;
-    goblin1.attack_bonus = 1;
-    goblin1.damage_die   = 6;
-    goblin1.ac           = 12;
-    goblin1.alive        = true;
+    Entity goblin1 = goblin;
+    goblin1.pos = {g.width - 3, g.height - 3};
     g.monsters.push_back(goblin1);
 
     // Goblin #2
-    Entity goblin2 = goblin1;
+    Entity goblin2 = goblin;
     goblin2.pos = {g.width - 5, 3};
     g.monsters.push_back(goblin2);
+
+    // Kobold template (weaker, lower morale)
+    Entity kobold;
+    kobold.name         = "Kobold";
+    kobold.type         = EntityType::Kobold;
+    kobold.max_hp       = 3;
+    kobold.hp           = 3;
+    kobold.attack_bonus = 0;
+    kobold.damage_die   = 4;    // 1d4
+    kobold.ac           = 11;
+    kobold.morale       = 6;    // more cowardly
+    kobold.alive        = true;
+
+    // Kobold #1
+    Entity kobold1 = kobold;
+    kobold1.pos = {g.width / 2, g.height - 3};
+    g.monsters.push_back(kobold1);
 
     // Initial location description
     g.current_location_id = "start";
@@ -194,7 +265,8 @@ void render(const Game& g) {
     for (const auto& m : g.monsters) {
         std::cout << " - " << m.name
                   << " HP: " << m.hp << "/" << m.max_hp
-                  << (m.alive ? "" : " (dead)")
+                  << (m.alive ? "" : " (gone)")
+                  << "  Morale: " << m.morale
                   << "\n";
     }
 
