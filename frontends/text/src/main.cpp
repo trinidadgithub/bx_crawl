@@ -52,7 +52,6 @@ static PlayerCommand read_player_command() {
     return PlayerCommand{PlayerCommandType::Move, dx, dy};
 }
 
-
 int main() {
     Game g;
     init_game(g);
@@ -60,36 +59,41 @@ int main() {
     while (true) {
         render(g);
 
-        // Get command from the text UI
         PlayerCommand cmd = read_player_command();
-
-        // Apply command in the engine
         bool keep_playing = apply_player_command(g, cmd);
         if (!keep_playing) {
+            // Player quit
+            render(g);
+            std::cout << "Game over.\n";
             break;
         }
 
         if (!g.hero.alive) {
+            // Hero died from their own action (trap, etc. – later)
+            render(g);
             std::cout << "You have died.\n";
             break;
         }
 
         if (!any_monsters_alive(g)) {
+            // Show final state + log *after* last monster dies
+            render(g);
             std::cout << "All monsters defeated!\n";
+            std::cout << "Game over.\n";
             break;
         }
 
-        // Monsters take their turn
         monsters_turn(g);
 
         if (!g.hero.alive) {
+            // Hero died during monsters' turn
             render(g);
             std::cout << "You have died.\n";
+            std::cout << "Game over.\n";
             break;
         }
     }
 
-    std::cout << "Game over.\n";
     return 0;
 }
 
