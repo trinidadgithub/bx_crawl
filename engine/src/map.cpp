@@ -69,11 +69,11 @@ std::vector<Room> init_map(Game& g) {
 
     std::vector<Room> rooms;
 
-    int num_rooms = rand_range(g, 5, 7);
+    int num_rooms = rand_range(g, 4, 8);
 
     for (int attempt = 0; attempt < 50 && static_cast<int>(rooms.size()) < num_rooms; ++attempt) {
-        int rw = rand_range(g, 4, 8);
-        int rh = rand_range(g, 3, 6);
+        int rw = rand_range(g, 4, 10);
+        int rh = rand_range(g, 4, 6);
         int rx = rand_range(g, 1, g.width  - rw - 1);
         int ry = rand_range(g, 1, g.height - rh - 1);
 

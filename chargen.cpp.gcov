@@ -1,0 +1,213 @@
+        -:    0:Source:engine/src/chargen.cpp
+        -:    1:#include "chargen.hpp"
+        -:    2:#include "game.hpp"
+        -:    3:
+        -:    4:#include <iostream>
+        -:    5:#include <string>
+        -:    6:#include <algorithm>
+        -:    7:#include <cctype>
+        -:    8:
+        -:    9:// Simple B/X-ish ability modifier:
+        -:   10:// 3: -3
+        -:   11:// 4-5: -2
+        -:   12:// 6-8: -1
+        -:   13:// 9-12: 0
+        -:   14:// 13-15: +1
+        -:   15:// 16-17: +2
+        -:   16:// 18: +3
+    #####:   17:static int ability_modifier(int score) {
+    #####:   18:    if (score <= 3)  return -3;
+    #####:   19:    if (score <= 5)  return -2;
+    #####:   20:    if (score <= 8)  return -1;
+    #####:   21:    if (score <= 12) return 0;
+    #####:   22:    if (score <= 15) return 1;
+    #####:   23:    if (score <= 17) return 2;
+    #####:   24:    return 3;
+        -:   25:}
+        -:   26:
+        -:   27:// Roll 3d6 using the game's RNG
+    #####:   28:static int roll_3d6(Game& g) {
+    #####:   29:    return roll_d(g, 6) + roll_d(g, 6) + roll_d(g, 6);
+        -:   30:}
+        -:   31:
+    #####:   32:static std::string to_lower(std::string s) {
+    #####:   33:    std::transform(s.begin(), s.end(), s.begin(),
+    #####:   34:                   [](unsigned char c) { return std::tolower(c); });
+    #####:   35:    return s;
+        -:   36:}
+        -:   37:
+        -:   38:// Show current abilities
+    #####:   39:static void print_abilities(const Abilities& a) {
+    #####:   40:    std::cout << "Current ability scores:\n";
+    #####:   41:    std::cout << "  STR: " << a.str << "\n";
+    #####:   42:    std::cout << "  DEX: " << a.dex << "\n";
+    #####:   43:    std::cout << "  CON: " << a.con << "\n";
+    #####:   44:    std::cout << "  INT: " << a.intelligence << "\n";
+    #####:   45:    std::cout << "  WIS: " << a.wis << "\n";
+    #####:   46:    std::cout << "  CHA: " << a.cha << "\n\n";
+    #####:   47:}
+        -:   48:
+    #####:   49:Entity create_fighter_hero(Game& g) {
+    #####:   50:    Entity hero;
+    #####:   51:    hero.type       = EntityType::Hero;
+    #####:   52:    hero.char_class = CharacterClass::Fighter;
+        -:   53:
+    #####:   54:    std::cout << "=== Character Creation ===\n\n";
+        -:   55:
+        -:   56:    // Name
+    #####:   57:    std::cout << "Enter your hero's name: ";
+    #####:   58:    std::string name;
+    #####:   59:    std::getline(std::cin, name);
+    #####:   60:    if (name.empty()) {
+    #####:   61:        name = "Unnamed Fighter";
+        -:   62:    }
+    #####:   63:    hero.name = name;
+        -:   64:
+        -:   65:    // Initial abilities
+    #####:   66:    hero.abilities.str          = roll_3d6(g);
+    #####:   67:    hero.abilities.dex          = roll_3d6(g);
+    #####:   68:    hero.abilities.con          = roll_3d6(g);
+    #####:   69:    hero.abilities.intelligence = roll_3d6(g);
+    #####:   70:    hero.abilities.wis          = roll_3d6(g);
+    #####:   71:    hero.abilities.cha          = roll_3d6(g);
+        -:   72:
+        -:   73:    // Reroll flags: each ability can be rerolled at most once
+    #####:   74:    bool rerolled_str = false;
+    #####:   75:    bool rerolled_dex = false;
+    #####:   76:    bool rerolled_con = false;
+    #####:   77:    bool rerolled_int = false;
+    #####:   78:    bool rerolled_wis = false;
+    #####:   79:    bool rerolled_cha = false;
+        -:   80:
+        -:   81:    // Reroll loop
+        -:   82:    while (true) {
+    #####:   83:        print_abilities(hero.abilities);
+    #####:   84:        std::cout << "Would you like to reroll one ability? (y/n): ";
+    #####:   85:        std::string line;
+    #####:   86:        std::getline(std::cin, line);
+    #####:   87:        if (line.empty()) break;
+    #####:   88:        char c = std::tolower(line[0]);
+    #####:   89:        if (c != 'y') break;
+        -:   90:
+        -:   91:        std::cout << "Which ability to reroll? "
+    #####:   92:                     "(str, dex, con, int, wis, cha, or 'done')\n> ";
+    #####:   93:        std::string choice;
+    #####:   94:        std::getline(std::cin, choice);
+    #####:   95:        choice = to_lower(choice);
+    #####:   96:        if (choice == "done" || choice.empty()) break;
+        -:   97:
+    #####:   98:        int* target_stat = nullptr;
+    #####:   99:        bool* rerolled_flag = nullptr;
+    #####:  100:        std::string label;
+        -:  101:
+    #####:  102:        if (choice == "str") {
+    #####:  103:            target_stat   = &hero.abilities.str;
+    #####:  104:            rerolled_flag = &rerolled_str;
+    #####:  105:            label         = "STR";
+    #####:  106:        } else if (choice == "dex") {
+    #####:  107:            target_stat   = &hero.abilities.dex;
+    #####:  108:            rerolled_flag = &rerolled_dex;
+    #####:  109:            label         = "DEX";
+    #####:  110:        } else if (choice == "con") {
+    #####:  111:            target_stat   = &hero.abilities.con;
+    #####:  112:            rerolled_flag = &rerolled_con;
+    #####:  113:            label         = "CON";
+    #####:  114:        } else if (choice == "int") {
+    #####:  115:            target_stat   = &hero.abilities.intelligence;
+    #####:  116:            rerolled_flag = &rerolled_int;
+    #####:  117:            label         = "INT";
+    #####:  118:        } else if (choice == "wis") {
+    #####:  119:            target_stat   = &hero.abilities.wis;
+    #####:  120:            rerolled_flag = &rerolled_wis;
+    #####:  121:            label         = "WIS";
+    #####:  122:        } else if (choice == "cha") {
+    #####:  123:            target_stat   = &hero.abilities.cha;
+    #####:  124:            rerolled_flag = &rerolled_cha;
+    #####:  125:            label         = "CHA";
+        -:  126:        } else {
+    #####:  127:            std::cout << "Unknown choice. Try again.\n\n";
+    #####:  128:            continue;
+        -:  129:        }
+        -:  130:
+    #####:  131:        if (*rerolled_flag) {
+        -:  132:            std::cout << "You have already rerolled " << label
+    #####:  133:                      << " once. You cannot reroll it again.\n\n";
+    #####:  134:            continue;
+        -:  135:        }
+        -:  136:
+    #####:  137:        int old_val = *target_stat;
+    #####:  138:        int new_val = roll_3d6(g);
+        -:  139:
+    #####:  140:        std::cout << "Rerolling " << label << "...\n";
+    #####:  141:        std::cout << "  Old: " << old_val << "\n";
+    #####:  142:        std::cout << "  New: " << new_val << "\n";
+    #####:  143:        std::cout << "Keep (o)ld or (n)ew? ";
+    #####:  144:        std::string keep_line;
+    #####:  145:        std::getline(std::cin, keep_line);
+    #####:  146:        char kc = keep_line.empty() ? 'o' : std::tolower(keep_line[0]);
+        -:  147:
+    #####:  148:        if (kc == 'n') {
+    #####:  149:            *target_stat = new_val;
+    #####:  150:            std::cout << label << " set to " << new_val << ".\n\n";
+        -:  151:        } else {
+    #####:  152:            std::cout << label << " remains " << old_val << ".\n\n";
+        -:  153:        }
+        -:  154:
+    #####:  155:        *rerolled_flag = true;
+    #####:  156:    }
+        -:  157:
+        -:  158:    // Final ability mods
+    #####:  159:    int str_mod = ability_modifier(hero.abilities.str);
+    #####:  160:    int dex_mod = ability_modifier(hero.abilities.dex);
+    #####:  161:    int con_mod = ability_modifier(hero.abilities.con);
+        -:  162:
+        -:  163:    // Level 1 Fighter:
+        -:  164:    // HP: 1d8 + CON mod (min 1)
+    #####:  165:    int base_hp =  8;
+    #####:  166:    int hp_raw = base_hp + con_mod;
+    #####:  167:    hero.max_hp = std::max(1, hp_raw);
+    #####:  168:    hero.hp     = hero.max_hp;
+        -:  169:
+        -:  170:    // Attack bonus: +1 base for Fighter + STR mod (rough B/X-ish)
+    #####:  171:    hero.attack_bonus = 1 + str_mod;
+        -:  172:
+        -:  173:    // Damage: 1d8 for Fighter
+    #####:  174:    hero.damage_die = 8;
+        -:  175:
+        -:  176:    // AC: chain-ish 14 + DEX mod (ascending AC)
+    #####:  177:    hero.ac = 14 + dex_mod;
+        -:  178:
+    #####:  179:    hero.morale           = 0;    // PCs don't use morale
+    #####:  180:    hero.fleeing          = false;
+    #####:  181:    hero.alive            = true;
+    #####:  182:    hero.attacks_per_turn = 1;
+        -:  183:
+        -:  184:    // Position is set by init_game (map logic).
+        -:  185:
+        -:  186:    // Show a mini character sheet
+    #####:  187:    std::cout << "\n=== Hero Created ===\n";
+    #####:  188:    std::cout << "Name: " << hero.name << "\n";
+    #####:  189:    std::cout << "Class: Fighter (Level 1)\n\n";
+        -:  190:
+    #####:  191:    std::cout << "STR: " << hero.abilities.str
+    #####:  192:              << " (mod " << str_mod << ")\n";
+    #####:  193:    std::cout << "DEX: " << hero.abilities.dex
+    #####:  194:              << " (mod " << dex_mod << "\n";
+    #####:  195:    std::cout << "CON: " << hero.abilities.con
+    #####:  196:              << " (mod " << con_mod << ")\n";
+    #####:  197:    std::cout << "INT: " << hero.abilities.intelligence << "\n";
+    #####:  198:    std::cout << "WIS: " << hero.abilities.wis << "\n";
+    #####:  199:    std::cout << "CHA: " << hero.abilities.cha << "\n\n";
+        -:  200:
+    #####:  201:    std::cout << "HP: " << hero.hp << "/" << hero.max_hp << "\n";
+    #####:  202:    std::cout << "Attack bonus: " << hero.attack_bonus << "\n";
+    #####:  203:    std::cout << "Damage: 1d" << hero.damage_die << "\n";
+    #####:  204:    std::cout << "AC (ascending): " << hero.ac << "\n\n";
+        -:  205:
+    #####:  206:    std::cout << "Press Enter to enter the dungeon...";
+    #####:  207:    std::string dummy;
+    #####:  208:    std::getline(std::cin, dummy);
+        -:  209:
+    #####:  210:    return hero;
+    #####:  211:}
+        -:  212:

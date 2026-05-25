@@ -425,6 +425,19 @@ void init_game(Game& g) {
         return roll_d(g, static_cast<int>(rooms.size()) - 1); // 1 .. n-1
     };
 
+    // Place a monster in a random room, retrying if the target tile is occupied
+    auto place_monster = [&](Entity& e, const Room& room) {
+        for (int attempt = 0; attempt < 20; ++attempt) {
+            Vec2 pos = random_room_pos(room);
+            if (!is_occupied(g, pos.x, pos.y)) {
+                e.pos = pos;
+                return;
+            }
+        }
+        // Fallback: place at room centre
+        e.pos = {room.x + room.w / 2, room.y + room.h / 2};
+    };
+
     // Goblin template
     Entity goblin;
     goblin.name             = "Goblin";
@@ -441,12 +454,12 @@ void init_game(Game& g) {
 
     Entity goblin1 = goblin;
     goblin1.gold_pieces = roll_d(g, 6) * 10;
-    goblin1.pos = random_room_pos(rooms[random_monster_room()]);
+    place_monster(goblin1, rooms[random_monster_room()]);
     g.monsters.push_back(goblin1);
 
     Entity goblin2 = goblin;
     goblin2.gold_pieces = roll_d(g, 6) * 10;
-    goblin2.pos = random_room_pos(rooms[random_monster_room()]);
+    place_monster(goblin2, rooms[random_monster_room()]);
     g.monsters.push_back(goblin2);
 
     // Kobold template
@@ -465,7 +478,7 @@ void init_game(Game& g) {
 
     Entity kobold1 = kobold;
     kobold1.gold_pieces = roll_d(g, 6) * 5;
-    kobold1.pos = random_room_pos(rooms[random_monster_room()]);
+    place_monster(kobold1, rooms[random_monster_room()]);
     g.monsters.push_back(kobold1);
 
     // Initial location description

@@ -1,0 +1,67 @@
+        -:    0:Source:engine/src/description.cpp
+        -:    1:#include "description.hpp"
+        -:    2:
+        -:    3:#include <fstream>
+        -:    4:#include <sstream>
+        -:    5:#include <algorithm>
+        -:    6:#include <cctype>
+        -:    7:
+        -:    8:namespace {
+        -:    9:
+    #####:   10:inline void trim_in_place(std::string& s) {
+    #####:   11:    auto not_space = [](unsigned char ch) { return !std::isspace(ch); };
+        -:   12:
+    #####:   13:    s.erase(s.begin(),
+    #####:   14:            std::find_if(s.begin(), s.end(), not_space));
+    #####:   15:    s.erase(std::find_if(s.rbegin(), s.rend(), not_space).base(),
+    #####:   16:            s.end());
+    #####:   17:}
+        -:   18:
+        -:   19:} // namespace
+        -:   20:
+    #####:   21:bool DescriptionStore::load_from_file(const std::string& path) {
+    #####:   22:    std::ifstream in(path);
+    #####:   23:    if (!in) {
+    #####:   24:        return false;
+        -:   25:    }
+        -:   26:
+    #####:   27:    std::string line;
+    #####:   28:    while (std::getline(in, line)) {
+        -:   29:        // Strip comments
+    #####:   30:        auto hash_pos = line.find('#');
+    #####:   31:        if (hash_pos != std::string::npos) {
+    #####:   32:            line.erase(hash_pos);
+        -:   33:        }
+        -:   34:
+        -:   35:        // Trim
+    #####:   36:        trim_in_place(line);
+    #####:   37:        if (line.empty()) continue;
+        -:   38:
+    #####:   39:        auto eq_pos = line.find('=');
+    #####:   40:        if (eq_pos == std::string::npos) {
+        -:   41:            // Malformed line; skip for now
+    #####:   42:            continue;
+        -:   43:        }
+        -:   44:
+    #####:   45:        std::string key = line.substr(0, eq_pos);
+    #####:   46:        std::string val = line.substr(eq_pos + 1);
+        -:   47:
+    #####:   48:        trim_in_place(key);
+    #####:   49:        trim_in_place(val);
+        -:   50:
+    #####:   51:        if (!key.empty()) {
+    #####:   52:            map_[key] = val;
+        -:   53:        }
+    #####:   54:    }
+        -:   55:
+    #####:   56:    return true;
+    #####:   57:}
+        -:   58:
+    #####:   59:std::string DescriptionStore::get(const std::string& id) const {
+    #####:   60:    auto it = map_.find(id);
+    #####:   61:    if (it != map_.end()) {
+    #####:   62:        return it->second;
+        -:   63:    }
+    #####:   64:    return std::string{"(No description for '" + id + "')"};
+        -:   65:}
+        -:   66:
