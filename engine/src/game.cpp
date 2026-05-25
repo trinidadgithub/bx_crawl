@@ -45,9 +45,14 @@ int ability_modifier_display(int score) {
 // Monster XP values (B/X Moldvay)
 int monster_xp_value(const Entity& m) {
     switch (m.type) {
-        case EntityType::Goblin: return 10;
-        case EntityType::Kobold: return 5;
-        default:                 return 5;
+        case EntityType::GiantRat:   return 5;
+        case EntityType::Kobold:     return 5;
+        case EntityType::Goblin:     return 10;
+        case EntityType::Skeleton:   return 10;
+        case EntityType::Orc:        return 10;
+        case EntityType::GiantSpider: return 13;
+        case EntityType::Zombie:     return 20;
+        default:                     return 5;
     }
 }
 
@@ -125,10 +130,15 @@ bool is_occupied(const Game& g, int x, int y, const Entity* ignore = nullptr) {
 
 char glyph_for(const Entity& e) {
     switch (e.type) {
-        case EntityType::Hero:   return '@';
-        case EntityType::Goblin: return 'g';
-        case EntityType::Kobold: return 'k';
-        default:                 return '?';
+        case EntityType::Hero:       return '@';
+        case EntityType::Goblin:     return 'g';
+        case EntityType::Kobold:     return 'k';
+        case EntityType::GiantRat:   return 'r';
+        case EntityType::Skeleton:   return 's';
+        case EntityType::Orc:        return 'o';
+        case EntityType::GiantSpider: return 'S';
+        case EntityType::Zombie:     return 'z';
+        default:                     return '?';
     }
 }
 
@@ -438,48 +448,64 @@ void init_game(Game& g) {
         e.pos = {room.x + room.w / 2, room.y + room.h / 2};
     };
 
-    // Goblin template
-    Entity goblin;
-    goblin.name             = "Goblin";
-    goblin.type             = EntityType::Goblin;
-    goblin.max_hp           = 5;
-    goblin.hp               = 5;
-    goblin.attack_bonus     = 1;
-    goblin.damage_die       = 6;
-    goblin.ac               = 12;
-    goblin.morale           = 8;
-    goblin.fleeing          = false;
-    goblin.alive            = true;
-    goblin.attacks_per_turn = 1;
+    // Monster templates
+    struct MonsterTemplate {
+        EntityType type;
+        std::string name;
+        int hp;
+        int atk_bonus;
+        int damage_die;
+        int ac;
+        int morale;
+        int xp;
+    };
 
-    Entity goblin1 = goblin;
-    goblin1.gold_pieces = roll_d(g, 6) * 10;
-    place_monster(goblin1, rooms[random_monster_room()]);
-    g.monsters.push_back(goblin1);
+    MonsterTemplate templates[] = {
+        {EntityType::Goblin,     "Goblin",     5, 1, 6, 12, 8,  10},
+        {EntityType::Kobold,     "Kobold",     3, 0, 4, 11, 6,   5},
+        {EntityType::GiantRat,   "Giant Rat",  2, 0, 3, 12, 8,   5},
+        {EntityType::Skeleton,   "Skeleton",   4, 0, 6, 12, 12, 10},
+        {EntityType::Orc,        "Orc",        5, 1, 6, 13, 8,  10},
+        {EntityType::GiantSpider,"Giant Spider",4, 0, 6, 11, 8,  13},
+        {EntityType::Zombie,     "Zombie",     9, 1, 6, 11, 12,  20},
+    };
+    const int num_types = 7;
 
-    Entity goblin2 = goblin;
-    goblin2.gold_pieces = roll_d(g, 6) * 10;
-    place_monster(goblin2, rooms[random_monster_room()]);
-    g.monsters.push_back(goblin2);
+    // Spawn 4-6 monsters
+    int num_monsters = 4 + roll_d(g, 3); // 4..6
+    for (int i = 0; i < num_monsters; ++i) {
+        const auto& t = templates[roll_d(g, num_types) - 1];
 
-    // Kobold template
-    Entity kobold;
-    kobold.name             = "Kobold";
-    kobold.type             = EntityType::Kobold;
-    kobold.max_hp           = 3;
-    kobold.hp               = 3;
-    kobold.attack_bonus     = 0;
-    kobold.damage_die       = 4;
-    kobold.ac               = 11;
-    kobold.morale           = 6;
-    kobold.fleeing          = false;
-    kobold.alive            = true;
-    kobold.attacks_per_turn = 1;
+        Entity e;
+        e.name             = t.name;
+        e.type             = t.type;
+        e.max_hp           = t.hp;
+        e.hp               = t.hp;
+        e.attack_bonus     = t.atk_bonus;
+        e.damage_die       = t.damage_die;
+        e.ac               = t.ac;
+        e.morale           = t.morale;
+        e.fleeing          = false;
+        e.alive            = true;
+        e.attacks_per_turn = 1;
 
-    Entity kobold1 = kobold;
-    kobold1.gold_pieces = roll_d(g, 6) * 5;
-    place_monster(kobold1, rooms[random_monster_room()]);
-    g.monsters.push_back(kobold1);
+        // Gold by type
+        switch (t.type) {
+            case EntityType::Goblin:
+            case EntityType::Orc:
+                e.gold_pieces = roll_d(g, 6) * 10;
+                break;
+            case EntityType::Kobold:
+                e.gold_pieces = roll_d(g, 6) * 5;
+                break;
+            default:
+                e.gold_pieces = 0;
+                break;
+        }
+
+        place_monster(e, rooms[random_monster_room()]);
+        g.monsters.push_back(e);
+    }
 
     // Initial location description
     g.current_location_id = "start";
@@ -498,6 +524,10 @@ void render(const Game& g) {
             const Tile& t = g.map[index_for(g, x, y)];
             if (t.type == TileType::Wall) {
                 ch = '#';
+            } else if (t.type == TileType::DoorClosed) {
+                ch = '+';
+            } else if (t.type == TileType::DoorOpen) {
+                ch = '/';
             } else {
                 ch = '.';
             }
@@ -560,7 +590,7 @@ void render(const Game& g) {
     }
 
     std::cout << "Commands: move with q w e / a s d / z x c (x = quit).\n";
-    std::cout << "Bump into a monster to attack.\n";
+    std::cout << "Bump into a monster to attack.  o = open, p = close.\n";
 
     std::cout << "\nRecent events:\n";
     for (const auto& msg : g.event_log) {
@@ -633,6 +663,49 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             } else {
                 move_entity(g, g.hero, dx, dy);
                 update_location_description(g);
+            }
+            return true;
+        }
+
+        case PlayerCommandType::Open: {
+            // Try to open an adjacent closed door
+            static const int dirs[] = {-1, 0, 1, 0, 0, -1, 0, 1};
+            bool opened = false;
+            for (int i = 0; i < 4; ++i) {
+                int nx = g.hero.pos.x + dirs[i * 2];
+                int ny = g.hero.pos.y + dirs[i * 2 + 1];
+                if (!in_bounds(g, nx, ny)) continue;
+                auto& tile = g.map[index_for(g, nx, ny)];
+                if (tile.type == TileType::DoorClosed) {
+                    tile.type = TileType::DoorOpen;
+                    opened = true;
+                    log_event(g, "You open a door.");
+                    break;
+                }
+            }
+            if (!opened) {
+                log_event(g, "Nothing to open.");
+            }
+            return true;
+        }
+
+        case PlayerCommandType::Close: {
+            static const int dirs[] = {-1, 0, 1, 0, 0, -1, 0, 1};
+            bool closed = false;
+            for (int i = 0; i < 4; ++i) {
+                int nx = g.hero.pos.x + dirs[i * 2];
+                int ny = g.hero.pos.y + dirs[i * 2 + 1];
+                if (!in_bounds(g, nx, ny)) continue;
+                auto& tile = g.map[index_for(g, nx, ny)];
+                if (tile.type == TileType::DoorOpen) {
+                    tile.type = TileType::DoorClosed;
+                    closed = true;
+                    log_event(g, "You close a door.");
+                    break;
+                }
+            }
+            if (!closed) {
+                log_event(g, "Nothing to close.");
             }
             return true;
         }
