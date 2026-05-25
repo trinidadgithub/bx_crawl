@@ -42,6 +42,66 @@ int ability_modifier_display(int score) {
     return 3;
 }
 
+// Monster XP values (B/X Moldvay)
+int monster_xp_value(const Entity& m) {
+    switch (m.type) {
+        case EntityType::Goblin: return 10;
+        case EntityType::Kobold: return 5;
+        default:                 return 5;
+    }
+}
+
+int xp_for_level(int level) {
+    if (level >= 9) return 240000 + (level - 9) * 120000;
+    if (level == 1) return 0;
+    return 2000 * (1 << (level - 2));
+}
+
+void award_treasure(Game& g, Entity& monster) {
+    int gold = monster.gold_pieces;
+    if (gold > 0) {
+        g.total_gold += gold;
+        {
+            std::ostringstream oss;
+            oss << monster.name << " drops " << gold << " gp.";
+            log_event(g, oss.str());
+        }
+    }
+
+    int xp_gain = monster_xp_value(monster) + gold;
+    g.total_xp += xp_gain;
+
+    {
+        std::ostringstream oss;
+        oss << "Gained " << xp_gain << " XP (total: " << g.total_xp << ").";
+        log_event(g, oss.str());
+    }
+}
+
+void check_level_up(Game& g) {
+    int needed = xp_for_level(g.hero_level + 1);
+    while (g.total_xp >= needed && g.hero_level < 14) {
+        int con_mod = ability_modifier_display(g.hero.abilities.con);
+        int hp_gain = roll_d(g, 8) + con_mod;
+        hp_gain = std::max(1, hp_gain);
+
+        g.hero_level++;
+        g.hero.max_hp += hp_gain;
+        g.hero.hp     += hp_gain;
+        g.hero.attack_bonus++;
+
+        {
+            std::ostringstream oss;
+            oss << g.hero.name << " reaches level " << g.hero_level
+                << "! HP +" << hp_gain
+                << ", attack bonus now " << g.hero.attack_bonus;
+            log_event(g, oss.str());
+        }
+
+        needed = xp_for_level(g.hero_level + 1);
+    }
+}
+
 // Check if a tile is occupied by any living entity (hero or monsters).
 bool is_occupied(const Game& g, int x, int y, const Entity* ignore = nullptr) {
     // Hero
@@ -168,6 +228,13 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
                 std::ostringstream oss;
                 oss << defender.name << " is slain!";
                 log_event(g, oss.str());
+            }
+
+            // Award treasure + XP when hero kills a monster
+            if (attacker.type == EntityType::Hero &&
+                defender.type != EntityType::Hero) {
+                award_treasure(g, defender);
+                check_level_up(g);
             }
 
             if (trigger_morale && defender_is_monster &&
@@ -314,8 +381,8 @@ void attack(Game& g, Entity& attacker, Entity& defender) {
 // Game initialization
 // ---------------------------
 void init_game(Game& g) {
-    g.width  = 20;
-    g.height = 10;
+    g.width  = 40;
+    g.height = 20;
 
     // Seed RNG
     auto seed = static_cast<unsigned long>(
@@ -323,7 +390,7 @@ void init_game(Game& g) {
     );
     g.rng.seed(seed);
 
-    init_map(g);
+    auto rooms = init_map(g);
 
     // Load descriptions
     if (!g.descriptions.load_from_file("../data/descriptions.txt")) {
@@ -334,8 +401,42 @@ void init_game(Game& g) {
 
     // Create hero via Fighter-only chargen
     g.hero = create_fighter_hero(g);
-    // Starting position in the dungeon
-    g.hero.pos = {2, 2};
+
+    // Place hero at centre of first room
+    if (!rooms.empty()) {
+        g.hero.pos = {
+            rooms[0].x + rooms[0].w / 2,
+            rooms[0].y + rooms[0].h / 2
+        };
+    } else {
+        g.hero.pos = {2, 2};
+    }
+
+    // Helper: pick a random floor tile inside a room
+    auto random_room_pos = [&](const Room& r) -> Vec2 {
+        int px = r.x + roll_d(g, r.w) - 1;
+        int py = r.y + roll_d(g, r.h) - 1;
+        return {px, py};
+    };
+
+    // Pick a random room index excluding the first one
+    auto random_monster_room = [&]() -> int {
+        if (rooms.size() <= 1) return 0;
+        return roll_d(g, static_cast<int>(rooms.size()) - 1); // 1 .. n-1
+    };
+
+    // Place a monster in a random room, retrying if the target tile is occupied
+    auto place_monster = [&](Entity& e, const Room& room) {
+        for (int attempt = 0; attempt < 20; ++attempt) {
+            Vec2 pos = random_room_pos(room);
+            if (!is_occupied(g, pos.x, pos.y)) {
+                e.pos = pos;
+                return;
+            }
+        }
+        // Fallback: place at room centre
+        e.pos = {room.x + room.w / 2, room.y + room.h / 2};
+    };
 
     // Goblin template
     Entity goblin;
@@ -346,38 +447,38 @@ void init_game(Game& g) {
     goblin.attack_bonus     = 1;
     goblin.damage_die       = 6;
     goblin.ac               = 12;
-    goblin.morale           = 8;   // reasonably tough
+    goblin.morale           = 8;
     goblin.fleeing          = false;
     goblin.alive            = true;
     goblin.attacks_per_turn = 1;
 
-    // Goblin #1
     Entity goblin1 = goblin;
-    goblin1.pos = {g.width - 3, g.height - 3};
+    goblin1.gold_pieces = roll_d(g, 6) * 10;
+    place_monster(goblin1, rooms[random_monster_room()]);
     g.monsters.push_back(goblin1);
 
-    // Goblin #2
     Entity goblin2 = goblin;
-    goblin2.pos = {g.width - 5, 3};
+    goblin2.gold_pieces = roll_d(g, 6) * 10;
+    place_monster(goblin2, rooms[random_monster_room()]);
     g.monsters.push_back(goblin2);
 
-    // Kobold template (weaker, lower morale)
+    // Kobold template
     Entity kobold;
     kobold.name             = "Kobold";
     kobold.type             = EntityType::Kobold;
     kobold.max_hp           = 3;
     kobold.hp               = 3;
     kobold.attack_bonus     = 0;
-    kobold.damage_die       = 4;   // 1d4
+    kobold.damage_die       = 4;
     kobold.ac               = 11;
-    kobold.morale           = 6;   // more cowardly
+    kobold.morale           = 6;
     kobold.fleeing          = false;
     kobold.alive            = true;
     kobold.attacks_per_turn = 1;
 
-    // Kobold #1
     Entity kobold1 = kobold;
-    kobold1.pos = {g.width / 2, g.height - 3};
+    kobold1.gold_pieces = roll_d(g, 6) * 5;
+    place_monster(kobold1, rooms[random_monster_room()]);
     g.monsters.push_back(kobold1);
 
     // Initial location description
@@ -435,6 +536,11 @@ void render(const Game& g) {
 
     std::cout << "CON: " << g.hero.abilities.con
               << " (" << (con_mod >= 0 ? "+" : "") << con_mod << ")\n";
+
+    int next_level_xp = xp_for_level(g.hero_level + 1);
+    std::cout << "Lv." << g.hero_level
+              << "  Gold: " << g.total_gold
+              << "  XP: " << g.total_xp << "/" << next_level_xp << "\n";
 
     std::cout << "Monsters:\n";
     for (const auto& m : g.monsters) {
@@ -535,6 +641,30 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
         default:
             return true;
     }
+}
+
+// ---------------------------
+// Initiative
+// ---------------------------
+bool roll_initiative(Game& g) {
+    int hero_roll     = roll_d(g, 6);
+    int monster_roll  = roll_d(g, 6);
+
+    // Re-roll ties
+    while (hero_roll == monster_roll) {
+        hero_roll    = roll_d(g, 6);
+        monster_roll = roll_d(g, 6);
+    }
+
+    {
+        std::ostringstream oss;
+        oss << "Initiative: Hero " << hero_roll
+            << " / Monsters " << monster_roll
+            << " — " << (monster_roll > hero_roll ? "Monsters" : "Hero") << " first";
+        log_event(g, oss.str());
+    }
+
+    return monster_roll > hero_roll;
 }
 
 // ---------------------------
