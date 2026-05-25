@@ -20,6 +20,11 @@ struct Game {
 
     // Event log
     std::vector<std::string> event_log;
+
+    // Progression
+    int total_gold{};
+    int total_xp{};
+    int hero_level{1};
 };
 
 // Random helper
@@ -32,6 +37,9 @@ void monsters_turn(Game& g);
 
 // Utility: are there any monsters still alive?
 bool any_monsters_alive(const Game& g);
+
+// Roll 1d6 per side for initiative. Returns true if monsters act first.
+bool roll_initiative(Game& g);
 
 // ---------------------------
 // Player command interface

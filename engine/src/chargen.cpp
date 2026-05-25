@@ -162,8 +162,8 @@ Entity create_fighter_hero(Game& g) {
 
     // Level 1 Fighter:
     // HP: 1d8 + CON mod (min 1)
-    int base_hp =  8;
-    int hp_raw = base_hp + con_mod;
+    int hp_roll = roll_d(g, 8);
+    int hp_raw = hp_roll + con_mod;
     hero.max_hp = std::max(1, hp_raw);
     hero.hp     = hero.max_hp;
 
@@ -191,7 +191,7 @@ Entity create_fighter_hero(Game& g) {
     std::cout << "STR: " << hero.abilities.str
               << " (mod " << str_mod << ")\n";
     std::cout << "DEX: " << hero.abilities.dex
-              << " (mod " << dex_mod << "\n";
+              << " (mod " << dex_mod << ")\n";
     std::cout << "CON: " << hero.abilities.con
               << " (mod " << con_mod << ")\n";
     std::cout << "INT: " << hero.abilities.intelligence << "\n";
