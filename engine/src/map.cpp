@@ -16,6 +16,7 @@ bool is_blocked(const Game& g, int x, int y) {
     if (!in_bounds(g, x, y)) return true;
     const Tile& t = g.map[index_for(g, x, y)];
     if (t.type == TileType::Wall) return true;
+    if (t.type == TileType::DoorClosed) return true;
     return false;
 }
 
@@ -59,6 +60,25 @@ void carve_v_tunnel(Game& g, int y1, int y2, int x) {
 int rand_range(Game& g, int lo, int hi) {
     std::uniform_int_distribution<int> dist(lo, hi);
     return dist(g.rng);
+}
+
+// Helper: check if a tile is inside any room
+bool is_inside_any_room(int x, int y, const std::vector<Room>& rooms) {
+    for (const auto& r : rooms) {
+        if (x >= r.x && x < r.x + r.w &&
+            y >= r.y && y < r.y + r.h) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// If the tile is a floor corridor tile (not inside a room), make it a door
+void try_place_door(Game& g, int x, int y, const std::vector<Room>& rooms) {
+    if (!in_bounds(g, x, y)) return;
+    if (g.map[index_for(g, x, y)].type != TileType::Floor) return;
+    if (is_inside_any_room(x, y, rooms)) return;
+    g.map[index_for(g, x, y)].type = TileType::DoorClosed;
 }
 
 } // namespace
@@ -112,6 +132,18 @@ std::vector<Room> init_map(Game& g) {
         } else {
             carve_v_tunnel(g, ay, by, ax);
             carve_h_tunnel(g, ax, bx, by);
+        }
+    }
+
+    // Place doors at room perimeters where corridors meet rooms
+    for (const auto& r : rooms) {
+        for (int y = r.y; y < r.y + r.h; ++y) {
+            try_place_door(g, r.x - 1, y, rooms);
+            try_place_door(g, r.x + r.w, y, rooms);
+        }
+        for (int x = r.x; x < r.x + r.w; ++x) {
+            try_place_door(g, x, r.y - 1, rooms);
+            try_place_door(g, x, r.y + r.h, rooms);
         }
     }
 
