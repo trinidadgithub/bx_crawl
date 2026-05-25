@@ -17,3 +17,8 @@ Thumbs.db
 .idea/
 *.swp
 
+# Coverage reports
+*.gcov
+*.gcda
+*.gcno
+coverage/

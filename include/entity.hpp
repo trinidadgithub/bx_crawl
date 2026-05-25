@@ -45,5 +45,8 @@ struct Entity {
     // New: character generation bits
     Abilities abilities{};
     CharacterClass char_class{CharacterClass::None};
+
+    // Treasure carried (monsters)
+    int gold_pieces{};
 };
 

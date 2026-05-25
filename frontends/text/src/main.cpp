@@ -59,6 +59,20 @@ int main() {
     while (true) {
         render(g);
 
+        // Roll initiative each round
+        bool monsters_first = roll_initiative(g);
+
+        // Monsters act first if they won initiative
+        if (monsters_first) {
+            monsters_turn(g);
+            if (!g.hero.alive) {
+                render(g);
+                std::cout << "You have died.\n";
+                std::cout << "Game over.\n";
+                break;
+            }
+        }
+
         PlayerCommand cmd = read_player_command();
         bool keep_playing = apply_player_command(g, cmd);
         if (!keep_playing) {
@@ -76,21 +90,28 @@ int main() {
         }
 
         if (!any_monsters_alive(g)) {
-            // Show final state + log *after* last monster dies
             render(g);
             std::cout << "All monsters defeated!\n";
             std::cout << "Game over.\n";
             break;
         }
 
-        monsters_turn(g);
-
-        if (!g.hero.alive) {
-            // Hero died during monsters' turn
-            render(g);
-            std::cout << "You have died.\n";
-            std::cout << "Game over.\n";
+        // If cin entered a failed state (EOF, pipe close), quit gracefully
+        if (!std::cin) {
+            std::cout << "Input closed. Goodbye.\n";
             break;
+        }
+
+        // Hero won or tied initiative: monsters act after the player
+        if (!monsters_first) {
+            monsters_turn(g);
+
+            if (!g.hero.alive) {
+                render(g);
+                std::cout << "You have died.\n";
+                std::cout << "Game over.\n";
+                break;
+            }
         }
     }
 
