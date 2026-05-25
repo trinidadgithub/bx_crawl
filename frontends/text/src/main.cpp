@@ -27,6 +27,14 @@ static PlayerCommand read_player_command() {
         return PlayerCommand{PlayerCommandType::Quit, 0, 0};
     }
 
+    // Door commands
+    if (c == 'o') {
+        return PlayerCommand{PlayerCommandType::Open, 0, 0};
+    }
+    if (c == 'p') {
+        return PlayerCommand{PlayerCommandType::Close, 0, 0};
+    }
+
     // 8-direction movement: qwe/asd/zxc
     if (c == 'w') {           // up
         dy = -1;

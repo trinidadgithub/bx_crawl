@@ -7,7 +7,9 @@ struct Game;
 
 enum class TileType {
     Floor,
-    Wall
+    Wall,
+    DoorClosed,
+    DoorOpen
 };
 
 struct Tile {
