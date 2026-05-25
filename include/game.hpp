@@ -49,7 +49,9 @@ enum class PlayerCommandType {
     None,
     Move,
     Wait,
-    Quit
+    Quit,
+    Open,
+    Close
 };
 
 struct PlayerCommand {

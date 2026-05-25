@@ -10,7 +10,12 @@ struct Vec2 {
 enum class EntityType {
     Hero,
     Goblin,
-    Kobold
+    Kobold,
+    GiantRat,
+    Skeleton,
+    Orc,
+    GiantSpider,
+    Zombie
 };
 
 // Character class for PCs (monsters can ignore this for now)
