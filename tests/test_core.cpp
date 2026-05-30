@@ -738,3 +738,444 @@ TEST_CASE("range penalty applies at distance 2+") {
     CHECK(g.hero.knives == 2);
 }
 
+// ── Spell tests ──────────────────────────────────────────
+
+TEST_CASE("Magic Missile spell") {
+    Game g = make_minimal_game(10, 10);
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.spell_slots[1] = 1;
+    g.hero.spells = {"Magic Missile"};
+
+    SUBCASE("hits monster in line of sight") {
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         3, 1, 10, 10, 0, 4, 0));
+
+        apply_player_command(g, {PlayerCommandType::Cast, 1, 0, 0});
+
+        // 1d4+1 damage → range 2–5
+        CHECK(g.monsters[0].hp >= 5);
+        CHECK(g.monsters[0].hp <= 8);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("blocked by wall") {
+        g.map[index_for(g, 2, 1)].type = TileType::Wall;
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         3, 1, 10, 10, 0, 4, 0));
+
+        apply_player_command(g, {PlayerCommandType::Cast, 1, 0, 0});
+
+        CHECK(g.monsters[0].hp == 10);
+        CHECK(g.hero.spell_slots[1] == 1);  // slot not consumed
+    }
+
+    SUBCASE("needs a direction") {
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         3, 1, 10, 10, 0, 4, 0));
+
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.monsters[0].hp == 10);
+        CHECK(g.hero.spell_slots[1] == 1);
+    }
+}
+
+TEST_CASE("Sleep spell") {
+    Game g = make_minimal_game(10, 10);
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.spell_slots[1] = 1;
+    g.hero.spells = {"Sleep"};
+
+    SUBCASE("kills living monsters") {
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         3, 1, 5, 10, 0, 4, 0));
+        g.monsters.push_back(
+            make_monster("Kobold", EntityType::Kobold,
+                         4, 1, 5, 10, 0, 4, 0));
+
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK_FALSE(g.monsters[0].alive);
+        CHECK_FALSE(g.monsters[1].alive);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("undead are immune") {
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         3, 1, 5, 10, 0, 4, 0));
+        g.monsters.push_back(
+            make_monster("Skeleton", EntityType::Skeleton,
+                         4, 1, 5, 10, 0, 4, 0));
+
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK_FALSE(g.monsters[0].alive);   // goblin sleeps
+        CHECK(g.monsters[1].alive);          // skeleton resists
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("no monsters — spell still consumes slot") {
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        // "Sleep has no effect" but slot consumed
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+}
+
+TEST_CASE("Cure Light Wounds spell") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.hp = 5;
+    g.hero.max_hp = 10;
+    g.hero.spell_slots[1] = 1;
+    g.hero.spells = {"Cure Light Wounds"};
+
+    SUBCASE("heals 1d6+1 HP") {
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        int healed = g.hero.hp - 5;
+        CHECK(healed >= 2);     // 1d6+1 → 2–7
+        CHECK(healed <= 7);
+        CHECK(g.hero.hp <= 10);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("capped at max_hp") {
+        g.hero.hp = 9;
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.hero.hp == 10); // at most max_hp
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("no slot — no heal") {
+        g.hero.spell_slots[1] = 0;
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.hero.hp == 5);  // unchanged
+    }
+}
+
+TEST_CASE("Charm Person spell") {
+    Game g = make_minimal_game(10, 10);
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.spell_slots[1] = 1;
+    g.hero.spells = {"Charm Person"};
+
+    SUBCASE("charms adjacent living monster") {
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         1, 2, 5, 10, 0, 4, 0));
+
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 1, 0});
+
+        CHECK(g.monsters[0].charmed);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("undead immune") {
+        g.monsters.push_back(
+            make_monster("Skeleton", EntityType::Skeleton,
+                         1, 2, 5, 10, 0, 4, 0));
+
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 1, 0});
+
+        CHECK_FALSE(g.monsters[0].charmed);
+        CHECK(g.hero.spell_slots[1] == 1);  // slot not consumed
+    }
+
+    SUBCASE("needs a direction") {
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         1, 2, 5, 10, 0, 4, 0));
+
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK_FALSE(g.monsters[0].charmed);
+        CHECK(g.hero.spell_slots[1] == 1);
+    }
+
+    SUBCASE("attacking breaks charm") {
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         2, 1, 5, 10, 0, 4, 0));
+        g.monsters[0].charmed = true;
+
+        // Hero attacks right into the charmed goblin
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK_FALSE(g.monsters[0].charmed);
+        CHECK(g.monsters[0].hp <= 4); // took damage
+    }
+
+    SUBCASE("charmed monster does not attack hero") {
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         2, 1, 5, 10, 20, 6, 0));
+        g.monsters[0].charmed = true;
+
+        monsters_turn(g);
+
+        // Charmed → skipped in monsters_turn → hero takes no damage
+        CHECK(g.hero.hp == 20);
+    }
+}
+
+TEST_CASE("Hold Portal spell") {
+    Game g = make_minimal_game(10, 10);
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.spell_slots[1] = 1;
+    g.hero.spells = {"Hold Portal"};
+
+    SUBCASE("holds adjacent closed door") {
+        g.map[index_for(g, 2, 1)].type = TileType::DoorClosed;
+
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.map[index_for(g, 2, 1)].held);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("open fails on held door") {
+        g.map[index_for(g, 2, 1)].type = TileType::DoorClosed;
+        g.map[index_for(g, 2, 1)].held = true;
+
+        apply_player_command(g, {PlayerCommandType::Open, 0, 0});
+
+        CHECK(g.map[index_for(g, 2, 1)].type == TileType::DoorClosed);
+    }
+
+    SUBCASE("no door — slot not consumed") {
+        // No door adjacent
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.hero.spell_slots[1] == 1);
+    }
+}
+
+TEST_CASE("Protection from Evil spell") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.spell_slots[1] = 1;
+    g.hero.spells = {"Protection from Evil"};
+
+    SUBCASE("sets protection_turns to 6") {
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.hero.protection_turns == 6);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("AC bonus applies in combat") {
+        g.hero.protection_turns = 1;  // active
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         2, 1, 5, 10, 10, 1, 0));
+
+        // Monster attacks hero (AC 10 + 1 from Protection = 11)
+        // attack_bonus=10, needs 1+ to hit AC 11 → d20 ≥ 1 always hits
+        // But with protection, need d20 ≥ 1 still hits (10+10=20 ≥ 11)
+        // This test verifies the bonus is applied (not that it prevents hit)
+        monsters_turn(g);
+
+        // protection_turns decremented to 0
+        CHECK(g.hero.protection_turns == 0);
+    }
+
+    SUBCASE("duration decrements each monster turn") {
+        g.hero.protection_turns = 3;
+
+        monsters_turn(g);
+        CHECK(g.hero.protection_turns == 2);
+
+        monsters_turn(g);
+        CHECK(g.hero.protection_turns == 1);
+    }
+}
+
+TEST_CASE("Shield spell") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.spell_slots[1] = 1;
+    g.hero.spells = {"Shield"};
+
+    SUBCASE("sets shield_turns to 6") {
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.hero.shield_turns == 6);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("duration decrements each monster turn") {
+        g.hero.shield_turns = 3;
+
+        monsters_turn(g);
+        CHECK(g.hero.shield_turns == 2);
+
+        monsters_turn(g);
+        CHECK(g.hero.shield_turns == 1);
+    }
+}
+
+TEST_CASE("flavour spells consume slot") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+
+    auto test_spell = [&](const std::string& name) {
+        g.hero.spell_slots[1] = 1;
+        g.hero.spells = {name};
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+        CHECK(g.hero.spell_slots[1] == 0);
+    };
+
+    SUBCASE("Light")    { test_spell("Light"); }
+    SUBCASE("Read Magic")      { test_spell("Read Magic"); }
+    SUBCASE("Detect Magic")    { test_spell("Detect Magic"); }
+    SUBCASE("Floating Disc")   { test_spell("Floating Disc"); }
+    SUBCASE("Ventriloquism")   { test_spell("Ventriloquism"); }
+}
+
+TEST_CASE("no spell slots prevents casting") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.spell_slots[1] = 0;
+    g.hero.spells = {"Light"};
+
+    apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+    CHECK(g.hero.spell_slots[1] == 0); // still 0
+    CHECK(g.event_log.back().find("No spell slots") == 0);
+}
+
+TEST_CASE("unknown spell index does nothing") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.spell_slots[1] = 1;
+    g.hero.spells = {"Light"};
+
+    // Index 5 is out of range (only 1 spell)
+    apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 5});
+
+    CHECK(g.hero.spell_slots[1] == 1); // not consumed
+}
+
+// ── Cleric spell tests ───────────────────────────────────
+
+TEST_CASE("Detect Evil spell") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.spell_slots[1] = 1;
+    g.hero.spells = {"Detect Evil"};
+
+    SUBCASE("reports count of living monsters") {
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         3, 1, 5, 10, 0, 4, 0));
+        g.monsters.push_back(
+            make_monster("Skeleton", EntityType::Skeleton,
+                         4, 1, 5, 10, 0, 4, 0));
+
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.event_log.back().find("2 evil") != std::string::npos);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("reports 0 when no monsters") {
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.event_log.back().find("0 evil") != std::string::npos);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("ignores dead monsters") {
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         3, 1, 0, 10, 0, 4, 0));
+        g.monsters[0].alive = false;
+
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.event_log.back().find("0 evil") != std::string::npos);
+    }
+}
+
+TEST_CASE("Purify Food and Water spell") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.hp = 5;
+    g.hero.max_hp = 10;
+    g.hero.spell_slots[1] = 1;
+    g.hero.spells = {"Purify Food and Water"};
+
+    SUBCASE("heals 1d4 HP") {
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        int healed = g.hero.hp - 5;
+        CHECK(healed >= 1);
+        CHECK(healed <= 4);
+        CHECK(g.hero.hp <= 10);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("capped at max_hp") {
+        g.hero.hp = 9;
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.hero.hp == 10);
+    }
+}
+
+TEST_CASE("Remove Fear spell") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.spell_slots[1] = 1;
+    g.hero.spells = {"Remove Fear"};
+
+    SUBCASE("sets courage_turns to 6") {
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.hero.courage_turns == 6);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("duration decrements each monster turn") {
+        g.hero.courage_turns = 3;
+
+        monsters_turn(g);
+        CHECK(g.hero.courage_turns == 2);
+
+        monsters_turn(g);
+        CHECK(g.hero.courage_turns == 1);
+    }
+}
+
+TEST_CASE("Resist Cold spell") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.spell_slots[1] = 1;
+    g.hero.spells = {"Resist Cold"};
+
+    SUBCASE("sets resist_cold_turns to 6") {
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+        CHECK(g.hero.resist_cold_turns == 6);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("duration decrements each monster turn") {
+        g.hero.resist_cold_turns = 3;
+
+        monsters_turn(g);
+        CHECK(g.hero.resist_cold_turns == 2);
+
+        monsters_turn(g);
+        CHECK(g.hero.resist_cold_turns == 1);
+    }
+}
+

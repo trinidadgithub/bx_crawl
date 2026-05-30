@@ -46,10 +46,89 @@ static void print_abilities(const Abilities& a) {
     std::cout << "  CHA: " << a.cha << "\n\n";
 }
 
-Entity create_fighter_hero(Game& g) {
+
+// Prime-requisite XP bonus: 13-15 → +5%, 16-17 → +10%, 18 → +15%
+static int xp_bonus(int prime_score) {
+    if (prime_score >= 18) return 15;
+    if (prime_score >= 16) return 10;
+    if (prime_score >= 13) return 5;
+    return 0;
+}
+
+static int hit_die_sides(CharacterClass cc) {
+    switch (cc) {
+        case CharacterClass::Fighter:   return 8;
+        case CharacterClass::Cleric:    return 6;
+        case CharacterClass::Thief:     return 4;
+        case CharacterClass::MagicUser: return 4;
+        default:                        return 8;
+    }
+}
+
+static int damage_die(CharacterClass cc) {
+    switch (cc) {
+        case CharacterClass::Fighter:   return 8;
+        case CharacterClass::Cleric:    return 6;
+        case CharacterClass::Thief:     return 4;
+        case CharacterClass::MagicUser: return 4;
+        default:                        return 8;
+    }
+}
+
+static int base_ac(CharacterClass cc) {
+    switch (cc) {
+        case CharacterClass::Fighter:   return 14;
+        case CharacterClass::Cleric:    return 14;
+        case CharacterClass::Thief:     return 12;
+        case CharacterClass::MagicUser: return 10;
+        default:                        return 14;
+    }
+}
+
+static int attack_bonus_base(CharacterClass cc) {
+    switch (cc) {
+        case CharacterClass::Fighter:   return 1;
+        default:                        return 0;
+    }
+}
+
+static int prime_requisite_score(const Abilities& a, CharacterClass cc) {
+    switch (cc) {
+        case CharacterClass::Fighter:   return a.str;
+        case CharacterClass::MagicUser: return a.intelligence;
+        case CharacterClass::Thief:     return a.dex;
+        case CharacterClass::Cleric:    return a.wis;
+        default:                        return a.str;
+    }
+}
+
+static const char* prime_name(CharacterClass cc) {
+    switch (cc) {
+        case CharacterClass::Fighter:   return "STR";
+        case CharacterClass::MagicUser: return "INT";
+        case CharacterClass::Thief:     return "DEX";
+        case CharacterClass::Cleric:    return "WIS";
+        default:                        return "STR";
+    }
+}
+
+static void show_class_info(const Abilities& a, CharacterClass cc) {
+    int pr = prime_requisite_score(a, cc);
+    int bonus = xp_bonus(pr);
+    std::cout << "  " << class_name(cc)
+              << "  HD: 1d" << hit_die_sides(cc)
+              << "  DMG: 1d" << damage_die(cc)
+              << "  AC: " << base_ac(cc) << " + DEX\n";
+    std::cout << "       Prime: " << prime_name(cc)
+              << " (" << pr << ")"
+              << (bonus > 0 ? " +" : " ")
+              << bonus << "% XP\n\n";
+}
+
+// Build ability scores, reroll loop, then let player choose class.
+Entity create_hero(Game& g) {
     Entity hero;
     hero.type       = EntityType::Hero;
-    hero.char_class = CharacterClass::Fighter;
 
     std::cout << "=== Character Creation ===\n\n";
 
@@ -58,7 +137,7 @@ Entity create_fighter_hero(Game& g) {
     std::string name;
     std::getline(std::cin, name);
     if (name.empty()) {
-        name = "Unnamed Fighter";
+        name = "Unnamed Adventurer";
     }
     hero.name = name;
 
@@ -70,13 +149,10 @@ Entity create_fighter_hero(Game& g) {
     hero.abilities.wis          = roll_3d6(g);
     hero.abilities.cha          = roll_3d6(g);
 
-    // Reroll flags: each ability can be rerolled at most once
-    bool rerolled_str = false;
-    bool rerolled_dex = false;
-    bool rerolled_con = false;
-    bool rerolled_int = false;
-    bool rerolled_wis = false;
-    bool rerolled_cha = false;
+    // Reroll flags
+    bool rerolled_str = false, rerolled_dex = false;
+    bool rerolled_con = false, rerolled_int = false;
+    bool rerolled_wis = false, rerolled_cha = false;
 
     // Reroll loop
     while (true) {
@@ -155,28 +231,52 @@ Entity create_fighter_hero(Game& g) {
         *rerolled_flag = true;
     }
 
-    // Final ability mods
-    int str_mod = ability_modifier(hero.abilities.str);
-    int dex_mod = ability_modifier(hero.abilities.dex);
-    int con_mod = ability_modifier(hero.abilities.con);
+    // Class selection
+    std::cout << "\n=== Choose Your Class ===\n\n";
 
-    // Level 1 Fighter:
-    // HP: 1d8 + CON mod (min 1)
-    int hp_roll = roll_d(g, 8);
+    CharacterClass choices[] = {
+        CharacterClass::Fighter,
+        CharacterClass::MagicUser,
+        CharacterClass::Thief,
+        CharacterClass::Cleric
+    };
+
+    for (int i = 0; i < 4; ++i) {
+        std::cout << i + 1 << ". ";
+        show_class_info(hero.abilities, choices[i]);
+    }
+
+    CharacterClass chosen = CharacterClass::Fighter;
+    while (true) {
+        std::cout << "Enter choice (1-4): ";
+        std::string line;
+        std::getline(std::cin, line);
+        if (line.empty()) continue;
+        char c = line[0];
+        if (c == '1') { chosen = CharacterClass::Fighter; break; }
+        if (c == '2') { chosen = CharacterClass::MagicUser; break; }
+        if (c == '3') { chosen = CharacterClass::Thief; break; }
+        if (c == '4') { chosen = CharacterClass::Cleric; break; }
+    }
+
+    hero.char_class = chosen;
+
+    // Build hero stats based on class
+    int con_mod = ability_modifier(hero.abilities.con);
+    int dex_mod = ability_modifier(hero.abilities.dex);
+    int str_mod = ability_modifier(hero.abilities.str);
+
+    int hd = hit_die_sides(chosen);
+    int hp_roll = roll_d(g, hd);
     int hp_raw = hp_roll + con_mod;
     hero.max_hp = std::max(1, hp_raw);
     hero.hp     = hero.max_hp;
 
-    // Attack bonus: +1 base for Fighter + STR mod (rough B/X-ish)
-    hero.attack_bonus = 1 + str_mod;
+    hero.attack_bonus = attack_bonus_base(chosen) + str_mod;
+    hero.damage_die   = damage_die(chosen);
+    hero.ac           = base_ac(chosen) + dex_mod;
 
-    // Damage: 1d8 for Fighter
-    hero.damage_die = 8;
-
-    // AC: chain-ish 14 + DEX mod (ascending AC)
-    hero.ac = 14 + dex_mod;
-
-    hero.morale           = 0;    // PCs don't use morale
+    hero.morale           = 0;
     hero.fleeing          = false;
     hero.alive            = true;
     hero.attacks_per_turn = 1;
@@ -185,12 +285,35 @@ Entity create_fighter_hero(Game& g) {
     hero.knives = 3;
     hero.darts  = 3;
 
-    // Position is set by init_game (map logic).
+    // Starting spells for spellcasters
+    if (chosen == CharacterClass::MagicUser) {
+        hero.spell_slots[1] = 1; // one 1st-level slot
+        hero.spells.push_back("Read Magic");
+        // Random 1st-level spell
+        const char* l1_spells[] = {
+            "Charm Person", "Detect Magic", "Floating Disc",
+            "Hold Portal", "Light", "Magic Missile",
+            "Protection from Evil", "Shield", "Sleep", "Ventriloquism"
+        };
+        int n = sizeof(l1_spells) / sizeof(l1_spells[0]);
+        hero.spells.push_back(l1_spells[roll_d(g, n) - 1]);
+    }
+    if (chosen == CharacterClass::Cleric) {
+        hero.spell_slots[1] = 1; // one 1st-level slot
+        // Clerics know all 1st-level spells (B/X rules) — pick one to cast daily
+        const char* cleric_spells[] = {
+            "Cure Light Wounds", "Detect Evil", "Light",
+            "Protection from Evil", "Purify Food and Water",
+            "Remove Fear", "Resist Cold"
+        };
+        for (auto s : cleric_spells)
+            hero.spells.push_back(s);
+    }
 
-    // Show a mini character sheet
+    // Show character sheet
     std::cout << "\n=== Hero Created ===\n";
     std::cout << "Name: " << hero.name << "\n";
-    std::cout << "Class: Fighter (Level 1)\n\n";
+    std::cout << "Class: " << class_name(chosen) << " (Level 1)\n\n";
 
     std::cout << "STR: " << hero.abilities.str
               << " (mod " << str_mod << ")\n";
@@ -202,10 +325,24 @@ Entity create_fighter_hero(Game& g) {
     std::cout << "WIS: " << hero.abilities.wis << "\n";
     std::cout << "CHA: " << hero.abilities.cha << "\n\n";
 
+    int pr_score = prime_requisite_score(hero.abilities, chosen);
+    int xp_bonus_val = xp_bonus(pr_score);
     std::cout << "HP: " << hero.hp << "/" << hero.max_hp << "\n";
     std::cout << "Attack bonus: " << hero.attack_bonus << "\n";
     std::cout << "Damage: 1d" << hero.damage_die << "\n";
-    std::cout << "AC (ascending): " << hero.ac << "\n\n";
+    std::cout << "AC (ascending): " << hero.ac << "\n";
+    std::cout << "XP bonus: "
+              << (xp_bonus_val > 0 ? "+" : "")
+              << xp_bonus_val << "%\n\n";
+
+    if (!hero.spells.empty()) {
+        std::cout << "Spells known: ";
+        for (std::size_t i = 0; i < hero.spells.size(); ++i) {
+            if (i > 0) std::cout << ", ";
+            std::cout << hero.spells[i];
+        }
+        std::cout << "\n\n";
+    }
 
     std::cout << "Press Enter to enter the dungeon...";
     std::string dummy;
@@ -213,4 +350,3 @@ Entity create_fighter_hero(Game& g) {
 
     return hero;
 }
-

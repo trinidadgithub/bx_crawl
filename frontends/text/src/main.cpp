@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <cctype>
+#include <cstring>
 #include <unistd.h>
 #include <termios.h>
 #include <cstdlib>
@@ -27,8 +28,25 @@ static void set_raw_mode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
+// Helper: read a direction key (wqe/asd/zxc), store dx/dy, return true on match
+static bool read_direction(int& dx, int& dy) {
+    char dir;
+    if (read(STDIN_FILENO, &dir, 1) != 1) return false;
+    dir = std::tolower(dir);
+    if      (dir == 'w') {              dy = -1; }
+    else if (dir == 's') {              dy =  1; }
+    else if (dir == 'a') { dx = -1;            }
+    else if (dir == 'd') { dx =  1;            }
+    else if (dir == 'q') { dx = -1; dy = -1; }
+    else if (dir == 'e') { dx =  1;  dy = -1; }
+    else if (dir == 'z') { dx = -1; dy =  1; }
+    else if (dir == 'c') { dx =  1;  dy =  1; }
+    else return false;
+    return true;
+}
+
 // Single-key input – no Enter required. Unknown keys are silently ignored.
-static PlayerCommand read_player_command() {
+static PlayerCommand read_player_command(const Game& g) {
     for (;;) {
         char c;
         if (read(STDIN_FILENO, &c, 1) != 1) {
@@ -56,30 +74,77 @@ static PlayerCommand read_player_command() {
         if (c == 'r') {
             return PlayerCommand{PlayerCommandType::Rest, 0, 0};
         }
+        if (c == 'h') {
+            const char* help =
+                "\x1B[2J\x1B[H"
+                "=== Help ===\r\n"
+                "\r\n"
+                "Movement:  w e   (7 8 9)\r\n"
+                "           a d   (4 5 6)\r\n"
+                "           z c   (1 2 3)\r\n"
+                "\r\n"
+                "o  Open a door\r\n"
+                "p  Close a door\r\n"
+                "r  Rest (heal 1d3/level)\r\n"
+                "k  Throw knife (direction)\r\n"
+                "f  Throw dart  (direction)\r\n"
+                "m  Cast a spell\r\n"
+                "t  Turn undead (direction)\r\n"
+                "x  Quit\r\n"
+                "\r\n"
+                "Press any key to return...\r\n";
+            write(STDOUT_FILENO, help, strlen(help));
+            char _;
+            read(STDIN_FILENO, &_, 1);
+            continue;
+        }
+
+        // Magic: show known spells, pick one, then direction if needed
+        if (c == 'm') {
+            const auto& spells = g.hero.spells;
+            if (spells.empty()) {
+                std::cout << "You know no spells.\r\n" << std::flush;
+                continue;
+            }
+            std::cout << "Cast which spell?\r\n";
+            for (std::size_t i = 0; i < spells.size(); ++i) {
+                std::cout << "  " << (i + 1) << ". " << spells[i] << "\r\n";
+            }
+            std::cout << "> " << std::flush;
+            char num;
+            if (read(STDIN_FILENO, &num, 1) != 1)
+                return PlayerCommand{PlayerCommandType::Wait, 0, 0};
+            int idx = num - '1';
+            if (idx < 0 || idx >= (int)spells.size())
+                continue;
+            int dx = 0, dy = 0;
+            // Spells that need a target direction
+            const std::string& spell = spells[idx];
+            if (spell == "Magic Missile" || spell == "Charm Person") {
+                std::cout << "In which direction? " << std::flush;
+                if (!read_direction(dx, dy))
+                    continue;
+            }
+            return PlayerCommand{PlayerCommandType::Cast, dx, dy, idx};
+        }
+
+        // Turn undead (Cleric): read a direction
+        if (c == 't') {
+            int dx = 0, dy = 0;
+            if (!read_direction(dx, dy))
+                continue;
+            return PlayerCommand{PlayerCommandType::Turn, dx, dy, 0};
+        }
 
         // Throw weapon: read a second key for direction
         if (c == 'k' || c == 'f') {
-            char dir;
-            if (read(STDIN_FILENO, &dir, 1) != 1) {
-                return PlayerCommand{PlayerCommandType::Wait, 0, 0};
-            }
-            dir = std::tolower(dir);
             int dx = 0, dy = 0;
-            if      (dir == 'w') {              dy = -1; }
-            else if (dir == 's') {              dy =  1; }
-            else if (dir == 'a') { dx = -1;            }
-            else if (dir == 'd') { dx =  1;            }
-            else if (dir == 'q') { dx = -1; dy = -1; }
-            else if (dir == 'e') { dx =  1;  dy = -1; }
-            else if (dir == 'z') { dx = -1; dy =  1; }
-            else if (dir == 'c') { dx =  1;  dy =  1; }
-            else {
+            if (!read_direction(dx, dy))
                 return PlayerCommand{PlayerCommandType::Wait, 0, 0};
-            }
             auto cmd_type = (c == 'k')
                 ? PlayerCommandType::ThrowKnife
                 : PlayerCommandType::ThrowDart;
-            return PlayerCommand{cmd_type, dx, dy};
+            return PlayerCommand{cmd_type, dx, dy, 0};
         }
 
         // Space / Enter / Return → wait a turn
@@ -129,7 +194,7 @@ int main() {
             }
         }
 
-        PlayerCommand cmd = read_player_command();
+        PlayerCommand cmd = read_player_command(g);
         bool keep_playing = apply_player_command(g, cmd);
         if (!keep_playing) {
             render(g);
