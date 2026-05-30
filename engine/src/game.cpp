@@ -128,6 +128,65 @@ bool is_occupied(const Game& g, int x, int y, const Entity* ignore = nullptr) {
     return false;
 }
 
+// Returns true if a tile is carved (passable) — floor or door
+static bool is_carved(const Game& g, int x, int y) {
+    if (!in_bounds(g, x, y)) return false;
+    auto t = g.map[index_for(g, x, y)].type;
+    return t == TileType::Floor || t == TileType::DoorClosed || t == TileType::DoorOpen;
+}
+
+// A wall tile orthogonally adjacent to a carved tile
+static bool is_border_wall(const Game& g, int x, int y) {
+    if (!in_bounds(g, x, y)) return false;
+    if (g.map[index_for(g, x, y)].type != TileType::Wall) return false;
+    return is_carved(g, x, y - 1) || is_carved(g, x, y + 1)
+        || is_carved(g, x - 1, y) || is_carved(g, x + 1, y);
+}
+
+// A wall tile diagonally adjacent to a carved tile
+static bool has_diagonal_carved(const Game& g, int x, int y) {
+    if (!in_bounds(g, x, y)) return false;
+    if (g.map[index_for(g, x, y)].type != TileType::Wall) return false;
+    return is_carved(g, x - 1, y - 1) || is_carved(g, x + 1, y - 1)
+        || is_carved(g, x - 1, y + 1) || is_carved(g, x + 1, y + 1);
+}
+
+// Whether a wall tile should appear on screen:
+//   - border wall (orth carved neighbor), or
+//   - diagonal-only tile with at least one border-wall neighbor (corners)
+// This limits display to a single layer around carved areas.
+static bool is_visible_wall(const Game& g, int x, int y) {
+    if (!in_bounds(g, x, y)) return false;
+    if (g.map[index_for(g, x, y)].type != TileType::Wall) return false;
+    if (is_border_wall(g, x, y)) return true;
+    if (!has_diagonal_carved(g, x, y)) return false;
+    return is_border_wall(g, x - 1, y) || is_border_wall(g, x + 1, y)
+        || is_border_wall(g, x, y - 1) || is_border_wall(g, x, y + 1);
+}
+
+// Box-drawing glyph connecting adjacent visible-wall tiles
+static const char* wall_glyph(const Game& game, int x, int y) {
+    bool wr = is_visible_wall(game, x + 1, y);
+    bool wl = is_visible_wall(game, x - 1, y);
+    bool wu = is_visible_wall(game, x, y - 1);
+    bool wd = is_visible_wall(game, x, y + 1);
+
+    if (wr && wl && wu && wd) return "\xe2\x94\xbc"; // ┼
+    if (wr && wl && wd)       return "\xe2\x94\xac"; // ┬
+    if (wr && wl && wu)       return "\xe2\x94\xb4"; // ┴
+    if (wr && wu && wd)       return "\xe2\x94\x9c"; // ├
+    if (wl && wu && wd)       return "\xe2\x94\xa4"; // ┤
+    if (wr && wd)             return "\xe2\x94\x8c"; // ┌
+    if (wl && wd)             return "\xe2\x94\x90"; // ┐
+    if (wr && wu)             return "\xe2\x94\x94"; // └
+    if (wl && wu)             return "\xe2\x94\x98"; // ┘
+    if (wl && wr)             return "\xe2\x94\x80"; // ─
+    if (wu && wd)             return "\xe2\x94\x82"; // │
+    if (wl || wr)             return "\xe2\x94\x80"; // ─
+    if (wu || wd)             return "\xe2\x94\x82"; // │
+    return " ";
+}
+
 char glyph_for(const Entity& e) {
     switch (e.type) {
         case EntityType::Hero:       return '@';
@@ -514,23 +573,28 @@ void init_game(Game& g) {
 // ---------------------------
 // Rendering
 // ---------------------------
-void render(const Game& g) {
-    // Clear screen (ANSI escape)
-    std::cout << "\x1B[2J\x1B[H";
+static void put_line(const std::string& s) {
+    std::cout << s << "\r\n";
+}
 
+void render(const Game& g) {
+    // Clear entire screen so we always start at a known scroll position
+    std::cout << "\x1B[2J\x1B[H";
     for (int y = 0; y < g.height; ++y) {
         for (int x = 0; x < g.width; ++x) {
-            char ch = ' ';
             const Tile& t = g.map[index_for(g, x, y)];
+
             if (t.type == TileType::Wall) {
-                ch = '#';
-            } else if (t.type == TileType::DoorClosed) {
-                ch = '+';
-            } else if (t.type == TileType::DoorOpen) {
-                ch = '/';
-            } else {
-                ch = '.';
+                if (is_visible_wall(g, x, y))
+                    std::cout << wall_glyph(g, x, y);
+                else
+                    std::cout << ' ';
+                continue;
             }
+
+            char ch = '.';
+            if (t.type == TileType::DoorClosed) ch = '+';
+            else if (t.type == TileType::DoorOpen) ch = '/';
 
             if (g.hero.alive && g.hero.pos.x == x && g.hero.pos.y == y) {
                 ch = glyph_for(g.hero);
@@ -546,56 +610,37 @@ void render(const Game& g) {
 
             std::cout << ch;
         }
-        std::cout << "\n";
+        std::cout << "\r\n";
     }
 
-    std::cout << "\n";
-    std::cout << g.hero.name   << " HP: " << g.hero.hp   << "/" << g.hero.max_hp
-              << "  AC: " << g.hero.ac << "\n";
-
-    // Display hero abilities
-    int str_mod = ability_modifier_display(g.hero.abilities.str);
-    int dex_mod = ability_modifier_display(g.hero.abilities.dex);
-    int con_mod = ability_modifier_display(g.hero.abilities.con);
-
-    std::cout << "STR: " << g.hero.abilities.str
-              << " (" << (str_mod >= 0 ? "+" : "") << str_mod << ")  ";
-
-    std::cout << "DEX: " << g.hero.abilities.dex
-              << " (" << (dex_mod >= 0 ? "+" : "") << dex_mod << ")  ";
-
-    std::cout << "CON: " << g.hero.abilities.con
-              << " (" << (con_mod >= 0 ? "+" : "") << con_mod << ")\n";
-
+    // HUD zone — compact single-line status bar
+    int monster_count = 0;
+    for (const auto& m : g.monsters)
+        if (m.alive) ++monster_count;
     int next_level_xp = xp_for_level(g.hero_level + 1);
-    std::cout << "Lv." << g.hero_level
-              << "  Gold: " << g.total_gold
-              << "  XP: " << g.total_xp << "/" << next_level_xp << "\n";
-
-    std::cout << "Monsters:\n";
-    for (const auto& m : g.monsters) {
-        std::cout << " - " << m.name
-                  << " HP: " << m.hp << "/" << m.max_hp
-                  << (m.alive ? "" : " (gone)")
-                  << "  Morale: " << m.morale
-                  << (m.fleeing && m.alive ? " [fleeing]" : "")
-                  << "\n";
+    {
+        std::ostringstream oss;
+        oss << g.hero.name << " HP:" << g.hero.hp << "/" << g.hero.max_hp
+            << " AC:" << g.hero.ac
+            << " Lv." << g.hero_level
+            << " G:" << g.total_gold
+            << " XP:" << g.total_xp << "/" << next_level_xp
+            << " M:" << monster_count
+            << " K:" << g.hero.knives
+            << " D:" << g.hero.darts;
+        put_line(oss.str());
     }
 
-    std::cout << "\n";
+    // Command hint line
+    put_line("move:wqe/asd/zxc  o=open  p=close  r=rest  k=knife f=dart  x=quit");
 
-    // Location description:
-    if (!g.current_location_id.empty()) {
-        std::cout << g.descriptions.get(g.current_location_id) << "\n\n";
-    }
+    // Event log zone — last 2 events inline
+    int start = std::max(0, (int)g.event_log.size() - 2);
+    for (int i = start; i < (int)g.event_log.size(); ++i)
+        std::cout << "  " << g.event_log[i] << "\r\n";
 
-    std::cout << "Commands: move with q w e / a s d / z x c (x = quit).\n";
-    std::cout << "Bump into a monster to attack.  o = open, p = close.\n";
-
-    std::cout << "\nRecent events:\n";
-    for (const auto& msg : g.event_log) {
-    	std::cout << "  " << msg << "\n";
-    }
+    // Clear any stale lines then prompt
+    std::cout << "\x1B[J> " << std::flush;
 }
 
 // ---------------------------
@@ -639,6 +684,85 @@ void monsters_turn(Game& g) {
 }
 
 // ---------------------------
+// Ranged attack: trace direction, find target, resolve with range penalty.
+// Returns true if a monster was targeted (hit or miss).
+static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
+                          int damage_die, const std::string& weapon_name,
+                          int& ammo) {
+    if (ammo <= 0) {
+        log_event(g, "No " + weapon_name + "s left!");
+        return false;
+    }
+
+    int dist = 1;
+    int nx = attacker.pos.x + dx;
+    int ny = attacker.pos.y + dy;
+
+    // Trace until we hit a wall, exit range, or find a monster
+    while (in_bounds(g, nx, ny) && dist <= 4) {
+        if (is_blocked(g, nx, ny) && g.map[index_for(g, nx, ny)].type != TileType::DoorClosed) {
+            break; // wall blocks the throw
+        }
+
+        if (Entity* target = monster_at(g, nx, ny)) {
+            // Found a target — resolve the attack
+            --ammo;
+            int roll   = roll_d(g, 20);
+            int penalty = (dist >= 4) ? -2 : (dist >= 2) ? -1 : 0;
+            int total  = roll + attacker.attack_bonus + penalty;
+
+            {
+                std::ostringstream oss;
+                oss << attacker.name << " throws " << weapon_name
+                    << " at " << target->name
+                    << " (d20=" << roll
+                    << ", total " << total
+                    << " vs AC " << target->ac << ")";
+                log_event(g, oss.str());
+            }
+
+            if (total >= target->ac) {
+                int dmg = roll_d(g, damage_die);
+                target->hp -= dmg;
+
+                {
+                    std::ostringstream oss;
+                    oss << "Hit! " << target->name << " takes "
+                        << dmg << " damage.";
+                    log_event(g, oss.str());
+                }
+
+                if (target->hp <= 0) {
+                    target->hp    = 0;
+                    target->alive = false;
+                    {
+                        std::ostringstream oss;
+                        oss << target->name << " is slain!";
+                        log_event(g, oss.str());
+                    }
+                    award_treasure(g, *target);
+                    check_level_up(g);
+
+                    // Recover the thrown weapon
+                    ++ammo;
+                    log_event(g, weapon_name + " recovered from "
+                               + target->name + ".");
+                }
+            } else {
+                log_event(g, "Miss!");
+            }
+            return true;
+        }
+
+        nx += dx;
+        ny += dy;
+        ++dist;
+    }
+
+    log_event(g, weapon_name + " flies into the darkness.");
+    return false;
+}
+
 // Player command application
 // ---------------------------
 bool apply_player_command(Game& g, const PlayerCommand& cmd) {
@@ -707,6 +831,32 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             if (!closed) {
                 log_event(g, "Nothing to close.");
             }
+            return true;
+        }
+
+        case PlayerCommandType::Rest: {
+            int heal = roll_d(g, 3); // 1d3
+            if (g.hero_level > 1) {
+                for (int lvl = 2; lvl <= g.hero_level; ++lvl)
+                    heal += roll_d(g, 3);
+            }
+            int actual = std::min(heal, g.hero.max_hp - g.hero.hp);
+            g.hero.hp += actual;
+            {
+                std::ostringstream oss;
+                oss << "You rest. Heal " << actual << " HP (" << g.hero.hp
+                    << "/" << g.hero.max_hp << ").";
+                log_event(g, oss.str());
+            }
+            return true;
+        }
+
+        case PlayerCommandType::ThrowKnife: {
+            ranged_attack(g, g.hero, cmd.dx, cmd.dy, 4, "knife", g.hero.knives);
+            return true;
+        }
+        case PlayerCommandType::ThrowDart: {
+            ranged_attack(g, g.hero, cmd.dx, cmd.dy, 3, "dart", g.hero.darts);
             return true;
         }
 

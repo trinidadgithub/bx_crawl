@@ -53,5 +53,9 @@ struct Entity {
 
     // Treasure carried (monsters)
     int gold_pieces{};
+
+    // Ranged ammunition
+    int knives{};
+    int darts{};
 };
 

@@ -616,3 +616,125 @@ TEST_CASE("Combat: hit/miss/damage/death") {
     }
 }
 
+TEST_CASE("rest heals HP without exceeding max") {
+    Game g = make_minimal_game();
+    g.hero.hp = 1;
+    g.hero.max_hp = 10;
+
+    apply_player_command(g, {PlayerCommandType::Rest, 0, 0});
+
+    CHECK(g.hero.hp >= 2);   // 1 + at least 1 from 1d3
+    CHECK(g.hero.hp <= 10);  // capped at max_hp
+    CHECK(g.hero.hp <= g.hero.max_hp);
+}
+
+TEST_CASE("rest at max HP heals 0 and stays capped") {
+    Game g = make_minimal_game();
+    g.hero.hp = 10;
+    g.hero.max_hp = 10;
+
+    apply_player_command(g, {PlayerCommandType::Rest, 0, 0});
+
+    CHECK(g.hero.hp == 10);
+}
+
+TEST_CASE("level 2 rest heals more (2d3)") {
+    Game g = make_minimal_game();
+    g.hero.hp = 1;
+    g.hero.max_hp = 20;
+    g.hero_level = 2;
+
+    apply_player_command(g, {PlayerCommandType::Rest, 0, 0});
+
+    CHECK(g.hero.hp >= 3);   // 1 + at least 2 from 2d3
+    CHECK(g.hero.hp <= 20);
+}
+
+// ── Ranged attack tests ──────────────────────
+
+TEST_CASE("throw knife hits target in line and recovers on kill") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {1, 1};
+    g.hero.attack_bonus = 10; // always hits
+    g.hero.knives = 3;
+
+    g.monsters.push_back(
+        make_monster("Goblin", EntityType::Goblin,
+                     3, 1,  // 2 tiles right of hero
+                     4, 10, 0, 4, 0));
+
+    apply_player_command(g, {PlayerCommandType::ThrowKnife, 1, 0});
+
+    // Knife used and recovered on kill
+    CHECK(g.hero.knives == 3);
+    CHECK_FALSE(g.monsters[0].alive);
+}
+
+TEST_CASE("throw knife misses with low roll and ammo is lost") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {1, 1};
+    g.hero.attack_bonus = -20; // always misses
+    g.hero.knives = 3;
+
+    g.monsters.push_back(
+        make_monster("Goblin", EntityType::Goblin,
+                     3, 1,
+                     5, 10, 0, 4, 0));
+
+    apply_player_command(g, {PlayerCommandType::ThrowKnife, 1, 0});
+
+    // Knife used (not recovered on miss)
+    CHECK(g.hero.knives == 2);
+    CHECK(g.monsters[0].alive);
+}
+
+TEST_CASE("throw dart past range flies into darkness") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {1, 1};
+    g.hero.darts = 3;
+
+    g.monsters.push_back(
+        make_monster("Goblin", EntityType::Goblin,
+                     7, 1,  // 6 tiles away — beyond range 4
+                     5, 10, 0, 4, 0));
+
+    apply_player_command(g, {PlayerCommandType::ThrowDart, 1, 0});
+
+    // No ammo consumed since nothing was targeted
+    CHECK(g.hero.darts == 3);
+    CHECK(g.monsters[0].alive);
+}
+
+TEST_CASE("no ammo produces log message and does nothing") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {1, 1};
+    g.hero.knives = 0;
+
+    g.monsters.push_back(
+        make_monster("Goblin", EntityType::Goblin,
+                     3, 1,
+                     5, 10, 0, 4, 0));
+
+    apply_player_command(g, {PlayerCommandType::ThrowKnife, 1, 0});
+
+    CHECK(g.hero.knives == 0);
+    CHECK(g.monsters[0].alive);
+}
+
+TEST_CASE("range penalty applies at distance 2+") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {1, 1};
+    g.hero.attack_bonus = -10; // would miss at range 2+ with -1 penalty
+    g.hero.knives = 3;
+
+    g.monsters.push_back(
+        make_monster("Goblin", EntityType::Goblin,
+                     3, 1,  // 2 tiles away, -1 penalty
+                     5, 10, 0, 4, 0));
+
+    apply_player_command(g, {PlayerCommandType::ThrowKnife, 1, 0});
+
+    // Ammo used (actually thrown)
+    CHECK(g.hero.knives == 2);
+}
+

@@ -181,6 +181,10 @@ Entity create_fighter_hero(Game& g) {
     hero.alive            = true;
     hero.attacks_per_turn = 1;
 
+    // Ranged ammunition
+    hero.knives = 3;
+    hero.darts  = 3;
+
     // Position is set by init_game (map logic).
 
     // Show a mini character sheet
