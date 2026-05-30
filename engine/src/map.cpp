@@ -73,12 +73,14 @@ bool is_inside_any_room(int x, int y, const std::vector<Room>& rooms) {
     return false;
 }
 
-// If the tile is a floor corridor tile (not inside a room), make it a door
-void try_place_door(Game& g, int x, int y, const std::vector<Room>& rooms) {
-    if (!in_bounds(g, x, y)) return;
-    if (g.map[index_for(g, x, y)].type != TileType::Floor) return;
-    if (is_inside_any_room(x, y, rooms)) return;
+// If the tile is a floor corridor tile (not inside a room), make it a door.
+// Returns true if a door was placed.
+bool try_place_door(Game& g, int x, int y, const std::vector<Room>& rooms) {
+    if (!in_bounds(g, x, y)) return false;
+    if (g.map[index_for(g, x, y)].type != TileType::Floor) return false;
+    if (is_inside_any_room(x, y, rooms)) return false;
     g.map[index_for(g, x, y)].type = TileType::DoorClosed;
+    return true;
 }
 
 } // namespace
@@ -135,15 +137,41 @@ std::vector<Room> init_map(Game& g) {
         }
     }
 
-    // Place doors at room perimeters where corridors meet rooms
+    // Place at most ONE door per room. Scan each side from the center
+    // outward and stop after the first successfully placed door.
     for (const auto& r : rooms) {
-        for (int y = r.y; y < r.y + r.h; ++y) {
-            try_place_door(g, r.x - 1, y, rooms);
-            try_place_door(g, r.x + r.w, y, rooms);
+        bool placed = false;
+        // Top side
+        for (int dx = 0; !placed && dx * 2 <= r.w; ++dx) {
+            int x1 = r.x + r.w / 2 - dx;
+            int x2 = r.x + r.w / 2 + dx;
+            if (x1 >= r.x) placed = try_place_door(g, x1, r.y - 1, rooms);
+            if (!placed && x2 != x1 && x2 < r.x + r.w)
+                placed = try_place_door(g, x2, r.y - 1, rooms);
         }
-        for (int x = r.x; x < r.x + r.w; ++x) {
-            try_place_door(g, x, r.y - 1, rooms);
-            try_place_door(g, x, r.y + r.h, rooms);
+        // Bottom side
+        for (int dx = 0; !placed && dx * 2 <= r.w; ++dx) {
+            int x1 = r.x + r.w / 2 - dx;
+            int x2 = r.x + r.w / 2 + dx;
+            if (x1 >= r.x) placed = try_place_door(g, x1, r.y + r.h, rooms);
+            if (!placed && x2 != x1 && x2 < r.x + r.w)
+                placed = try_place_door(g, x2, r.y + r.h, rooms);
+        }
+        // Left side
+        for (int dy = 0; !placed && dy * 2 <= r.h; ++dy) {
+            int y1 = r.y + r.h / 2 - dy;
+            int y2 = r.y + r.h / 2 + dy;
+            if (y1 >= r.y) placed = try_place_door(g, r.x - 1, y1, rooms);
+            if (!placed && y2 != y1 && y2 < r.y + r.h)
+                placed = try_place_door(g, r.x - 1, y2, rooms);
+        }
+        // Right side
+        for (int dy = 0; !placed && dy * 2 <= r.h; ++dy) {
+            int y1 = r.y + r.h / 2 - dy;
+            int y2 = r.y + r.h / 2 + dy;
+            if (y1 >= r.y) placed = try_place_door(g, r.x + r.w, y1, rooms);
+            if (!placed && y2 != y1 && y2 < r.y + r.h)
+                placed = try_place_door(g, r.x + r.w, y2, rooms);
         }
     }
 

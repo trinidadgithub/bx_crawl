@@ -51,7 +51,10 @@ enum class PlayerCommandType {
     Wait,
     Quit,
     Open,
-    Close
+    Close,
+    Rest,
+    ThrowKnife,
+    ThrowDart
 };
 
 struct PlayerCommand {
