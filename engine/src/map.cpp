@@ -91,7 +91,14 @@ std::vector<Room> init_map(Game& g) {
 
     std::vector<Room> rooms;
 
-    int num_rooms = rand_range(g, 4, 8);
+    // Entrance room — always 5×5 at top-left, safe from monsters
+    {
+        Room entrance{1, 1, 5, 5};
+        carve_room(g, entrance);
+        rooms.push_back(entrance);
+    }
+
+    int num_rooms = 1 + rand_range(g, 4, 7); // 5..8 total with entrance
 
     for (int attempt = 0; attempt < 50 && static_cast<int>(rooms.size()) < num_rooms; ++attempt) {
         int rw = rand_range(g, 4, 10);

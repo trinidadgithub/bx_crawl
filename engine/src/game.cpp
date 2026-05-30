@@ -258,8 +258,17 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
     if (!attacker.alive || !defender.alive) return;
 
     int roll   = roll_d(g, 20);
-    int total  = roll + attacker.attack_bonus + bonus_to_hit;
+    int extra_atk = bonus_to_hit;
+    // Remove Fear: +1 attack for the hero
+    if (attacker.type == EntityType::Hero && attacker.courage_turns > 0)
+        extra_atk += 1;
+    int total  = roll + attacker.attack_bonus + extra_atk;
     int target = defender.ac; // ascending AC: higher = harder
+
+    // Defensive buffs on the defender
+    if (defender.shield_turns > 0)         target += 4;
+    if (defender.protection_turns > 0)     target += 1;
+    if (defender.resist_cold_turns > 0)    target += 1;
 
     {
         std::ostringstream oss;
@@ -438,6 +447,12 @@ void flee_ai(Game& g, Entity& m) {
 
 // File-local wrappers for attacks used by engine logic
 void attack(Game& g, Entity& attacker, Entity& defender) {
+    // If the hero attacks a charmed monster, break the charm
+    if (attacker.type == EntityType::Hero && defender.charmed) {
+        defender.charmed = false;
+        log_event(g, defender.name + " breaks free of the charm!");
+    }
+
     // Normal attack: morale + free-attacks logic enabled.
     attack_internal(g, attacker, defender,
                     /*bonus_to_hit=*/0,
@@ -445,6 +460,17 @@ void attack(Game& g, Entity& attacker, Entity& defender) {
 }
 
 } // end anonymous namespace
+
+// Class name helper
+const char* class_name(CharacterClass cc) {
+    switch (cc) {
+        case CharacterClass::Fighter:   return "Fighter";
+        case CharacterClass::MagicUser: return "Magic-User";
+        case CharacterClass::Thief:     return "Thief";
+        case CharacterClass::Cleric:    return "Cleric";
+        default:                        return "None";
+    }
+}
 
 // ---------------------------
 // Game initialization
@@ -468,8 +494,8 @@ void init_game(Game& g) {
 
     g.monsters.clear();
 
-    // Create hero via Fighter-only chargen
-    g.hero = create_fighter_hero(g);
+    // Create hero with class selection
+    g.hero = create_hero(g);
 
     // Place hero at centre of first room
     if (!rooms.empty()) {
@@ -620,7 +646,8 @@ void render(const Game& g) {
     int next_level_xp = xp_for_level(g.hero_level + 1);
     {
         std::ostringstream oss;
-        oss << g.hero.name << " HP:" << g.hero.hp << "/" << g.hero.max_hp
+        oss << g.hero.name << "(" << class_name(g.hero.char_class) << ")"
+            << " HP:" << g.hero.hp << "/" << g.hero.max_hp
             << " AC:" << g.hero.ac
             << " Lv." << g.hero_level
             << " G:" << g.total_gold
@@ -631,8 +658,7 @@ void render(const Game& g) {
         put_line(oss.str());
     }
 
-    // Command hint line
-    put_line("move:wqe/asd/zxc  o=open  p=close  r=rest  k=knife f=dart  x=quit");
+    // Command hint line — removed; press h for help
 
     // Event log zone — last 2 events inline
     int start = std::max(0, (int)g.event_log.size() - 2);
@@ -649,8 +675,17 @@ void render(const Game& g) {
 void monsters_turn(Game& g) {
     if (!g.hero.alive) return;
 
+    // Decrement hero buff durations
+    if (g.hero.shield_turns > 0)         --g.hero.shield_turns;
+    if (g.hero.protection_turns > 0)     --g.hero.protection_turns;
+    if (g.hero.courage_turns > 0)        --g.hero.courage_turns;
+    if (g.hero.resist_cold_turns > 0)    --g.hero.resist_cold_turns;
+
     for (auto& m : g.monsters) {
         if (!m.alive) continue;
+
+        // Charmed monsters don't attack the hero
+        if (m.charmed) continue;
 
         if (m.fleeing) {
             flee_ai(g, m);
@@ -763,6 +798,312 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
     return false;
 }
 
+// ---------------------------
+// Spellcasting helpers
+// ---------------------------
+
+// Returns true if the name is an undead type
+static bool is_undead(EntityType type) {
+    return type == EntityType::Skeleton || type == EntityType::Zombie;
+}
+
+// Resolve a cast of the spell at spell_index (0-based) toward (dx,dy).
+// Returns true if the spell slot was consumed.
+static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
+    Entity& hero = g.hero;
+    if (spell_index < 0 || spell_index >= (int)hero.spells.size()) {
+        log_event(g, "That spell is not known.");
+        return false;
+    }
+    const std::string& spell = hero.spells[spell_index];
+
+    // Check spell slot availability (level 1 slots for now)
+    if (hero.spell_slots[1] <= 0) {
+        log_event(g, "No spell slots remaining!");
+        return false;
+    }
+
+    // --- Magic Missile ---
+    if (spell == "Magic Missile") {
+        if (dx == 0 && dy == 0) {
+            log_event(g, "Magic Missile needs a direction!");
+            return false;
+        }
+        int dist = 1;
+        int nx = hero.pos.x + dx;
+        int ny = hero.pos.y + dy;
+        while (in_bounds(g, nx, ny) && dist <= 4) {
+            if (is_blocked(g, nx, ny) &&
+                g.map[index_for(g, nx, ny)].type != TileType::DoorClosed)
+                break;
+            if (Entity* target = monster_at(g, nx, ny)) {
+                --hero.spell_slots[1];
+                int dmg = roll_d(g, 4) + 1;
+                target->hp -= dmg;
+                {
+                    std::ostringstream oss;
+                    oss << "Magic Missile hits " << target->name
+                        << " for " << dmg << " damage!";
+                    log_event(g, oss.str());
+                }
+                if (target->hp <= 0) {
+                    target->hp    = 0;
+                    target->alive = false;
+                    log_event(g, target->name + " is slain!");
+                    award_treasure(g, *target);
+                    check_level_up(g);
+                }
+                return true;
+            }
+            nx += dx;
+            ny += dy;
+            ++dist;
+        }
+        log_event(g, "Magic Missile flies into the darkness.");
+        return false;
+    }
+
+    // --- Sleep ---
+    if (spell == "Sleep") {
+        --hero.spell_slots[1];
+        int hd_affected = roll_d(g, 4) + roll_d(g, 4); // 2d4
+        int affected = 0;
+        for (auto& m : g.monsters) {
+            if (!m.alive) continue;
+            if (is_undead(m.type)) continue; // undead immune
+            if (affected >= hd_affected * 2) break; // approx HD
+            m.hp    = 0;
+            m.alive = false;
+            ++affected;
+            log_event(g, m.name + " falls asleep!");
+        }
+        if (affected == 0) {
+            log_event(g, "Sleep has no effect.");
+        }
+        return true;
+    }
+
+    // --- Light ---
+    if (spell == "Light") {
+        --hero.spell_slots[1];
+        log_event(g, "A magical light illuminates the area.");
+        return true;
+    }
+
+    // --- Cure Light Wounds ---
+    if (spell == "Cure Light Wounds") {
+        --hero.spell_slots[1];
+        int heal = roll_d(g, 6) + 1;
+        int actual = std::min(heal, hero.max_hp - hero.hp);
+        hero.hp += actual;
+        {
+            std::ostringstream oss;
+            oss << "Cure Light Wounds heals " << actual
+                << " HP (" << hero.hp << "/" << hero.max_hp << ").";
+            log_event(g, oss.str());
+        }
+        return true;
+    }
+
+    // --- Read Magic ---
+    if (spell == "Read Magic") {
+        --hero.spell_slots[1];
+        log_event(g, "You study the arcane sigils — they become clear.");
+        return true;
+    }
+
+    // --- Charm Person ---
+    if (spell == "Charm Person") {
+        if (dx == 0 && dy == 0) {
+            log_event(g, "Charm Person needs a direction!");
+            return false;
+        }
+        int nx = hero.pos.x + dx;
+        int ny = hero.pos.y + dy;
+        Entity* target = monster_at(g, nx, ny);
+        if (!target) {
+            log_event(g, "No one there to charm.");
+            return false;
+        }
+        if (is_undead(target->type)) {
+            log_event(g, "Undead are immune to Charm Person.");
+            return false;
+        }
+        --hero.spell_slots[1];
+        target->charmed = true;
+        log_event(g, target->name + " is charmed!");
+        return true;
+    }
+
+    // --- Detect Magic ---
+    if (spell == "Detect Magic") {
+        --hero.spell_slots[1];
+        log_event(g, "You detect magical auras in the area.");
+        return true;
+    }
+
+    // --- Floating Disc ---
+    if (spell == "Floating Disc") {
+        --hero.spell_slots[1];
+        log_event(g, "A floating disc materialises and follows you.");
+        return true;
+    }
+
+    // --- Hold Portal ---
+    if (spell == "Hold Portal") {
+        static const int dirs[] = {-1, 0, 1, 0, 0, -1, 0, 1};
+        bool held = false;
+        for (int i = 0; i < 4; ++i) {
+            int nx = hero.pos.x + dirs[i * 2];
+            int ny = hero.pos.y + dirs[i * 2 + 1];
+            if (!in_bounds(g, nx, ny)) continue;
+            auto& tile = g.map[index_for(g, nx, ny)];
+            if (tile.type == TileType::DoorClosed) {
+                tile.held = true;
+                held = true;
+                log_event(g, "The door is magically held!");
+                break;
+            }
+        }
+        if (!held) {
+            log_event(g, "No adjacent door to hold.");
+            return false;
+        }
+        --hero.spell_slots[1];
+        return true;
+    }
+
+    // --- Protection from Evil ---
+    if (spell == "Protection from Evil") {
+        --hero.spell_slots[1];
+        hero.protection_turns = 6;
+        log_event(g, "A protective aura surrounds you.");
+        return true;
+    }
+
+    // --- Shield ---
+    if (spell == "Shield") {
+        --hero.spell_slots[1];
+        hero.shield_turns = 6;
+        log_event(g, "A shimmering shield appears before you.");
+        return true;
+    }
+
+    // --- Ventriloquism ---
+    if (spell == "Ventriloquism") {
+        --hero.spell_slots[1];
+        log_event(g, "You throw your voice to confuse the monsters.");
+        return true;
+    }
+
+    // --- Cleric spells ---
+
+    if (spell == "Detect Evil") {
+        --hero.spell_slots[1];
+        int count = 0;
+        for (auto& m : g.monsters)
+            if (m.alive) ++count;
+        {
+            std::ostringstream oss;
+            oss << "You detect " << count << " evil presence"
+                << (count == 1 ? "" : "s") << " nearby.";
+            log_event(g, oss.str());
+        }
+        return true;
+    }
+
+    if (spell == "Purify Food and Water") {
+        --hero.spell_slots[1];
+        int heal = roll_d(g, 4);
+        int actual = std::min(heal, hero.max_hp - hero.hp);
+        hero.hp += actual;
+        {
+            std::ostringstream oss;
+            oss << "Purify Food and Water restores " << actual
+                << " HP (" << hero.hp << "/" << hero.max_hp << ").";
+            log_event(g, oss.str());
+        }
+        return true;
+    }
+
+    if (spell == "Remove Fear") {
+        --hero.spell_slots[1];
+        hero.courage_turns = 6;
+        log_event(g, "Divine courage fills you — +1 to attack rolls.");
+        return true;
+    }
+
+    if (spell == "Resist Cold") {
+        --hero.spell_slots[1];
+        hero.resist_cold_turns = 6;
+        log_event(g, "A cold-resistant aura surrounds you.");
+        return true;
+    }
+
+    // Unrecognised spell
+    {
+        std::ostringstream oss;
+        oss << spell << " is not a known spell.";
+        log_event(g, oss.str());
+    }
+    return false;
+}
+
+// ---------------------------
+// Turn Undead helper
+// ---------------------------
+static bool turn_undead(Game& g, int dx, int dy) {
+    if (dx == 0 && dy == 0) {
+        log_event(g, "Turn undead needs a direction!");
+        return false;
+    }
+    if (g.hero.char_class != CharacterClass::Cleric) {
+        log_event(g, "Only clerics can turn undead.");
+        return false;
+    }
+    int nx = g.hero.pos.x + dx;
+    int ny = g.hero.pos.y + dy;
+    if (!in_bounds(g, nx, ny)) {
+        log_event(g, "Nothing to turn there.");
+        return false;
+    }
+    Entity* target = monster_at(g, nx, ny);
+    if (!target || !is_undead(target->type)) {
+        log_event(g, "No undead there.");
+        return false;
+    }
+    int roll = roll_2d6(g) + g.hero_level;
+    // Simple threshold: HD 1 → 8, HD 2 → 9, higher → harder
+    int hd = 1;
+    if (target->type == EntityType::Zombie) hd = 2;
+    int threshold = 7 + hd;
+    {
+        std::ostringstream oss;
+        oss << "Turn undead: 2d6+" << g.hero_level << " = " << roll
+            << " vs " << threshold;
+        log_event(g, oss.str());
+    }
+    if (roll >= threshold + 4) {
+        // Destroyed outright
+        target->hp    = 0;
+        target->alive = false;
+        {
+            std::ostringstream oss;
+            oss << target->name << " is destroyed by the holy power!";
+            log_event(g, oss.str());
+        }
+        award_treasure(g, *target);
+        check_level_up(g);
+    } else if (roll >= threshold) {
+        // Turned — flees
+        target->fleeing = true;
+        log_event(g, target->name + " flees in terror!");
+    } else {
+        log_event(g, "Turning fails.");
+    }
+    return true;
+}
+
 // Player command application
 // ---------------------------
 bool apply_player_command(Game& g, const PlayerCommand& cmd) {
@@ -800,6 +1141,11 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 int ny = g.hero.pos.y + dirs[i * 2 + 1];
                 if (!in_bounds(g, nx, ny)) continue;
                 auto& tile = g.map[index_for(g, nx, ny)];
+                if (tile.type == TileType::DoorClosed && tile.held) {
+                    log_event(g, "The door is magically held — it won't budge!");
+                    opened = true;
+                    break;
+                }
                 if (tile.type == TileType::DoorClosed) {
                     tile.type = TileType::DoorOpen;
                     opened = true;
@@ -859,6 +1205,18 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             ranged_attack(g, g.hero, cmd.dx, cmd.dy, 3, "dart", g.hero.darts);
             return true;
         }
+
+        case PlayerCommandType::Cast: {
+            cast_spell(g, cmd.spell_index, cmd.dx, cmd.dy);
+            return true;
+        }
+        case PlayerCommandType::Turn: {
+            turn_undead(g, cmd.dx, cmd.dy);
+            return true;
+        }
+
+        case PlayerCommandType::Help:
+            return true;
 
         case PlayerCommandType::None:
         default:

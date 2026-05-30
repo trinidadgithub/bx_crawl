@@ -14,6 +14,7 @@ enum class TileType {
 
 struct Tile {
     TileType type = TileType::Floor;
+    bool held{false};   // magically held (Hold Portal)
 };
 
 struct Room {

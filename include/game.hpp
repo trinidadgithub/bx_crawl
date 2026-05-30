@@ -54,16 +54,23 @@ enum class PlayerCommandType {
     Close,
     Rest,
     ThrowKnife,
-    ThrowDart
+    ThrowDart,
+    Cast,
+    Turn,
+    Help
 };
 
 struct PlayerCommand {
     PlayerCommandType type{PlayerCommandType::None};
     int dx{0};
     int dy{0};
+    int spell_index{};
 };
 
 // Apply a player command to the game state.
 // Returns false if the game loop should end (e.g. Quit), true otherwise.
 bool apply_player_command(Game& g, const PlayerCommand& cmd);
+
+// Class name helper
+const char* class_name(CharacterClass cc);
 
