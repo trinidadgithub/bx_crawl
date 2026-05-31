@@ -492,6 +492,7 @@ void init_game(Game& g) {
     g.rng.seed(seed);
 
     auto rooms = init_map(g);
+    g.rooms = rooms;
 
     // Load descriptions
     if (!g.descriptions.load_from_file("../data/descriptions.txt")) {
@@ -1232,6 +1233,74 @@ static bool turn_undead(Game& g, int dx, int dy) {
     return true;
 }
 
+// Spawn 1-3 wandering monsters in a random room (not entrance)
+// Returns the number of monsters spawned.
+static int spawn_wandering_monsters(Game& g) {
+    if (g.rooms.size() <= 1) return 0;
+
+    // Monster templates (duplicated from init_game — keep in sync)
+    struct WTemplate {
+        EntityType type;
+        std::string name;
+        int hp, atk, dmg, ac, mor, xp;
+    };
+    WTemplate templates[] = {
+        {EntityType::Goblin,     "Goblin",     5, 1, 6, 12, 8,  10},
+        {EntityType::Kobold,     "Kobold",     3, 0, 4, 11, 6,   5},
+        {EntityType::GiantRat,   "Giant Rat",  2, 0, 3, 12, 8,   5},
+        {EntityType::Skeleton,   "Skeleton",   4, 0, 6, 12, 12, 10},
+        {EntityType::Orc,        "Orc",        5, 1, 6, 13, 8,  10},
+        {EntityType::GiantSpider,"Giant Spider",4, 0, 6, 11, 8,  13},
+        {EntityType::Zombie,     "Zombie",     9, 1, 6, 11, 12,  20},
+    };
+    const int num_templates = 7;
+
+    // Pick a random room that is not the entrance
+    int room_idx = roll_d(g, static_cast<int>(g.rooms.size()) - 1); // 1 .. n-1
+    const Room& r = g.rooms[room_idx];
+
+    int count = roll_d(g, 3); // 1..3
+
+    for (int i = 0; i < count; ++i) {
+        const auto& t = templates[roll_d(g, num_templates) - 1];
+        Entity e;
+        e.name             = t.name;
+        e.type             = t.type;
+        e.max_hp           = t.hp;
+        e.hp               = t.hp;
+        e.attack_bonus     = t.atk;
+        e.damage_die       = t.dmg;
+        e.ac               = t.ac;
+        e.morale           = t.mor;
+        e.fleeing          = false;
+        e.alive            = true;
+        e.attacks_per_turn = 1;
+
+        // Place in the room
+        for (int attempt = 0; attempt < 20; ++attempt) {
+            int px = r.x + roll_d(g, r.w) - 1;
+            int py = r.y + roll_d(g, r.h) - 1;
+            if (!is_occupied(g, px, py)) {
+                e.pos = {px, py};
+                break;
+            }
+        }
+        if (e.pos.x == 0 && e.pos.y == 0)
+            e.pos = {r.x + r.w / 2, r.y + r.h / 2};
+
+        g.monsters.push_back(e);
+    }
+
+    {
+        std::ostringstream oss;
+        oss << "Wandering " << (count == 1 ? "monster" : "monsters")
+            << " appear in the distance!";
+        log_event(g, oss.str());
+    }
+
+    return count;
+}
+
 // Player command application
 // ---------------------------
 bool apply_player_command(Game& g, const PlayerCommand& cmd) {
@@ -1333,6 +1402,11 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                     oss << " Spell slots restored.";
                 log_event(g, oss.str());
             }
+
+            // B-X: 1-in-6 chance of wandering monsters interrupting rest
+            if (roll_d(g, 6) == 1)
+                spawn_wandering_monsters(g);
+
             return true;
         }
 
