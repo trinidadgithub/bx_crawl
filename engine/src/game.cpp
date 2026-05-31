@@ -74,7 +74,7 @@ void award_treasure(Game& g, Entity& monster) {
     }
 
     // Chance to drop a torch
-    if (in_bounds(g, monster.pos.x, monster.pos.y) && roll_d(g, 4) == 1) {
+    if (in_bounds(g, monster.pos.x, monster.pos.y) && roll_d(g, 2) == 1) {
         g.map[index_for(g, monster.pos.x, monster.pos.y)].items.push_back(ItemType::Torch);
         log_event(g, monster.name + " drops a torch.");
     }
@@ -753,12 +753,29 @@ void render(const Game& g) {
     for (const auto& m : g.monsters)
         if (m.alive) ++monster_count;
     int next_level_xp = xp_for_level(g.hero_level + 1);
+    // Compute effective AC from buffs
+    int effective_ac = g.hero.ac;
+    int buff_turns = 999;
+    if (g.hero.shield_turns > 0) {
+        effective_ac += 4;
+        buff_turns = std::min(buff_turns, g.hero.shield_turns);
+    }
+    if (g.hero.protection_turns > 0) {
+        effective_ac += 1;
+        buff_turns = std::min(buff_turns, g.hero.protection_turns);
+    }
+    if (g.hero.resist_cold_turns > 0) {
+        effective_ac += 1;
+        buff_turns = std::min(buff_turns, g.hero.resist_cold_turns);
+    }
     {
         std::ostringstream oss;
         oss << g.hero.name << "(" << class_name(g.hero.char_class) << ")"
             << " HP:" << g.hero.hp << "/" << g.hero.max_hp
-            << " AC:" << g.hero.ac
-            << " Lv." << g.hero_level
+            << " AC:" << g.hero.ac;
+        if (effective_ac != g.hero.ac)
+            oss << "(" << effective_ac << ":" << buff_turns << ")";
+        oss << " Lv." << g.hero_level
             << " G:" << g.total_gold
             << " XP:" << g.total_xp << "/" << next_level_xp
             << " M:" << monster_count

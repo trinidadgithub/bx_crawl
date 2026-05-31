@@ -285,29 +285,92 @@ Entity create_hero(Game& g) {
     hero.knives = 3;
     hero.darts  = 3;
 
+    // Helper: parse comma/space-separated numbers from a line
+    auto parse_numbers = [](const std::string& line) -> std::vector<int> {
+        std::vector<int> result;
+        std::string buf;
+        for (char c : line) {
+            if (c >= '0' && c <= '9') {
+                buf += c;
+            } else {
+                if (!buf.empty()) {
+                    result.push_back(std::stoi(buf));
+                    buf.clear();
+                }
+            }
+        }
+        if (!buf.empty())
+            result.push_back(std::stoi(buf));
+        return result;
+    };
+
     // Starting spells for spellcasters
     if (chosen == CharacterClass::MagicUser) {
         hero.spell_slots[1] = 1; // one 1st-level slot
         hero.spells.push_back("Read Magic");
-        // Random 1st-level spell
         const char* l1_spells[] = {
             "Charm Person", "Detect Magic", "Floating Disc",
             "Hold Portal", "Light", "Magic Missile",
             "Protection from Evil", "Shield", "Sleep", "Ventriloquism"
         };
         int n = sizeof(l1_spells) / sizeof(l1_spells[0]);
-        hero.spells.push_back(l1_spells[roll_d(g, n) - 1]);
+        std::cout << "\nChoose your 1st-level spells (comma/space-separated, e.g. 6,8):\n";
+        for (int i = 0; i < n; ++i)
+            std::cout << "  " << (i + 1) << ". " << l1_spells[i] << "\n";
+        while (true) {
+            std::cout << "Enter choice(s) (1-" << n << "): ";
+            std::string line;
+            std::getline(std::cin, line);
+            if (line.empty()) continue;
+            auto nums = parse_numbers(line);
+            if (nums.empty()) continue;
+            bool all_ok = true;
+            std::sort(nums.begin(), nums.end());
+            nums.erase(std::unique(nums.begin(), nums.end()), nums.end());
+            for (int v : nums) {
+                if (v < 1 || v > n) { all_ok = false; break; }
+            }
+            if (!all_ok) continue;
+            for (int v : nums)
+                hero.spells.push_back(l1_spells[v - 1]);
+            break;
+        }
     }
     if (chosen == CharacterClass::Cleric) {
         hero.spell_slots[1] = 1; // one 1st-level slot
-        // Clerics know all 1st-level spells (B/X rules) — pick one to cast daily
         const char* cleric_spells[] = {
             "Cure Light Wounds", "Detect Evil", "Light",
             "Protection from Evil", "Purify Food and Water",
             "Remove Fear", "Resist Cold"
         };
-        for (auto s : cleric_spells)
-            hero.spells.push_back(s);
+        int n = sizeof(cleric_spells) / sizeof(cleric_spells[0]);
+        std::cout << "\nChoose your prepared spells (comma/space-separated, e.g. 1,3):\n";
+        for (int i = 0; i < n; ++i)
+            std::cout << "  " << (i + 1) << ". " << cleric_spells[i] << "\n";
+        std::cout << "  Enter 'all' for all 7, or just 0 for none.\n";
+        while (true) {
+            std::cout << "Enter choice(s) (1-" << n << "): ";
+            std::string line;
+            std::getline(std::cin, line);
+            if (line.empty()) continue;
+            if (line == "all") {
+                for (int i = 0; i < n; ++i)
+                    hero.spells.push_back(cleric_spells[i]);
+                break;
+            }
+            auto nums = parse_numbers(line);
+            if (nums.empty()) continue;
+            bool all_ok = true;
+            std::sort(nums.begin(), nums.end());
+            nums.erase(std::unique(nums.begin(), nums.end()), nums.end());
+            for (int v : nums) {
+                if (v < 1 || v > n) { all_ok = false; break; }
+            }
+            if (!all_ok) continue;
+            for (int v : nums)
+                hero.spells.push_back(cleric_spells[v - 1]);
+            break;
+        }
     }
 
     // Show character sheet
