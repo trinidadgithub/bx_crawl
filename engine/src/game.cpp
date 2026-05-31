@@ -737,7 +737,14 @@ void render(const Game& g) {
 
                 // If no entity, show items on the ground (dim if explored only)
                 if (ch == '.' && !t.items.empty()) {
-                    ch = '!';
+                    bool is_scroll = false;
+                    for (auto it : t.items) {
+                        if (it == ItemType::ScrollArcane || it == ItemType::ScrollClerical) {
+                            is_scroll = true;
+                            break;
+                        }
+                    }
+                    ch = is_scroll ? '?' : '!';
                 }
 
                 std::cout << ch;
@@ -1447,6 +1454,59 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 log_event(g, oss.str());
             } else {
                 log_event(g, "Nothing to pick up here.");
+            }
+            return true;
+        }
+
+        case PlayerCommandType::Use: {
+            auto& tile = g.map[index_for(g, g.hero.pos.x, g.hero.pos.y)];
+            if (tile.items.empty()) {
+                log_event(g, "Nothing to use here.");
+                return true;
+            }
+            bool used = false;
+            for (std::size_t i = 0; i < tile.items.size(); ++i) {
+                if (tile.items[i] == ItemType::ScrollArcane) {
+                    if (g.hero.char_class != CharacterClass::MagicUser) {
+                        log_event(g, "Only Magic-Users can read arcane scrolls.");
+                        continue;
+                    }
+                    std::string spell = (i < tile.scroll_spells.size())
+                        ? tile.scroll_spells[i] : "unknown spell";
+                    {
+                        std::ostringstream oss;
+                        oss << "You read the scroll of " << spell
+                            << ". It crumbles to dust.";
+                        log_event(g, oss.str());
+                    }
+                    tile.items.erase(tile.items.begin() + static_cast<std::ptrdiff_t>(i));
+                    if (i < tile.scroll_spells.size())
+                        tile.scroll_spells.erase(tile.scroll_spells.begin() + static_cast<std::ptrdiff_t>(i));
+                    used = true;
+                    break;
+                }
+                if (tile.items[i] == ItemType::ScrollClerical) {
+                    if (g.hero.char_class != CharacterClass::Cleric) {
+                        log_event(g, "Only Clerics can read divine scrolls.");
+                        continue;
+                    }
+                    std::string spell = (i < tile.scroll_spells.size())
+                        ? tile.scroll_spells[i] : "unknown spell";
+                    {
+                        std::ostringstream oss;
+                        oss << "You read the scroll of " << spell
+                            << ". It crumbles to dust.";
+                        log_event(g, oss.str());
+                    }
+                    tile.items.erase(tile.items.begin() + static_cast<std::ptrdiff_t>(i));
+                    if (i < tile.scroll_spells.size())
+                        tile.scroll_spells.erase(tile.scroll_spells.begin() + static_cast<std::ptrdiff_t>(i));
+                    used = true;
+                    break;
+                }
+            }
+            if (!used) {
+                log_event(g, "Nothing usable here.");
             }
             return true;
         }

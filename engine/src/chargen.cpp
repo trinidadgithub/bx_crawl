@@ -162,7 +162,8 @@ Entity create_hero(Game& g) {
         std::getline(std::cin, line);
         if (line.empty()) break;
         char c = std::tolower(line[0]);
-        if (c != 'y') break;
+        if (c == 'n') break;
+        if (c != 'y') continue; // reprompt on anything else
 
         std::cout << "Which ability to reroll? "
                      "(str, dex, con, int, wis, cha, or 'done')\n> ";
