@@ -86,8 +86,8 @@ bool try_place_door(Game& g, int x, int y, const std::vector<Room>& rooms) {
 } // namespace
 
 std::vector<Room> init_map(Game& g) {
-    g.map.assign(static_cast<std::size_t>(g.width * g.height),
-                 Tile{TileType::Wall});
+    g.map.assign(static_cast<std::size_t>(g.width * g.height), Tile{});
+    for (auto& t : g.map) t.type = TileType::Wall;
 
     std::vector<Room> rooms;
 

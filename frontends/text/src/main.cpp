@@ -74,6 +74,10 @@ static PlayerCommand read_player_command(const Game& g) {
         if (c == 'r') {
             return PlayerCommand{PlayerCommandType::Rest, 0, 0};
         }
+        if (c == 'g') {
+            return PlayerCommand{PlayerCommandType::Get, 0, 0};
+        }
+
         if (c == 'h') {
             const char* help =
                 "\x1B[2J\x1B[H"
@@ -88,6 +92,7 @@ static PlayerCommand read_player_command(const Game& g) {
                 "r  Rest (heal 1d3/level)\r\n"
                 "k  Throw knife (direction)\r\n"
                 "f  Throw dart  (direction)\r\n"
+                "g  Get items from the ground\r\n"
                 "m  Cast a spell\r\n"
                 "t  Turn undead (direction)\r\n"
                 "x  Quit\r\n"
@@ -180,6 +185,7 @@ int main() {
     std::cout << "\x1B[2J\x1B[H" << std::flush;
 
     while (true) {
+        compute_visibility(g);
         render(g);
 
         bool monsters_first = roll_initiative(g);

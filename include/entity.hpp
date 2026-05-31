@@ -67,6 +67,10 @@ struct Entity {
     int courage_turns{0};      // Remove Fear — +1 atk
     int resist_cold_turns{0};  // Resist Cold — +1 AC
 
+    // Light / torch
+    int torch_turns{20};
+    int light_spell_turns{0};
+
     // Ranged ammunition
     int knives{};
     int darts{};

@@ -35,6 +35,9 @@ void init_game(Game& g);
 void render(const Game& g);
 void monsters_turn(Game& g);
 
+// Compute field-of-view / torch visibility
+void compute_visibility(Game& g);
+
 // Utility: are there any monsters still alive?
 bool any_monsters_alive(const Game& g);
 
@@ -57,7 +60,8 @@ enum class PlayerCommandType {
     ThrowDart,
     Cast,
     Turn,
-    Help
+    Help,
+    Get
 };
 
 struct PlayerCommand {
