@@ -25,6 +25,9 @@ struct Game {
     int total_gold{};
     int total_xp{};
     int hero_level{1};
+
+    // Dungeon rooms (used for wandering monster placement)
+    std::vector<Room> rooms;
 };
 
 // Random helper
