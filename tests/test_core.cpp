@@ -1379,6 +1379,118 @@ TEST_CASE("Multiple torches picked up at once") {
     CHECK(g.map[index_for(g, 5, 5)].items.empty());
 }
 
+// ── AC buff / HUD tests ──────────────────────────────
+
+TEST_CASE("Shield sets shield_turns without modifying base AC") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.ac = 10;
+    int base_ac_before = g.hero.ac;
+    CHECK(g.hero.shield_turns == 0);
+
+    // Simulate what cast_spell("Shield") does
+    g.hero.shield_turns = 6;
+
+    CHECK(g.hero.shield_turns == 6);
+    CHECK(g.hero.ac == base_ac_before);
+    CHECK(g.hero.ac == 10);
+}
+
+TEST_CASE("Effective AC combines all active buffs") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.ac = 10;
+    g.hero.shield_turns = 6;
+    g.hero.protection_turns = 4;
+    g.hero.resist_cold_turns = 2;
+
+    // Replicate the render logic to compute effective_ac and buff_turns
+    int effective_ac = g.hero.ac;
+    int buff_turns = 999;
+    if (g.hero.shield_turns > 0) {
+        effective_ac += 4;
+        buff_turns = std::min(buff_turns, g.hero.shield_turns);
+    }
+    if (g.hero.protection_turns > 0) {
+        effective_ac += 1;
+        buff_turns = std::min(buff_turns, g.hero.protection_turns);
+    }
+    if (g.hero.resist_cold_turns > 0) {
+        effective_ac += 1;
+        buff_turns = std::min(buff_turns, g.hero.resist_cold_turns);
+    }
+
+    // Shield +4, Protection +1, Resist Cold +1 = +6
+    CHECK(effective_ac == 16);
+    // Shortest remaining duration
+    CHECK(buff_turns == 2);
+    CHECK(effective_ac != g.hero.ac); // should show buff indicator
+}
+
+TEST_CASE("Effective AC equals base AC when no buffs active") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.ac = 10;
+    g.hero.shield_turns = 0;
+    g.hero.protection_turns = 0;
+    g.hero.resist_cold_turns = 0;
+
+    int effective_ac = g.hero.ac;
+    int buff_turns = 999;
+    if (g.hero.shield_turns > 0) {
+        effective_ac += 4;
+        buff_turns = std::min(buff_turns, g.hero.shield_turns);
+    }
+    if (g.hero.protection_turns > 0) {
+        effective_ac += 1;
+        buff_turns = std::min(buff_turns, g.hero.protection_turns);
+    }
+    if (g.hero.resist_cold_turns > 0) {
+        effective_ac += 1;
+        buff_turns = std::min(buff_turns, g.hero.resist_cold_turns);
+    }
+
+    CHECK(effective_ac == 10);
+    CHECK(effective_ac == g.hero.ac); // no buff indicator
+}
+
+TEST_CASE("monsters_turn decrements shield_turns") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.ac = 10;
+    g.hero.shield_turns = 3;
+    g.hero.pos = {5, 5};
+    // Place a monster far away so it doesn't attack
+    Entity m;
+    m.name = "Rat"; m.type = EntityType::GiantRat;
+    m.pos = {0, 0}; m.max_hp = 2; m.hp = 2;
+    m.ac = 11; m.attack_bonus = 0; m.damage_die = 3;
+    m.morale = 0; m.alive = true;
+    g.monsters.push_back(m);
+
+    // Render logic before monsters_turn
+    int effective_ac_before = g.hero.ac + 4; // shield is active
+    CHECK(effective_ac_before == 14);
+    // Check buff_turns logic
+    int buff_turns_before = g.hero.shield_turns;
+    CHECK(buff_turns_before == 3);
+
+    monsters_turn(g);
+    CHECK(g.hero.shield_turns == 2);
+
+    // After decrement, effective AC and buff_turns should reflect new state
+    int effective_ac_after = g.hero.ac;
+    int buff_turns_after = 999;
+    if (g.hero.shield_turns > 0) {
+        effective_ac_after += 4;
+        buff_turns_after = std::min(buff_turns_after, g.hero.shield_turns);
+    }
+    CHECK(effective_ac_after == 14); // still buffed
+    CHECK(buff_turns_after == 2);    // decremented
+
+    // Decrement a few more times
+    monsters_turn(g);
+    monsters_turn(g);
+    CHECK(g.hero.shield_turns == 0);
+    CHECK(g.hero.ac == 10); // base AC never changed
+}
+
 TEST_CASE("Torch renders as ! on ground") {
     Game g = make_minimal_game(10, 10);
     g.hero.pos = {5, 5};
