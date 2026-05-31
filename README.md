@@ -34,3 +34,5 @@ bx_crawl.exe        # Windows
 - w, a, s, d – move
 - Bump into the goblin to attack
 - q – quit
+
+See [Monsters.md](Monsters.md) for creature types and [Scrolls.md](Scrolls.md) for scroll spells.
