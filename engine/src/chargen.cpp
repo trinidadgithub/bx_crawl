@@ -307,6 +307,7 @@ Entity create_hero(Game& g) {
     // Starting spells for spellcasters
     if (chosen == CharacterClass::MagicUser) {
         hero.spell_slots[1] = 1; // one 1st-level slot
+        hero.max_spell_slots[1] = 1;
         hero.spells.push_back("Read Magic");
         const char* l1_spells[] = {
             "Charm Person", "Detect Magic", "Floating Disc",
@@ -338,6 +339,7 @@ Entity create_hero(Game& g) {
     }
     if (chosen == CharacterClass::Cleric) {
         hero.spell_slots[1] = 1; // one 1st-level slot
+        hero.max_spell_slots[1] = 1;
         const char* cleric_spells[] = {
             "Cure Light Wounds", "Detect Evil", "Light",
             "Protection from Evil", "Purify Food and Water",

@@ -1505,3 +1505,50 @@ TEST_CASE("Torch renders as ! on ground") {
     CHECK(g.map[index_for(g, 5, 6)].items[0] == ItemType::Torch);
 }
 
+// ── Spell slot recovery ──────────────────────────────
+
+TEST_CASE("Rest restores spell slots to max") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.spell_slots[1] = 1;
+    g.hero.max_spell_slots[1] = 1;
+
+    // Use the slot
+    g.hero.spell_slots[1] = 0;
+    CHECK(g.hero.spell_slots[1] == 0);
+
+    // Rest
+    PlayerCommand rest;
+    rest.type = PlayerCommandType::Rest;
+    apply_player_command(g, rest);
+
+    CHECK(g.hero.spell_slots[1] == 1);
+}
+
+TEST_CASE("Rest only restores up to max") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.spell_slots[1] = 1;
+    g.hero.max_spell_slots[1] = 1;
+    g.hero.max_hp = 100;
+    g.hero.hp = 80; // needs healing
+
+    // Slot is full (1 of 1)
+    // Rest should not overflow
+    PlayerCommand rest;
+    rest.type = PlayerCommandType::Rest;
+    apply_player_command(g, rest);
+
+    CHECK(g.hero.spell_slots[1] == 1); // still 1, not 2
+}
+
+TEST_CASE("Rest with no spellcaster does nothing for slots") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.spell_slots[1] = 0;
+    g.hero.max_spell_slots[1] = 0;
+
+    PlayerCommand rest;
+    rest.type = PlayerCommandType::Rest;
+    apply_player_command(g, rest);
+
+    CHECK(g.hero.spell_slots[1] == 0);
+}
+

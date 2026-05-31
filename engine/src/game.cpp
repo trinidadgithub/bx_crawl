@@ -1316,10 +1316,21 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             }
             int actual = std::min(heal, g.hero.max_hp - g.hero.hp);
             g.hero.hp += actual;
+
+            // Recover spell slots (B-X: full rest restores memorized spells)
+            int slots_recovered = 0;
+            for (int level = 1; level <= 9; ++level) {
+                int before = g.hero.spell_slots[level];
+                g.hero.spell_slots[level] = g.hero.max_spell_slots[level];
+                slots_recovered += g.hero.spell_slots[level] - before;
+            }
+
             {
                 std::ostringstream oss;
                 oss << "You rest. Heal " << actual << " HP (" << g.hero.hp
                     << "/" << g.hero.max_hp << ").";
+                if (slots_recovered > 0)
+                    oss << " Spell slots restored.";
                 log_event(g, oss.str());
             }
             return true;

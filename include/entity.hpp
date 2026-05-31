@@ -77,6 +77,7 @@ struct Entity {
 
     // Spell slots (per level, indexed 0..8)
     int spell_slots[9]{};
+    int max_spell_slots[9]{};
 
     // Known spell names (for Magic-Users / Clerics)
     std::vector<std::string> spells;
