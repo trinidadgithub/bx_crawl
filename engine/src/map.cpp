@@ -91,9 +91,9 @@ std::vector<Room> init_map(Game& g) {
 
     std::vector<Room> rooms;
 
-    // Entrance room — always 5×5 at top-left, safe from monsters
+    // Entrance room — always 5×5 near centre so corridors go in all directions
     {
-        Room entrance{1, 1, 5, 5};
+        Room entrance{g.width / 2 - 2, g.height / 2 - 2, 5, 5};
         carve_room(g, entrance);
         rooms.push_back(entrance);
     }
