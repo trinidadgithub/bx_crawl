@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <string>
 
 // Forward declaration; full definition is in game.hpp
 struct Game;
@@ -13,7 +14,9 @@ enum class TileType {
 };
 
 enum class ItemType {
-    Torch
+    Torch,
+    ScrollArcane,
+    ScrollClerical
 };
 
 struct Tile {
@@ -23,6 +26,8 @@ struct Tile {
     bool visible{false};
     // Items lying on this tile (only on visible/explored tiles)
     std::vector<ItemType> items;
+    // Spell name on any scroll item on this tile (index matches items[])
+    std::vector<std::string> scroll_spells;
 };
 
 struct Room {
