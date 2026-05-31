@@ -12,9 +12,17 @@ enum class TileType {
     DoorOpen
 };
 
+enum class ItemType {
+    Torch
+};
+
 struct Tile {
     TileType type = TileType::Floor;
     bool held{false};   // magically held (Hold Portal)
+    bool explored{false};
+    bool visible{false};
+    // Items lying on this tile (only on visible/explored tiles)
+    std::vector<ItemType> items;
 };
 
 struct Room {

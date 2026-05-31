@@ -73,6 +73,12 @@ void award_treasure(Game& g, Entity& monster) {
         }
     }
 
+    // Chance to drop a torch
+    if (in_bounds(g, monster.pos.x, monster.pos.y) && roll_d(g, 4) == 1) {
+        g.map[index_for(g, monster.pos.x, monster.pos.y)].items.push_back(ItemType::Torch);
+        log_event(g, monster.name + " drops a torch.");
+    }
+
     int xp_gain = monster_xp_value(monster) + gold;
     g.total_xp += xp_gain;
 
@@ -507,6 +513,14 @@ void init_game(Game& g) {
         g.hero.pos = {2, 2};
     }
 
+    // Mark the entire entrance room as explored
+    if (!rooms.empty()) {
+        const auto& r = rooms[0];
+        for (int y = r.y; y < r.y + r.h; ++y)
+            for (int x = r.x; x < r.x + r.w; ++x)
+                g.map[index_for(g, x, y)].explored = true;
+    }
+
     // Helper: pick a random floor tile inside a room
     auto random_room_pos = [&](const Room& r) -> Vec2 {
         int px = r.x + roll_d(g, r.w) - 1;
@@ -597,6 +611,82 @@ void init_game(Game& g) {
 }
 
 // ---------------------------
+// Visibility / Lighting
+// ---------------------------
+
+static bool is_opaque(const Tile& t) {
+    return t.type == TileType::Wall || t.type == TileType::DoorClosed;
+}
+
+static void cast_ray(Game& g, int x0, int y0, int x1, int y1) {
+    int adx = std::abs(x1 - x0);
+    int ady = std::abs(y1 - y0);
+    int sx = (x0 < x1) ? 1 : -1;
+    int sy = (y0 < y1) ? 1 : -1;
+    int err = adx - ady;
+
+    int x = x0, y = y0;
+    while (x != x1 || y != y1) {
+        int e2 = 2 * err;
+        if (e2 > -ady) { err -= ady; x += sx; }
+        if (e2 < adx)  { err += adx; y += sy; }
+
+        auto& tile = g.map[index_for(g, x, y)];
+        tile.explored = true;
+
+        if (is_opaque(tile) && (x != x1 || y != y1))
+            return; // blocked — target not visible
+    }
+    g.map[index_for(g, x1, y1)].visible = true;
+    g.map[index_for(g, x1, y1)].explored = true;
+}
+
+void compute_visibility(Game& g) {
+    Entity& hero = g.hero;
+
+    // Decrement light sources
+    if (hero.light_spell_turns > 0)
+        --hero.light_spell_turns;
+    else if (hero.torch_turns > 0)
+        --hero.torch_turns;
+
+    // Determine light radius
+    int radius = 6;
+    if (hero.light_spell_turns > 0)
+        radius = 10;
+    else if (hero.torch_turns <= 0)
+        radius = 0;
+
+    // Reset visible flags
+    for (auto& t : g.map)
+        t.visible = false;
+
+    int hx = hero.pos.x, hy = hero.pos.y;
+    if (!in_bounds(g, hx, hy)) return;
+
+    // Hero tile always explored and visible
+    g.map[index_for(g, hx, hy)].explored = true;
+    g.map[index_for(g, hx, hy)].visible = true;
+
+    if (radius <= 0) return;
+
+    // Cast rays to every tile within radius
+    for (int dy = -radius; dy <= radius; ++dy) {
+        for (int dx = -radius; dx <= radius; ++dx) {
+            if (dx == 0 && dy == 0) continue;
+            if (dx * dx + dy * dy > radius * radius) continue;
+
+            int tx = hx + dx;
+            int ty = hy + dy;
+            if (!in_bounds(g, tx, ty)) continue;
+            if (is_opaque(g.map[index_for(g, tx, ty)])) continue;
+
+            cast_ray(g, hx, hy, tx, ty);
+        }
+    }
+}
+
+// ---------------------------
 // Rendering
 // ---------------------------
 static void put_line(const std::string& s) {
@@ -610,31 +700,50 @@ void render(const Game& g) {
         for (int x = 0; x < g.width; ++x) {
             const Tile& t = g.map[index_for(g, x, y)];
 
+            if (!t.explored) {
+                std::cout << ' ';
+                continue;
+            }
+
+            // Dim foreground for explored-but-not-visible tiles
+            if (!t.visible)
+                std::cout << "\x1B[90m";
+
             if (t.type == TileType::Wall) {
                 if (is_visible_wall(g, x, y))
                     std::cout << wall_glyph(g, x, y);
                 else
                     std::cout << ' ';
-                continue;
-            }
+            } else {
+                char ch = '.';
+                if (t.type == TileType::DoorClosed) ch = '+';
+                else if (t.type == TileType::DoorOpen) ch = '/';
 
-            char ch = '.';
-            if (t.type == TileType::DoorClosed) ch = '+';
-            else if (t.type == TileType::DoorOpen) ch = '/';
-
-            if (g.hero.alive && g.hero.pos.x == x && g.hero.pos.y == y) {
-                ch = glyph_for(g.hero);
-            }
-
-            for (const auto& m : g.monsters) {
-                if (!m.alive) continue;
-                if (m.pos.x == x && m.pos.y == y) {
-                    ch = glyph_for(m);
-                    break;
+                // Entities only on visible tiles
+                if (t.visible) {
+                    if (g.hero.alive && g.hero.pos.x == x && g.hero.pos.y == y) {
+                        ch = glyph_for(g.hero);
+                    } else {
+                        for (const auto& m : g.monsters) {
+                            if (!m.alive) continue;
+                            if (m.pos.x == x && m.pos.y == y) {
+                                ch = glyph_for(m);
+                                break;
+                            }
+                        }
+                    }
                 }
+
+                // If no entity, show items on the ground (dim if explored only)
+                if (ch == '.' && !t.items.empty()) {
+                    ch = '!';
+                }
+
+                std::cout << ch;
             }
 
-            std::cout << ch;
+            if (!t.visible)
+                std::cout << "\x1B[39m";
         }
         std::cout << "\r\n";
     }
@@ -654,7 +763,8 @@ void render(const Game& g) {
             << " XP:" << g.total_xp << "/" << next_level_xp
             << " M:" << monster_count
             << " K:" << g.hero.knives
-            << " D:" << g.hero.darts;
+            << " D:" << g.hero.darts
+            << " T:" << g.hero.torch_turns;
         put_line(oss.str());
     }
 
@@ -886,6 +996,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
     // --- Light ---
     if (spell == "Light") {
         --hero.spell_slots[1];
+        hero.light_spell_turns = 20;
         log_event(g, "A magical light illuminates the area.");
         return true;
     }
@@ -1212,6 +1323,29 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
         }
         case PlayerCommandType::Turn: {
             turn_undead(g, cmd.dx, cmd.dy);
+            return true;
+        }
+
+        case PlayerCommandType::Get: {
+            auto& hero = g.hero;
+            auto& tile = g.map[index_for(g, hero.pos.x, hero.pos.y)];
+            int picked = 0;
+            for (auto it = tile.items.begin(); it != tile.items.end();) {
+                if (*it == ItemType::Torch) {
+                    hero.torch_turns += 20;
+                    it = tile.items.erase(it);
+                    ++picked;
+                } else {
+                    ++it;
+                }
+            }
+            if (picked > 0) {
+                std::ostringstream oss;
+                oss << "Picked up " << picked << " torch" << (picked == 1 ? "" : "es") << ".";
+                log_event(g, oss.str());
+            } else {
+                log_event(g, "Nothing to pick up here.");
+            }
             return true;
         }
 

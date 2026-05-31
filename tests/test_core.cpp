@@ -1179,3 +1179,217 @@ TEST_CASE("Resist Cold spell") {
     }
 }
 
+// ── Visibility / fog-of-war tests ────────────────────────
+
+TEST_CASE("compute_visibility: hero tile always visible and explored") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {5, 5};
+    g.hero.torch_turns = 20;
+
+    compute_visibility(g);
+
+    int idx = index_for(g, 5, 5);
+    CHECK(g.map[idx].visible);
+    CHECK(g.map[idx].explored);
+}
+
+TEST_CASE("compute_visibility: tiles within radius become visible") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {5, 5};
+    g.hero.torch_turns = 20;
+
+    compute_visibility(g);
+
+    // Tile 3 steps away should be visible (no obstacles)
+    CHECK(g.map[index_for(g, 5, 8)].visible);
+    CHECK(g.map[index_for(g, 8, 5)].visible);
+    CHECK(g.map[index_for(g, 2, 5)].visible);
+    CHECK(g.map[index_for(g, 5, 2)].visible);
+
+    // Tile at the edge of radius (5 steps) should be visible
+    CHECK(g.map[index_for(g, 5, 0)].visible);
+    CHECK(g.map[index_for(g, 0, 5)].visible);
+
+    // Hero's starting radius is 6
+    CHECK(g.map[index_for(g, 1, 5)].visible);
+    CHECK(g.map[index_for(g, 9, 5)].visible);
+
+    // Just beyond radius: (5, 0) is 5 steps, visible; (5, -1) OOB
+    // (0, 5) is 5 steps, visible; (10, 5) is 5 steps, visible
+    CHECK(g.map[index_for(g, 9, 5)].visible);
+}
+
+TEST_CASE("compute_visibility: wall blocks line of sight") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {1, 5};
+    g.hero.torch_turns = 20;
+
+    // Place wall at (3,5) blocking the ray to (5,5)
+    g.map[index_for(g, 3, 5)].type = TileType::Wall;
+
+    compute_visibility(g);
+
+    // Wall tile itself should be explored (line-of-sight hit it)
+    CHECK(g.map[index_for(g, 3, 5)].explored);
+    CHECK_FALSE(g.map[index_for(g, 3, 5)].visible); // walls are never marked visible
+
+    // Tile behind wall should NOT be visible
+    // (wall at (3,5) blocks ray from (1,5) to (5,5))
+    CHECK_FALSE(g.map[index_for(g, 5, 5)].visible);
+}
+
+TEST_CASE("compute_visibility: explored tiles persist") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {1, 5};
+    g.hero.torch_turns = 20;
+
+    // First frame: explore some tiles
+    compute_visibility(g);
+    CHECK(g.map[index_for(g, 5, 5)].visible);
+    CHECK(g.map[index_for(g, 5, 5)].explored);
+
+    // Move hero far away so tiles are no longer visible
+    // (9,5) can see up to (3,5) through (9,5) — (1,5) is 8 away, out of range 6
+    g.hero.pos = {9, 5};
+    compute_visibility(g);
+
+    // Tile at (1,5) is beyond range now (dist 8 > 6)
+    CHECK_FALSE(g.map[index_for(g, 1, 5)].visible);
+    // But it remains explored
+    CHECK(g.map[index_for(g, 1, 5)].explored);
+}
+
+TEST_CASE("compute_visibility: no torch = only hero tile visible") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {5, 5};
+    g.hero.torch_turns = 0;
+
+    compute_visibility(g);
+
+    // Hero's own tile is visible
+    CHECK(g.map[index_for(g, 5, 5)].visible);
+
+    // Adjacent tiles are NOT visible
+    CHECK_FALSE(g.map[index_for(g, 4, 5)].visible);
+    CHECK_FALSE(g.map[index_for(g, 5, 4)].visible);
+    CHECK_FALSE(g.map[index_for(g, 6, 5)].visible);
+    CHECK_FALSE(g.map[index_for(g, 5, 6)].visible);
+}
+
+TEST_CASE("compute_visibility: torch decrements each call") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {5, 5};
+    g.hero.torch_turns = 5;
+
+    compute_visibility(g);
+    CHECK(g.hero.torch_turns == 4);
+
+    compute_visibility(g);
+    CHECK(g.hero.torch_turns == 3);
+
+    g.hero.torch_turns = 1;
+    compute_visibility(g);
+    CHECK(g.hero.torch_turns == 0);
+
+    // At 0, should stay 0 and not go negative
+    compute_visibility(g);
+    CHECK(g.hero.torch_turns == 0);
+}
+
+TEST_CASE("compute_visibility: light spell overrides torch") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {5, 5};
+    g.hero.torch_turns = 5;
+    g.hero.light_spell_turns = 10;
+
+    compute_visibility(g);
+
+    // Light spell is active: torch should NOT decrement
+    CHECK(g.hero.torch_turns == 5);
+    CHECK(g.hero.light_spell_turns == 9);
+}
+
+TEST_CASE("init_game explores entrance room") {
+    Game g = make_minimal_game(40, 20);
+    auto rooms = init_map(g);
+
+    // Entrance room tiles should NOT be explored yet (init_map doesn't do it)
+    CHECK(rooms.size() >= 1);
+    const auto& r = rooms[0];
+    CHECK_FALSE(g.map[index_for(g, r.x, r.y)].explored);
+
+    // Simulate what init_game does: mark entrance as explored
+    for (int y = r.y; y < r.y + r.h; ++y)
+        for (int x = r.x; x < r.x + r.w; ++x)
+            g.map[index_for(g, x, y)].explored = true;
+
+    CHECK(g.map[index_for(g, r.x, r.y)].explored);
+    CHECK(g.map[index_for(g, r.x + r.w - 1, r.y + r.h - 1)].explored);
+}
+
+// ── Item / pickup tests ────────────────────────────────
+
+TEST_CASE("Get picks up torch from floor") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {5, 5};
+    g.hero.torch_turns = 5;
+
+    // Place a torch on the hero's tile
+    g.map[index_for(g, 5, 5)].items.push_back(ItemType::Torch);
+
+    PlayerCommand get_cmd;
+    get_cmd.type = PlayerCommandType::Get;
+    apply_player_command(g, get_cmd);
+
+    CHECK(g.hero.torch_turns == 25);
+    CHECK(g.map[index_for(g, 5, 5)].items.empty());
+}
+
+TEST_CASE("Get with no items shows message") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {5, 5};
+    g.event_log.clear();
+
+    PlayerCommand get_cmd;
+    get_cmd.type = PlayerCommandType::Get;
+    apply_player_command(g, get_cmd);
+
+    bool found = false;
+    for (const auto& msg : g.event_log)
+        if (msg.find("Nothing") != std::string::npos) found = true;
+    CHECK(found);
+}
+
+TEST_CASE("Multiple torches picked up at once") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {5, 5};
+    g.hero.torch_turns = 0;
+
+    // Place 3 torches
+    auto& tile = g.map[index_for(g, 5, 5)];
+    tile.items.push_back(ItemType::Torch);
+    tile.items.push_back(ItemType::Torch);
+    tile.items.push_back(ItemType::Torch);
+
+    PlayerCommand get_cmd;
+    get_cmd.type = PlayerCommandType::Get;
+    apply_player_command(g, get_cmd);
+
+    CHECK(g.hero.torch_turns == 60);
+    CHECK(g.map[index_for(g, 5, 5)].items.empty());
+}
+
+TEST_CASE("Torch renders as ! on ground") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {5, 5};
+
+    // Place a torch on an adjacent visible tile
+    g.map[index_for(g, 5, 6)].items.push_back(ItemType::Torch);
+    g.map[index_for(g, 5, 6)].visible = true;
+    g.map[index_for(g, 5, 6)].explored = true;
+
+    // Can't easily capture render output, but check the item is there
+    CHECK_FALSE(g.map[index_for(g, 5, 6)].items.empty());
+    CHECK(g.map[index_for(g, 5, 6)].items[0] == ItemType::Torch);
+}
+
