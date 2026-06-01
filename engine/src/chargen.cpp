@@ -286,6 +286,16 @@ Entity create_hero(Game& g) {
     hero.knives = 3;
     hero.darts  = 3;
 
+    // Thief skills (B/X level 1)
+    if (chosen == CharacterClass::Thief) {
+        hero.skill_hide        = 10;
+        hero.skill_pick_locks  = 15;
+        hero.skill_find_traps  = 10;
+        hero.skill_climb       = 85;
+        hero.skill_move_silent = 20;
+        hero.skill_hear_noise  = 33; // approx: 1-2 on 1d6
+    }
+
     // Helper: parse comma/space-separated numbers from a line
     auto parse_numbers = [](const std::string& line) -> std::vector<int> {
         std::vector<int> result;

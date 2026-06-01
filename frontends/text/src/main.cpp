@@ -78,6 +78,10 @@ static PlayerCommand read_player_command(const Game& g) {
             return PlayerCommand{PlayerCommandType::Get, 0, 0};
         }
 
+        if (c == 'i') {
+            return PlayerCommand{PlayerCommandType::Hide, 0, 0};
+        }
+
         if (c == 'u') {
             return PlayerCommand{PlayerCommandType::Use, 0, 0};
         }
@@ -97,6 +101,7 @@ static PlayerCommand read_player_command(const Game& g) {
                 "k  Throw knife (direction)\r\n"
                 "f  Throw dart  (direction)\r\n"
                 "g  Get items from the ground\r\n"
+                "i  Hide in shadows (Thief)\r\n"
                 "u  Use / read a scroll\r\n"
                 "m  Cast a spell\r\n"
                 "t  Turn undead (direction)\r\n"
