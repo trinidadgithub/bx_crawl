@@ -1552,3 +1552,154 @@ TEST_CASE("Rest with no spellcaster does nothing for slots") {
     CHECK(g.hero.spell_slots[1] == 0);
 }
 
+// ── Thief skill tests ────────────────────────────────
+
+TEST_CASE("Hide command only works for Thief class") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.char_class = CharacterClass::Fighter;
+
+    PlayerCommand hide_cmd;
+    hide_cmd.type = PlayerCommandType::Hide;
+    apply_player_command(g, hide_cmd);
+
+    CHECK_FALSE(g.hero.hidden);
+}
+
+TEST_CASE("Thief can hide on success") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.char_class = CharacterClass::Thief;
+    // Force success: set skill to 100%
+    g.hero.skill_hide = 100;
+
+    PlayerCommand hide_cmd;
+    hide_cmd.type = PlayerCommandType::Hide;
+    apply_player_command(g, hide_cmd);
+
+    CHECK(g.hero.hidden);
+}
+
+TEST_CASE("Thief can fail to hide") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.char_class = CharacterClass::Thief;
+    // Force failure: set skill to 0%
+    g.hero.skill_hide = 0;
+
+    PlayerCommand hide_cmd;
+    hide_cmd.type = PlayerCommandType::Hide;
+    apply_player_command(g, hide_cmd);
+
+    CHECK_FALSE(g.hero.hidden);
+}
+
+TEST_CASE("Movement breaks stealth") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.char_class = CharacterClass::Thief;
+    g.hero.skill_hide = 100;
+    g.hero.pos = {5, 5};
+    g.hero.hidden = true;
+
+    // Move
+    PlayerCommand move;
+    move.type = PlayerCommandType::Move;
+    move.dx = 1;
+    move.dy = 0;
+    apply_player_command(g, move);
+
+    CHECK_FALSE(g.hero.hidden);
+}
+
+TEST_CASE("Spellcasting breaks stealth") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.char_class = CharacterClass::Thief;
+    g.hero.hidden = true;
+
+    PlayerCommand cast;
+    cast.type = PlayerCommandType::Cast;
+    apply_player_command(g, cast);
+
+    CHECK_FALSE(g.hero.hidden);
+}
+
+TEST_CASE("Ranged attack breaks stealth") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.char_class = CharacterClass::Thief;
+    g.hero.hidden = true;
+
+    PlayerCommand throw_cmd;
+    throw_cmd.type = PlayerCommandType::ThrowKnife;
+    throw_cmd.dx = 1;
+    throw_cmd.dy = 0;
+    apply_player_command(g, throw_cmd);
+
+    CHECK_FALSE(g.hero.hidden);
+}
+
+TEST_CASE("Waiting does not break stealth") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.char_class = CharacterClass::Thief;
+    g.hero.hidden = true;
+
+    PlayerCommand wait;
+    wait.type = PlayerCommandType::Wait;
+    apply_player_command(g, wait);
+
+    CHECK(g.hero.hidden);
+}
+
+TEST_CASE("Rest does not break stealth") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.char_class = CharacterClass::Thief;
+    g.hero.hidden = true;
+
+    PlayerCommand rest;
+    rest.type = PlayerCommandType::Rest;
+    apply_player_command(g, rest);
+
+    CHECK(g.hero.hidden);
+}
+
+TEST_CASE("Monsters ignore hidden hero") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {5, 5};
+    g.hero.hidden = true;
+    g.hero.max_hp = 999;
+    g.hero.hp = 999;
+    g.hero.shield_turns = 0;
+    g.hero.protection_turns = 0;
+    g.hero.courage_turns = 0;
+    g.hero.resist_cold_turns = 0;
+
+    // Place a monster adjacent to hero
+    Entity m;
+    m.name = "Goblin"; m.type = EntityType::Goblin;
+    m.pos = {5, 6}; m.max_hp = 5; m.hp = 5;
+    m.ac = 12; m.attack_bonus = 1; m.damage_die = 6;
+    m.morale = 8; m.alive = true; m.fleeing = false;
+    g.monsters.push_back(m);
+
+    CHECK(g.hero.hidden);
+
+    // Monsters turn: should NOT attack because hero is hidden
+    monsters_turn(g);
+
+    CHECK(g.hero.hidden);
+    CHECK(g.hero.hp == 999); // no damage taken
+    CHECK(g.hero.alive);
+}
+
+TEST_CASE("Hide command shows log message") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.char_class = CharacterClass::Thief;
+    g.hero.skill_hide = 100;
+    g.event_log.clear();
+
+    PlayerCommand hide_cmd;
+    hide_cmd.type = PlayerCommandType::Hide;
+    apply_player_command(g, hide_cmd);
+
+    bool found = false;
+    for (const auto& msg : g.event_log)
+        if (msg.find("shadows") != std::string::npos) found = true;
+    CHECK(found);
+}
+

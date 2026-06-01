@@ -61,6 +61,17 @@ struct Entity {
     // Charmed (Charm Person)
     bool charmed{false};
 
+    // Stealth (Thief: Hide in Shadows)
+    bool hidden{false};
+
+    // Thief skill percentages (B/X level 1 base values)
+    int skill_hide{0};         // Hide in Shadows  10%
+    int skill_pick_locks{0};   // Open Locks       15%
+    int skill_find_traps{0};   // Remove Traps     10%
+    int skill_climb{0};        // Climb Walls      85%
+    int skill_move_silent{0};  // Move Silently    20%
+    int skill_hear_noise{0};   // Hear Noise      33% (1-2 on 1d6)
+
     // Duration counters for buff spells
     int shield_turns{0};
     int protection_turns{0};

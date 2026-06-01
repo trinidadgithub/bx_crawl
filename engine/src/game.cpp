@@ -822,6 +822,9 @@ void monsters_turn(Game& g) {
         // Charmed monsters don't attack the hero
         if (m.charmed) continue;
 
+        // Hero hidden — monsters don't notice the hero
+        if (g.hero.hidden) continue;
+
         if (m.fleeing) {
             flee_ai(g, m);
             continue;
@@ -1311,6 +1314,22 @@ static int spawn_wandering_monsters(Game& g) {
 // Player command application
 // ---------------------------
 bool apply_player_command(Game& g, const PlayerCommand& cmd) {
+    // Break stealth on most actions (not Wait, Hide, Help, or None)
+    if (g.hero.hidden) {
+        switch (cmd.type) {
+            case PlayerCommandType::Wait:
+            case PlayerCommandType::Rest:
+            case PlayerCommandType::Hide:
+            case PlayerCommandType::Help:
+            case PlayerCommandType::None:
+                break; // keep hidden
+            default:
+                g.hero.hidden = false;
+                log_event(g, "You emerge from the shadows.");
+                break;
+        }
+    }
+
     switch (cmd.type) {
         case PlayerCommandType::Quit:
             return false;
@@ -1507,6 +1526,21 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             }
             if (!used) {
                 log_event(g, "Nothing usable here.");
+            }
+            return true;
+        }
+
+        case PlayerCommandType::Hide: {
+            if (g.hero.char_class != CharacterClass::Thief) {
+                log_event(g, "Only Thieves can hide in shadows.");
+                return true;
+            }
+            int roll = roll_d(g, 100);
+            if (roll <= g.hero.skill_hide) {
+                g.hero.hidden = true;
+                log_event(g, "You melt into the shadows.");
+            } else {
+                log_event(g, "You fail to hide.");
             }
             return true;
         }

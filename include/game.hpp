@@ -65,7 +65,8 @@ enum class PlayerCommandType {
     Turn,
     Help,
     Get,
-    Use
+    Use,
+    Hide
 };
 
 struct PlayerCommand {
