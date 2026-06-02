@@ -1,8 +1,9 @@
 #pragma once
 
+#include <filesystem>
 #include <random>
-#include <vector>
 #include <string>
+#include <vector>
 #include "entity.hpp"
 #include "map.hpp"
 #include "description.hpp"
@@ -35,6 +36,9 @@ int roll_d(Game& g, int sides);
 
 // Game lifecycle / logic
 void init_game(Game& g);
+void init_game(Game& g, const std::filesystem::path& data_dir);
+void init_game(Game& g, Entity hero);
+void init_game(Game& g, Entity hero, const std::filesystem::path& data_dir);
 void render(const Game& g);
 void monsters_turn(Game& g);
 
@@ -82,4 +86,3 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd);
 
 // Class name helper
 const char* class_name(CharacterClass cc);
-

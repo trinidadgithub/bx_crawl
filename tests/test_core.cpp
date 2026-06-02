@@ -705,6 +705,25 @@ TEST_CASE("throw dart past range flies into darkness") {
     CHECK(g.monsters[0].alive);
 }
 
+TEST_CASE("thrown weapon is blocked by a closed door") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.pos = {1, 1};
+    g.hero.attack_bonus = 20;
+    g.hero.knives = 3;
+
+    g.map[index_for(g, 2, 1)].type = TileType::DoorClosed;
+    g.monsters.push_back(
+        make_monster("Goblin", EntityType::Goblin,
+                     3, 1,
+                     4, 10, 0, 4, 0));
+
+    apply_player_command(g, {PlayerCommandType::ThrowKnife, 1, 0});
+
+    CHECK(g.hero.knives == 3);
+    CHECK(g.monsters[0].alive);
+    CHECK(g.monsters[0].hp == 4);
+}
+
 TEST_CASE("no ammo produces log message and does nothing") {
     Game g = make_minimal_game(10, 10);
     g.hero.pos = {1, 1};
@@ -769,6 +788,18 @@ TEST_CASE("Magic Missile spell") {
 
         CHECK(g.monsters[0].hp == 10);
         CHECK(g.hero.spell_slots[1] == 1);  // slot not consumed
+    }
+
+    SUBCASE("blocked by closed door") {
+        g.map[index_for(g, 2, 1)].type = TileType::DoorClosed;
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         3, 1, 10, 10, 0, 4, 0));
+
+        apply_player_command(g, {PlayerCommandType::Cast, 1, 0, 0});
+
+        CHECK(g.monsters[0].hp == 10);
+        CHECK(g.hero.spell_slots[1] == 1);
     }
 
     SUBCASE("needs a direction") {
@@ -1524,6 +1555,18 @@ TEST_CASE("Rest restores spell slots to max") {
     CHECK(g.hero.spell_slots[1] == 1);
 }
 
+TEST_CASE("Rest restores level 9 spell slots without out-of-bounds access") {
+    Game g = make_minimal_game(10, 10);
+    g.hero.spell_slots[Entity::MaxSpellLevel] = 0;
+    g.hero.max_spell_slots[Entity::MaxSpellLevel] = 1;
+
+    PlayerCommand rest;
+    rest.type = PlayerCommandType::Rest;
+    apply_player_command(g, rest);
+
+    CHECK(g.hero.spell_slots[Entity::MaxSpellLevel] == 1);
+}
+
 TEST_CASE("Rest only restores up to max") {
     Game g = make_minimal_game(10, 10);
     g.hero.spell_slots[1] = 1;
@@ -1702,4 +1745,3 @@ TEST_CASE("Hide command shows log message") {
         if (msg.find("shadows") != std::string::npos) found = true;
     CHECK(found);
 }
-

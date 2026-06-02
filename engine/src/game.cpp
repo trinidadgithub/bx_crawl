@@ -5,8 +5,10 @@
 #include <iostream>
 #include <chrono>
 #include <cmath>
+#include <filesystem>
 #include <string>
 #include <sstream>
+#include <utility>
 
 // ---------------------------
 // Random helper
@@ -465,44 +467,33 @@ void attack(Game& g, Entity& attacker, Entity& defender) {
                     /*trigger_morale=*/true);
 }
 
-} // end anonymous namespace
-
-// Class name helper
-const char* class_name(CharacterClass cc) {
-    switch (cc) {
-        case CharacterClass::Fighter:   return "Fighter";
-        case CharacterClass::MagicUser: return "Magic-User";
-        case CharacterClass::Thief:     return "Thief";
-        case CharacterClass::Cleric:    return "Cleric";
-        default:                        return "None";
-    }
-}
-
-// ---------------------------
-// Game initialization
-// ---------------------------
-void init_game(Game& g) {
-    g.width  = 40;
-    g.height = 20;
-
-    // Seed RNG
+void seed_rng(Game& g) {
     auto seed = static_cast<unsigned long>(
         std::chrono::high_resolution_clock::now().time_since_epoch().count()
     );
     g.rng.seed(seed);
+}
+
+void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data_dir,
+                         bool should_seed_rng) {
+    g.width  = 40;
+    g.height = 20;
+
+    if (should_seed_rng) {
+        seed_rng(g);
+    }
 
     auto rooms = init_map(g);
     g.rooms = rooms;
 
-    // Load descriptions
-    if (!g.descriptions.load_from_file("../data/descriptions.txt")) {
+    const auto descriptions_path = data_dir / "descriptions.txt";
+    if (!g.descriptions.load_from_file(descriptions_path.string())) {
         std::cerr << "Warning: failed to load descriptions.txt\n";
     }
 
     g.monsters.clear();
 
-    // Create hero with class selection
-    g.hero = create_hero(g);
+    g.hero = std::move(hero);
 
     // Place hero at centre of first room
     if (!rooms.empty()) {
@@ -603,12 +594,45 @@ void init_game(Game& g) {
                 break;
         }
 
-        place_monster(e, rooms[random_monster_room()]);
+        place_monster(e, rooms[static_cast<std::size_t>(random_monster_room())]);
         g.monsters.push_back(e);
     }
 
     // Initial location description
     g.current_location_id = "start";
+}
+
+} // end anonymous namespace
+
+// Class name helper
+const char* class_name(CharacterClass cc) {
+    switch (cc) {
+        case CharacterClass::Fighter:   return "Fighter";
+        case CharacterClass::MagicUser: return "Magic-User";
+        case CharacterClass::Thief:     return "Thief";
+        case CharacterClass::Cleric:    return "Cleric";
+        default:                        return "None";
+    }
+}
+
+// ---------------------------
+// Game initialization
+// ---------------------------
+void init_game(Game& g) {
+    init_game(g, std::filesystem::path{"../data"});
+}
+
+void init_game(Game& g, const std::filesystem::path& data_dir) {
+    seed_rng(g);
+    init_game_with_hero(g, create_hero(g), data_dir, /*should_seed_rng=*/false);
+}
+
+void init_game(Game& g, Entity hero) {
+    init_game(g, std::move(hero), std::filesystem::path{"../data"});
+}
+
+void init_game(Game& g, Entity hero, const std::filesystem::path& data_dir) {
+    init_game_with_hero(g, std::move(hero), data_dir, /*should_seed_rng=*/true);
 }
 
 // ---------------------------
@@ -873,7 +897,7 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
 
     // Trace until we hit a wall, exit range, or find a monster
     while (in_bounds(g, nx, ny) && dist <= 4) {
-        if (is_blocked(g, nx, ny) && g.map[index_for(g, nx, ny)].type != TileType::DoorClosed) {
+        if (is_blocked(g, nx, ny)) {
             break; // wall blocks the throw
         }
 
@@ -971,8 +995,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
         int nx = hero.pos.x + dx;
         int ny = hero.pos.y + dy;
         while (in_bounds(g, nx, ny) && dist <= 4) {
-            if (is_blocked(g, nx, ny) &&
-                g.map[index_for(g, nx, ny)].type != TileType::DoorClosed)
+            if (is_blocked(g, nx, ny))
                 break;
             if (Entity* target = monster_at(g, nx, ny)) {
                 --hero.spell_slots[1];
@@ -1414,7 +1437,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
 
             // Recover spell slots (B-X: full rest restores memorized spells)
             int slots_recovered = 0;
-            for (int level = 1; level <= 9; ++level) {
+            for (int level = 1; level <= Entity::MaxSpellLevel; ++level) {
                 int before = g.hero.spell_slots[level];
                 g.hero.spell_slots[level] = g.hero.max_spell_slots[level];
                 slots_recovered += g.hero.spell_slots[level] - before;
@@ -1587,4 +1610,3 @@ bool any_monsters_alive(const Game& g) {
     }
     return false;
 }
-

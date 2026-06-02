@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -38,6 +39,8 @@ struct Abilities {
 };
 
 struct Entity {
+    static constexpr int MaxSpellLevel = 9;
+
     std::string name;
     EntityType type{};
     Vec2 pos{};
@@ -86,11 +89,10 @@ struct Entity {
     int knives{};
     int darts{};
 
-    // Spell slots (per level, indexed 0..8)
-    int spell_slots[9]{};
-    int max_spell_slots[9]{};
+    // Spell slots by spell level. Index 0 is unused; valid spell levels are 1..9.
+    std::array<int, MaxSpellLevel + 1> spell_slots{};
+    std::array<int, MaxSpellLevel + 1> max_spell_slots{};
 
     // Known spell names (for Magic-Users / Clerics)
     std::vector<std::string> spells;
 };
-

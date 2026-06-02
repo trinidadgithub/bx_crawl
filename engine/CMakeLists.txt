@@ -8,7 +8,16 @@ add_library(bx_engine STATIC
 )
 
 target_include_directories(bx_engine PUBLIC
-    ${CMAKE_SOURCE_DIR}/include
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(bx_engine PUBLIC
+    bx_project_options
+)
+
+set_target_properties(bx_engine PROPERTIES
+    CXX_EXTENSIONS OFF
 )
 
 if (MSVC)
@@ -16,4 +25,3 @@ if (MSVC)
 else()
     target_compile_options(bx_engine PRIVATE -Wall -Wextra -Wpedantic)
 endif()
-

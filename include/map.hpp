@@ -1,7 +1,8 @@
 #pragma once
 
-#include <vector>
+#include <cstddef>
 #include <string>
+#include <vector>
 
 // Forward declaration; full definition is in game.hpp
 struct Game;
@@ -35,7 +36,7 @@ struct Room {
 };
 
 // Map helpers that operate on Game (width/height/map)
-int  index_for(const Game& g, int x, int y);
+std::size_t index_for(const Game& g, int x, int y);
 bool in_bounds(const Game& g, int x, int y);
 bool is_blocked(const Game& g, int x, int y);
 
