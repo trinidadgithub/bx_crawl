@@ -16,19 +16,17 @@ Over time this will grow into a more complete B/X-style dungeon romp.
 
 Requires:
 
-- CMake 3.10+
-- A C++17-capable compiler (g++, clang++, MSVC)
+- CMake 3.20+
+- A C++20-capable compiler (g++, clang++, MSVC)
+- A POSIX-like environment for the text frontend
 
 ```bash
 git clone <your-repo-url> bx-crawl
 cd bx-crawl
-mkdir build
-cd build
-cmake ..
-cmake --build .
-./bx_crawl          # Linux/macOS
-# or
-bx_crawl.exe        # Windows
+cmake -S . -B build
+cmake --build build
+./build/frontends/text/bx_crawl_text
+```
 
 ## Controls
 - w, a, s, d – move

@@ -1,15 +1,18 @@
 #include "map.hpp"
 #include "game.hpp"
 
-#include <cstdlib>
 #include <algorithm>
-
-int index_for(const Game& g, int x, int y) {
-    return y * g.width + x;
-}
+#include <cassert>
+#include <cstdlib>
 
 bool in_bounds(const Game& g, int x, int y) {
     return x >= 0 && x < g.width && y >= 0 && y < g.height;
+}
+
+std::size_t index_for(const Game& g, int x, int y) {
+    assert(in_bounds(g, x, y));
+    return static_cast<std::size_t>(y) * static_cast<std::size_t>(g.width)
+         + static_cast<std::size_t>(x);
 }
 
 bool is_blocked(const Game& g, int x, int y) {

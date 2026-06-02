@@ -5,10 +5,13 @@ add_executable(bx_crawl_text
 )
 
 target_include_directories(bx_crawl_text PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/include
 )
 
 target_link_libraries(bx_crawl_text PRIVATE
     bx_engine
 )
 
+set_target_properties(bx_crawl_text PROPERTIES
+    CXX_EXTENSIONS OFF
+)
