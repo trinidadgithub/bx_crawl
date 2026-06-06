@@ -296,7 +296,8 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
     }
 
     if (total >= target) {
-        int dmg = roll_d(g, attacker.damage_die);
+        int dmg = roll_d(g, attacker.damage_die) + attacker.damage_bonus;
+        dmg = std::max(1, dmg);
         defender.hp -= dmg;
 
         {
@@ -906,7 +907,14 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
             --ammo;
             int roll   = roll_d(g, 20);
             int penalty = (dist >= 4) ? -2 : (dist >= 2) ? -1 : 0;
-            int total  = roll + attacker.attack_bonus + penalty;
+            // Ranged uses DEX mod instead of STR mod
+            int dex = attacker.abilities.dex;
+            int dex_mod = (dex <= 3) ? -3 : (dex <= 5) ? -2 : (dex <= 8) ? -1
+                        : (dex <= 12) ? 0 : (dex <= 15) ? 1 : (dex <= 17) ? 2 : 3;
+            int str = attacker.abilities.str;
+            int str_mod = (str <= 3) ? -3 : (str <= 5) ? -2 : (str <= 8) ? -1
+                        : (str <= 12) ? 0 : (str <= 15) ? 1 : (str <= 17) ? 2 : 3;
+            int total  = roll + (attacker.attack_bonus - str_mod + dex_mod) + penalty;
 
             {
                 std::ostringstream oss;

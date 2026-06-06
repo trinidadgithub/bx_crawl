@@ -275,6 +275,7 @@ Entity create_hero(Game& g) {
 
     hero.attack_bonus = attack_bonus_base(chosen) + str_mod;
     hero.damage_die   = damage_die(chosen);
+    hero.damage_bonus = str_mod;
     hero.ac           = base_ac(chosen) + dex_mod;
 
     hero.morale           = 0;
