@@ -46,8 +46,9 @@ struct Entity {
     Vec2 pos{};
     int max_hp{};
     int hp{};
-    int attack_bonus{};    // +to-hit
+    int attack_bonus{};    // +to-hit (melee: includes STR)
     int damage_die{};      // e.g. 6 for 1d6
+    int damage_bonus{};    // STR damage modifier (melee)
     int ac{};              // ascending AC (higher = harder to hit)
     int morale{};          // 2–12 for monsters; 0 = no morale checks
     bool fleeing{false};   // if true, tries to escape instead of fight
