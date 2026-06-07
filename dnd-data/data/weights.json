@@ -1,0 +1,106 @@
+[
+  {
+    "name": "Chain Mail Armor",
+    "weightCoins": 400
+  },
+  {
+    "name": "Leather Armor",
+    "weightCoins": 200
+  },
+  {
+    "name": "Plate Mail Armor",
+    "weightCoins": 500
+  },
+  {
+    "name": "Shield",
+    "weightCoins": 100
+  },
+  {
+    "name": "Battle Axe",
+    "weightCoins": 50
+  },
+  {
+    "name": "Hand Axe",
+    "weightCoins": 30
+  },
+  {
+    "name": "Bow + 20 arrows",
+    "weightCoins": 30
+  },
+  {
+    "name": "Crossbow + 30 quarrels",
+    "weightCoins": 50
+  },
+  {
+    "name": "Short Sword",
+    "weightCoins": 30
+  },
+  {
+    "name": "Normal Sword",
+    "weightCoins": 60
+  },
+  {
+    "name": "Two-handed Sword",
+    "weightCoins": 150
+  },
+  {
+    "name": "Club",
+    "weightCoins": 50
+  },
+  {
+    "name": "Dagger",
+    "weightCoins": 10
+  },
+  {
+    "name": "Mace",
+    "weightCoins": 30
+  },
+  {
+    "name": "Pole Arm",
+    "weightCoins": 150
+  },
+  {
+    "name": "Spear",
+    "weightCoins": 30
+  },
+  {
+    "name": "War Hammer",
+    "weightCoins": 30
+  },
+  {
+    "name": "Coin (any type)",
+    "weightCoins": 1
+  },
+  {
+    "name": "Gem",
+    "weightCoins": 1
+  },
+  {
+    "name": "Jewelry (1 piece)",
+    "weightCoins": 10
+  },
+  {
+    "name": "Potion",
+    "weightCoins": 10
+  },
+  {
+    "name": "Rod",
+    "weightCoins": 20
+  },
+  {
+    "name": "Scroll",
+    "weightCoins": 1
+  },
+  {
+    "name": "Staff",
+    "weightCoins": 40
+  },
+  {
+    "name": "Wand",
+    "weightCoins": 10
+  },
+  {
+    "name": "Misc. equipment and provisions (rope, spikes, sacks, wineskin, rations, etc.)",
+    "weightCoins": 80
+  }
+]

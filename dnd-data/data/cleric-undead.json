@@ -1,0 +1,26 @@
+[
+  {
+    "Cleric's Level": "1",
+    "Skeletons": "7",
+    "Zombies": "9",
+    "Ghouls": "11",
+    "Wights": "No effect",
+    "Wraiths": "No effect"
+  },
+  {
+    "Cleric's Level": "2",
+    "Skeletons": "T",
+    "Zombies": "7",
+    "Ghouls": "9",
+    "Wights": "11",
+    "Wraiths": "No effect"
+  },
+  {
+    "Cleric's Level": "3",
+    "Skeletons": "T",
+    "Zombies": "T",
+    "Ghouls": "7",
+    "Wights": "9",
+    "Wraiths": "11"
+  }
+]

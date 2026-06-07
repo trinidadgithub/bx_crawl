@@ -1,0 +1,73 @@
+{
+  "//": "Monster stat blocks from the BASIC rulebook",
+  "schema": "bx-monsters-v1",
+  "monsters": [
+    {
+      "id": "acolyte",
+      "name": "Acolyte",
+      "alignment": "Any",
+      "armorClass": 2,
+      "hitDice": "1",
+      "move": "60' (20')",
+      "attacks": [
+        { "id": "mace", "name": "Mace", "count": 1, "damage": "1-6", "damageDie": "1d6" }
+      ],
+      "noAppearing": { "dungeon": "1-8", "wilderness": "1-20" },
+      "savesAs": "cleric:1",
+      "morale": 7,
+      "treasureType": "U",
+      "xp": 10,
+      "notes": "1st level NPC clerics on pilgrimage. No spells. Groups of 4+ may have a leader (2nd-5th level)."
+    },
+    {
+      "id": "ape-white",
+      "name": "Ape, White",
+      "alignment": "Neutral",
+      "armorClass": 6,
+      "hitDice": "4",
+      "move": "120' (40')",
+      "attacks": [
+        { "id": "claw", "name": "Claw", "count": 2, "damage": "1-4", "damageDie": "1d4" }
+      ],
+      "noAppearing": { "dungeon": "1-6", "wilderness": "2-8" },
+      "savesAs": "fighter:2",
+      "morale": 7,
+      "treasureType": "",
+      "xp": 125,
+      "notes": "Nocturnal; lost color from cave life. May throw stones 1d6."
+    },
+    {
+      "id": "bandit",
+      "name": "Bandit",
+      "alignment": "Chaotic or Neutral",
+      "armorClass": 6,
+      "hitDice": "1",
+      "move": "120' (40')",
+      "attacks": [
+        { "id": "weapon", "name": "Weapon", "count": 1, "damage": "1-6 or weapon", "damageDie": "1d6" }
+      ],
+      "noAppearing": { "dungeon": "1-8", "wilderness": "3-30" },
+      "savesAs": "thief:1",
+      "morale": 8,
+      "treasureType": "U (A lair)",
+      "xp": 10,
+      "notes": "NPC thieves who rob others. Act as normal humans to surprise. Wild. treasure type A only in lair."
+    },
+    {
+      "id": "bat-normal",
+      "name": "Bat, Normal",
+      "alignment": "Neutral",
+      "armorClass": 6,
+      "hitDice": "1/4 (1 hp)",
+      "move": "9' (3')",
+      "attacks": [],
+      "noAppearing": { "dungeon": "1-8", "wilderness": "1-6" },
+      "savesAs": "normal man",
+      "morale": 6,
+      "treasureType": "",
+      "xp": 5,
+      "notes": "No attack. Will fly around, confusing characters."
+    }
+  ],
+  "//note": "Full file will contain all ~70 monsters: Acolyte through Zombie"
+}

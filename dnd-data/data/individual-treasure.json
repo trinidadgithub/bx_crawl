@@ -1,0 +1,72 @@
+[
+  {
+    "type": "P",
+    "copper": "3-24 per individual",
+    "silver": null,
+    "electrum": null,
+    "gold": null,
+    "platinum": null,
+    "gemsJewelry": "Nil",
+    "magicItems": "Nil"
+  },
+  {
+    "type": "Q",
+    "copper": null,
+    "silver": "3-18 per individual",
+    "electrum": null,
+    "gold": null,
+    "platinum": null,
+    "gemsJewelry": "Nil",
+    "magicItems": "Nil"
+  },
+  {
+    "type": "R",
+    "copper": null,
+    "silver": null,
+    "electrum": "2-12 per individual",
+    "gold": null,
+    "platinum": null,
+    "gemsJewelry": "Nil",
+    "magicItems": "Nil"
+  },
+  {
+    "type": "S",
+    "copper": null,
+    "silver": null,
+    "electrum": null,
+    "gold": "2-8 per individual",
+    "platinum": null,
+    "gemsJewelry": "Nil",
+    "magicItems": "Nil"
+  },
+  {
+    "type": "T",
+    "copper": null,
+    "silver": null,
+    "electrum": null,
+    "gold": null,
+    "platinum": "1-6 per individual",
+    "gemsJewelry": "Nil",
+    "magicItems": "Nil"
+  },
+  {
+    "type": "U",
+    "copper": "10% 1-100",
+    "silver": "10% 1-100",
+    "electrum": null,
+    "gold": "5% 1-100",
+    "platinum": null,
+    "gemsJewelry": "5% 1-4",
+    "magicItems": "2% Any 1"
+  },
+  {
+    "type": "V",
+    "copper": null,
+    "silver": "10% 1-100",
+    "electrum": "5% 1-100",
+    "gold": "10% 1-100",
+    "platinum": "5% 1-100",
+    "gemsJewelry": "10% 1-4",
+    "magicItems": "5% Any 1"
+  }
+]

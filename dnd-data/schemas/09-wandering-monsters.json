@@ -1,0 +1,40 @@
+{
+  "//": "Wandering monster encounter tables by dungeon level",
+  "schema": "bx-wandering-monsters-v1",
+  "wanderingMonsters": [
+    {
+      "level": 1,
+      "entries": [
+        { "die": 1,  "monsterId": "acolyte",         "alignment": "A",    "noAppearing": "1-8",  "ac": 2,  "hd": "1",         "damage": "1-6",   "move": "60' (20')",  "save": "C:1",  "morale": 7 },
+        { "die": 2,  "monsterId": "bandit",          "alignment": "N-C",  "noAppearing": "1-8",  "ac": 7,  "hd": "1",         "damage": "1-6",   "move": "120' (40')", "save": "T:1",  "morale": 8 },
+        { "die": 3,  "monsterId": "beetle-fire",     "alignment": "N",    "noAppearing": "1-8",  "ac": 4,  "hd": "1+2",       "damage": "2-8",   "move": "120' (40')", "save": "F:1",  "morale": 7 },
+        { "die": 4,  "monsterId": "dwarf",           "alignment": "L",    "noAppearing": "1-6",  "ac": 4,  "hd": "1",         "damage": "weapon","move": "60' (20')",   "save": "D:1",  "morale": 8 },
+        { "die": 5,  "monsterId": "gnome",           "alignment": "L",    "noAppearing": "1-6",  "ac": 5,  "hd": "1",         "damage": "weapon","move": "60' (20')",   "save": "D:1",  "morale": 8 },
+        { "die": 6,  "monsterId": "goblin",          "alignment": "C",    "noAppearing": "2-8",  "ac": 6,  "hd": "1-1",       "damage": "weapon","move": "60' (20')",   "save": "F:1",  "morale": 7 },
+        { "die": 7,  "monsterId": "green-slime",     "alignment": "N",    "noAppearing": "1-4",  "ac": null,"hd": "2*",       "damage": "special","move": "3' (1')",   "save": "F:1",  "morale": 12},
+        { "die": 8,  "monsterId": "halfling",        "alignment": "L",    "noAppearing": "3-18", "ac": 7,  "hd": "1-1",       "damage": "weapon","move": "90' (30')",  "save": "H:1",  "morale": 7 },
+        { "die": 9,  "monsterId": "killer-bee",      "alignment": "N",    "noAppearing": "1-10", "ac": 7,  "hd": "1/2*",      "damage": "1-3T",  "move": "120' (40')", "save": "F:1",  "morale": 9 },
+        { "die": 10, "monsterId": "kobold",          "alignment": "C",    "noAppearing": "4-16", "ac": 7,  "hd": "1/2",       "damage": "1-4",   "move": "120' (40')", "save": "NM",   "morale": 6 },
+        { "die": 11, "monsterId": "lizard-gecko",    "alignment": "N",    "noAppearing": "1-3",  "ac": 5,  "hd": "3+1",       "damage": "1-8",   "move": "120' (40')", "save": "F:2",  "morale": 7 },
+        { "die": 12, "monsterId": "orc",             "alignment": "C",    "noAppearing": "2-8",  "ac": 7,  "hd": "1",         "damage": "weapon","move": "90' (30')",  "save": "F:1",  "morale": 8 },
+        { "die": 13, "monsterId": "shrew-giant",     "alignment": "N",    "noAppearing": "1-10", "ac": 4,  "hd": "1",         "damage": "1-6",   "move": "180' (60')", "save": "F:1",  "morale": 10},
+        { "die": 14, "monsterId": "skeleton",        "alignment": "C",    "noAppearing": "3-12", "ac": 7,  "hd": "1",         "damage": "1-6",   "move": "60' (20')",  "save": "F:1",  "morale": 12},
+        { "die": 15, "monsterId": "snake-cobra",     "alignment": "N",    "noAppearing": "1-6",  "ac": 7,  "hd": "1*",        "damage": "1-3T",  "move": "90' (30')",  "save": "F:1",  "morale": 7 },
+        { "die": 16, "monsterId": "spider-crab",     "alignment": "N",    "noAppearing": "1-4",  "ac": 7,  "hd": "2*",        "damage": "1-8T",  "move": "120' (40')", "save": "F:1",  "morale": 7 },
+        { "die": 17, "monsterId": "sprite",          "alignment": "N",    "noAppearing": "3-18", "ac": 5,  "hd": "1/2*",      "damage": "curse", "move": "60' (20')",  "save": "E:1",  "morale": 7 },
+        { "die": 18, "monsterId": "stirge",          "alignment": "N",    "noAppearing": "1-10", "ac": 7,  "hd": "1*",        "damage": "1-3",   "move": "180' (60')", "save": "F:2",  "morale": 9 },
+        { "die": 19, "monsterId": "trader",          "alignment": "A",    "noAppearing": "1-8",  "ac": 7,  "hd": "1",         "damage": "weapon","move": "30' (10')",  "save": "F:1",  "morale": 7 },
+        { "die": 20, "monsterId": "wolf",            "alignment": "N",    "noAppearing": "2-12", "ac": 7,  "hd": "2+2",       "damage": "1-6",   "move": "180' (60')", "save": "F:1",  "morale": 8 }
+      ]
+    },
+    {
+      "level": 2,
+      "entries": []
+    },
+    {
+      "level": 3,
+      "entries": []
+    }
+  ],
+  "//note": "Levels 2 and 3 tables omitted for brevity; same structure."
+}

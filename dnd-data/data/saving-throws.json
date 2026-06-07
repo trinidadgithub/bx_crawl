@@ -1,0 +1,52 @@
+[
+  {
+    "Attack Type": "Death Ray or Poison",
+    "Normal Man": "14",
+    "Clerics": "11",
+    "Dwarves & Halflings": "10",
+    "Elves": "12",
+    "Fighters": "12",
+    "Magic-Users": "13",
+    "Thieves": "13"
+  },
+  {
+    "Attack Type": "Magic Wands",
+    "Normal Man": "15",
+    "Clerics": "12",
+    "Dwarves & Halflings": "11",
+    "Elves": "13",
+    "Fighters": "13",
+    "Magic-Users": "14",
+    "Thieves": "14"
+  },
+  {
+    "Attack Type": "Paralysis or Turn to Stone",
+    "Normal Man": "16",
+    "Clerics": "14",
+    "Dwarves & Halflings": "12",
+    "Elves": "13",
+    "Fighters": "14",
+    "Magic-Users": "13",
+    "Thieves": "13"
+  },
+  {
+    "Attack Type": "Dragon Breath",
+    "Normal Man": "17",
+    "Clerics": "16",
+    "Dwarves & Halflings": "13",
+    "Elves": "15",
+    "Fighters": "15",
+    "Magic-Users": "16",
+    "Thieves": "16"
+  },
+  {
+    "Attack Type": "Rods, Staves, or Spells",
+    "Normal Man": "17",
+    "Clerics": "15",
+    "Dwarves & Halflings": "14",
+    "Elves": "15",
+    "Fighters": "16",
+    "Magic-Users": "15",
+    "Thieves": "15"
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Clothing only",
+    "armorClass": 9
+  },
+  {
+    "name": "Shield only",
+    "armorClass": 8
+  },
+  {
+    "name": "Leather Armor",
+    "armorClass": 7
+  },
+  {
+    "name": "Leather Armor & Shield",
+    "armorClass": 6
+  },
+  {
+    "name": "Chain Mail Armor",
+    "armorClass": 5
+  },
+  {
+    "name": "Chain Mail Armor & Shield",
+    "armorClass": 4
+  },
+  {
+    "name": "Plate Mail Armor",
+    "armorClass": 3
+  },
+  {
+    "name": "Plate Mail Armor & Shield",
+    "armorClass": 2
+  }
+]

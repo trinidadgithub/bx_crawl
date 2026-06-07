@@ -26,7 +26,10 @@ enum class CharacterClass {
     Fighter,
     MagicUser,
     Thief,
-    Cleric
+    Cleric,
+    Dwarf,
+    Elf,
+    Halfling
 };
 
 struct Abilities {
@@ -96,4 +99,9 @@ struct Entity {
 
     // Known spell names (for Magic-Users / Clerics)
     std::vector<std::string> spells;
+
+    // Equipment (weapon + armor IDs from bx_data.hpp)
+    std::string weapon_id;
+    std::string armor_id;
+    bool has_shield{false};
 };

@@ -1,0 +1,101 @@
+{
+  "//": "Ability score adjustments per score range (B/X Moldvay Basic)",
+  "schema": "bx-ability-scores-v2",
+  "scores": [
+    {
+      "id": "strength",
+      "name": "Strength",
+      "abbreviation": "STR",
+      "adjustments": [
+        { "range": [3, 3],   "toHitMelee": -3, "damageAdj": -3, "openDoors": -3 },
+        { "range": [4, 5],   "toHitMelee": -2, "damageAdj": -2, "openDoors": -2 },
+        { "range": [6, 8],   "toHitMelee": -1, "damageAdj": -1, "openDoors": -1 },
+        { "range": [9, 12],  "toHitMelee": 0,  "damageAdj": 0,  "openDoors": 0 },
+        { "range": [13, 15], "toHitMelee": 1,  "damageAdj": 1,  "openDoors": 1 },
+        { "range": [16, 17], "toHitMelee": 2,  "damageAdj": 2,  "openDoors": 2 },
+        { "range": [18, 18], "toHitMelee": 3,  "damageAdj": 3,  "openDoors": 3 }
+      ],
+      "optional": {
+        "carryCapacityBonus": [
+          { "range": [3, 3],   "carryBonus": 0    },
+          { "range": [4, 5],   "carryBonus": 0    },
+          { "range": [6, 8],   "carryBonus": 0    },
+          { "range": [9, 12],  "carryBonus": 0    },
+          { "range": [13, 15], "carryBonus": 100  },
+          { "range": [16, 17], "carryBonus": 200  },
+          { "range": [18, 18], "carryBonus": 300  }
+        ]
+      }
+    },
+    {
+      "id": "intelligence",
+      "name": "Intelligence",
+      "abbreviation": "INT",
+      "adjustments": [
+        { "range": [3, 3],   "languages": 0, "literacy": "illiterate" },
+        { "range": [4, 5],   "languages": 0, "literacy": "cannot read or write Common" },
+        { "range": [6, 8],   "languages": 0, "literacy": "can write simple Common words" },
+        { "range": [9, 12],  "languages": 0, "literacy": "literate (2 native languages)" },
+        { "range": [13, 15], "languages": 1, "literacy": "literate" },
+        { "range": [16, 17], "languages": 2, "literacy": "literate" },
+        { "range": [18, 18], "languages": 3, "literacy": "literate" }
+      ]
+    },
+    {
+      "id": "wisdom",
+      "name": "Wisdom",
+      "abbreviation": "WIS",
+      "adjustments": [
+        { "range": [3, 3],   "savingThrowMagic": -3 },
+        { "range": [4, 5],   "savingThrowMagic": -2 },
+        { "range": [6, 8],   "savingThrowMagic": -1 },
+        { "range": [9, 12],  "savingThrowMagic": 0 },
+        { "range": [13, 15], "savingThrowMagic": 1 },
+        { "range": [16, 17], "savingThrowMagic": 2 },
+        { "range": [18, 18], "savingThrowMagic": 3 }
+      ]
+    },
+    {
+      "id": "dexterity",
+      "name": "Dexterity",
+      "abbreviation": "DEX",
+      "adjustments": [
+        { "range": [3, 3],   "toHitMissile": -3, "acBonus": 3,   "initiativeAdj": -2 },
+        { "range": [4, 5],   "toHitMissile": -2, "acBonus": 2,   "initiativeAdj": -1 },
+        { "range": [6, 8],   "toHitMissile": -1, "acBonus": 1,   "initiativeAdj": -1 },
+        { "range": [9, 12],  "toHitMissile": 0,  "acBonus": 0,   "initiativeAdj": 0 },
+        { "range": [13, 15], "toHitMissile": 1,  "acBonus": -1,  "initiativeAdj": 1 },
+        { "range": [16, 17], "toHitMissile": 2,  "acBonus": -2,  "initiativeAdj": 1 },
+        { "range": [18, 18], "toHitMissile": 3,  "acBonus": -3,  "initiativeAdj": 2 }
+      ]
+    },
+    {
+      "id": "constitution",
+      "name": "Constitution",
+      "abbreviation": "CON",
+      "adjustments": [
+        { "range": [3, 3],   "hpBonusPerDie": -3 },
+        { "range": [4, 5],   "hpBonusPerDie": -2 },
+        { "range": [6, 8],   "hpBonusPerDie": -1 },
+        { "range": [9, 12],  "hpBonusPerDie": 0 },
+        { "range": [13, 15], "hpBonusPerDie": 1 },
+        { "range": [16, 17], "hpBonusPerDie": 2 },
+        { "range": [18, 18], "hpBonusPerDie": 3 }
+      ]
+    },
+    {
+      "id": "charisma",
+      "name": "Charisma",
+      "abbreviation": "CHA",
+      "adjustments": [
+        { "range": [3, 3],   "reactionAdj": -2, "maxRetainers": 1, "retainerMorale": 4 },
+        { "range": [4, 5],   "reactionAdj": -1, "maxRetainers": 2, "retainerMorale": 5 },
+        { "range": [6, 8],   "reactionAdj": -1, "maxRetainers": 3, "retainerMorale": 6 },
+        { "range": [9, 12],  "reactionAdj": 0,  "maxRetainers": 4, "retainerMorale": 7 },
+        { "range": [13, 15], "reactionAdj": 1,  "maxRetainers": 5, "retainerMorale": 8 },
+        { "range": [16, 17], "reactionAdj": 1,  "maxRetainers": 6, "retainerMorale": 9 },
+        { "range": [18, 18], "reactionAdj": 2,  "maxRetainers": 7, "retainerMorale": 10 }
+      ]
+    }
+  ]
+}

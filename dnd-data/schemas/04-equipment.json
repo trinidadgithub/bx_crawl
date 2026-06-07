@@ -1,0 +1,253 @@
+{
+  "//": "Equipment: weapons, armor, and general gear",
+  "schema": "bx-equipment-v1",
+  "weapons": [
+    {
+      "id": "battle-axe",
+      "name": "Battle Axe",
+      "costGp": 7,
+      "damage": "1-8",
+      "damageDie": "1d8",
+      "twoHanded": true,
+      "weightCoins": 50,
+      "clericAllowed": false,
+      "notes": "Two-handed; always loses initiative; cannot use shield"
+    },
+    {
+      "id": "hand-axe",
+      "name": "Hand Axe",
+      "costGp": 4,
+      "damage": "1-6",
+      "damageDie": "1d6",
+      "twoHanded": false,
+      "weightCoins": 30,
+      "clericAllowed": false
+    },
+    {
+      "id": "crossbow",
+      "name": "Crossbow",
+      "costGp": 30,
+      "damage": "1-6",
+      "damageDie": "1d6",
+      "twoHanded": true,
+      "weightCoins": 50,
+      "clericAllowed": false,
+      "ammunition": "quarrel",
+      "ammoCostGp": 10,
+      "ammoQty": 30,
+      "ranges": { "short": "5-80'", "medium": "81-160'", "long": "161-240'" }
+    },
+    {
+      "id": "long-bow",
+      "name": "Long Bow",
+      "costGp": 40,
+      "damage": "1-6",
+      "damageDie": "1d6",
+      "twoHanded": true,
+      "weightCoins": 30,
+      "clericAllowed": false,
+      "ammunition": "arrow",
+      "ammoCostGp": 5,
+      "ammoQty": 20,
+      "ranges": { "short": "5-70'", "medium": "71-140'", "long": "141-210'" }
+    },
+    {
+      "id": "short-bow",
+      "name": "Short Bow",
+      "costGp": 25,
+      "damage": "1-6",
+      "damageDie": "1d6",
+      "twoHanded": true,
+      "weightCoins": 30,
+      "clericAllowed": false,
+      "ammunition": "arrow",
+      "ranges": { "short": "5-50'", "medium": "51-100'", "long": "101-150'" }
+    },
+    {
+      "id": "dagger",
+      "name": "Dagger",
+      "costGp": 3,
+      "damage": "1-4",
+      "damageDie": "1d4",
+      "twoHanded": false,
+      "weightCoins": 10,
+      "clericAllowed": true,
+      "thrown": true,
+      "ranges": { "short": "5-10'", "medium": "11-20'", "long": "21-30'" }
+    },
+    {
+      "id": "silver-dagger",
+      "name": "Silver Dagger",
+      "costGp": 30,
+      "damage": "1-4",
+      "damageDie": "1d4",
+      "twoHanded": false,
+      "weightCoins": 10,
+      "clericAllowed": true,
+      "notes": "Hits creatures only affected by silver weapons"
+    },
+    {
+      "id": "short-sword",
+      "name": "Short Sword",
+      "costGp": 7,
+      "damage": "1-6",
+      "damageDie": "1d6",
+      "twoHanded": false,
+      "weightCoins": 30,
+      "clericAllowed": false
+    },
+    {
+      "id": "sword",
+      "name": "Sword",
+      "costGp": 10,
+      "damage": "1-8",
+      "damageDie": "1d8",
+      "twoHanded": false,
+      "weightCoins": 60,
+      "clericAllowed": false
+    },
+    {
+      "id": "two-handed-sword",
+      "name": "Two-handed Sword",
+      "costGp": 15,
+      "damage": "1-10",
+      "damageDie": "1d10",
+      "twoHanded": true,
+      "weightCoins": 150,
+      "clericAllowed": false,
+      "notes": "Two-handed; always loses initiative; cannot use shield"
+    },
+    {
+      "id": "mace",
+      "name": "Mace",
+      "costGp": 5,
+      "damage": "1-6",
+      "damageDie": "1d6",
+      "twoHanded": false,
+      "weightCoins": 30,
+      "clericAllowed": true
+    },
+    {
+      "id": "club",
+      "name": "Club",
+      "costGp": 3,
+      "damage": "1-4",
+      "damageDie": "1d4",
+      "twoHanded": false,
+      "weightCoins": 50,
+      "clericAllowed": true
+    },
+    {
+      "id": "pole-arm",
+      "name": "Pole Arm",
+      "costGp": 7,
+      "damage": "1-8",
+      "damageDie": "1d8",
+      "twoHanded": true,
+      "weightCoins": 150,
+      "clericAllowed": false,
+      "notes": "Two-handed; always loses initiative; cannot use shield"
+    },
+    {
+      "id": "sling",
+      "name": "Sling",
+      "costGp": 2,
+      "damage": "1-4",
+      "damageDie": "1d4",
+      "twoHanded": false,
+      "weightCoins": 10,
+      "clericAllowed": true,
+      "ammunition": "slingStone",
+      "ammoQty": 30,
+      "ranges": { "short": "5-40'", "medium": "41-80'", "long": "81-160'" }
+    },
+    {
+      "id": "spear",
+      "name": "Spear",
+      "costGp": 3,
+      "damage": "1-6",
+      "damageDie": "1d6",
+      "twoHanded": false,
+      "weightCoins": 30,
+      "clericAllowed": true,
+      "thrown": true,
+      "ranges": { "short": "5-20'", "medium": "21-40'", "long": "41-60'" }
+    },
+    {
+      "id": "war-hammer",
+      "name": "War Hammer",
+      "costGp": 5,
+      "damage": "1-6",
+      "damageDie": "1d6",
+      "twoHanded": false,
+      "weightCoins": 30,
+      "clericAllowed": true
+    }
+  ],
+  "armor": [
+    {
+      "id": "leather-armor",
+      "name": "Leather Armor",
+      "costGp": 20,
+      "ac": 7,
+      "weightCoins": 200,
+      "type": "light"
+    },
+    {
+      "id": "chain-mail",
+      "name": "Chain Mail Armor",
+      "costGp": 40,
+      "ac": 5,
+      "weightCoins": 400,
+      "type": "heavy"
+    },
+    {
+      "id": "plate-mail",
+      "name": "Plate Mail Armor",
+      "costGp": 60,
+      "ac": 3,
+      "weightCoins": 500,
+      "type": "heavy"
+    },
+    {
+      "id": "shield",
+      "name": "Shield",
+      "costGp": 10,
+      "ac": -1,
+      "weightCoins": 100,
+      "notes": "Subtracts 1 from AC when used. Cannot use with two-handed weapons."
+    }
+  ],
+  "armorClasses": [
+    { "type": "Clothing only",             "ac": 9 },
+    { "type": "Shield only",               "ac": 8 },
+    { "type": "Leather Armor",             "ac": 7 },
+    { "type": "Leather Armor & Shield",    "ac": 6 },
+    { "type": "Chain Mail Armor",          "ac": 5 },
+    { "type": "Chain Mail Armor & Shield", "ac": 4 },
+    { "type": "Plate Mail Armor",          "ac": 3 },
+    { "type": "Plate Mail Armor & Shield", "ac": 2 }
+  ],
+  "gear": [
+    { "id": "backpack", "name": "Backpack",       "costGp": 5,  "weightCoins": 10 },
+    { "id": "oil-flask", "name": "Flask of Oil",   "costGp": 2,  "weightCoins": 1 },
+    { "id": "hammer", "name": "Hammer (small)",    "costGp": 2,  "weightCoins": 10 },
+    { "id": "holy-symbol", "name": "Holy Symbol",  "costGp": 25, "weightCoins": 1 },
+    { "id": "holy-water", "name": "Holy Water",    "costGp": 25, "weightCoins": 1 },
+    { "id": "iron-spikes", "name": "Iron Spikes (12)","costGp": 1, "weightCoins": 10 },
+    { "id": "lantern", "name": "Lantern",          "costGp": 10, "weightCoins": 20 },
+    { "id": "mirror", "name": "Mirror (steel)",    "costGp": 5,  "weightCoins": 10 },
+    { "id": "iron-rations", "name": "Iron Rations (1 week)","costGp": 15, "weightCoins": 1 },
+    { "id": "standard-rations", "name": "Standard Rations (1 week)","costGp": 5, "weightCoins": 1 },
+    { "id": "rope", "name": "Rope (50')",          "costGp": 1,  "weightCoins": 40 },
+    { "id": "sack-small", "name": "Small Sack",    "costGp": 1,  "weightCoins": 1, "holds": 200 },
+    { "id": "sack-large", "name": "Large Sack",    "costGp": 2,  "weightCoins": 1, "holds": 600 },
+    { "id": "thieves-tools", "name": "Thieves' Tools","costGp": 25, "weightCoins": 1 },
+    { "id": "tinder-box", "name": "Tinder Box",    "costGp": 3,  "weightCoins": 1 },
+    { "id": "torches", "name": "Torches (6)",      "costGp": 1,  "weightCoins": 10 },
+    { "id": "waterskin", "name": "Water/Wine Skin", "costGp": 1,  "weightCoins": 30 },
+    { "id": "wine", "name": "Wine (1 quart)",      "costGp": 1,  "weightCoins": 30 },
+    { "id": "wolfsbane", "name": "Wolfsbane (1 bunch)", "costGp": 10, "weightCoins": 1 },
+    { "id": "pole-10ft", "name": "Wooden Pole (10')","costGp": 1, "weightCoins": 20 }
+  ]
+}

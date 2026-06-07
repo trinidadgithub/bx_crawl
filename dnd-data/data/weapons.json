@@ -1,0 +1,97 @@
+[
+  {
+    "name": "Battle Axe (two-handed)",
+    "costGp": 7,
+    "note": "two-handed"
+  },
+  {
+    "name": "Hand Axe",
+    "costGp": 4,
+    "note": ""
+  },
+  {
+    "name": "Crossbow (fires quarrels)",
+    "costGp": 30,
+    "note": ""
+  },
+  {
+    "name": "Case with 30 quarrels",
+    "costGp": 10,
+    "note": ""
+  },
+  {
+    "name": "Long Bow",
+    "costGp": 40,
+    "note": ""
+  },
+  {
+    "name": "Short Bow",
+    "costGp": 25,
+    "note": ""
+  },
+  {
+    "name": "Quiver with 20 arrows",
+    "costGp": 5,
+    "note": ""
+  },
+  {
+    "name": "1 silver-tipped arrow",
+    "costGp": 5,
+    "note": ""
+  },
+  {
+    "name": "Normal dagger",
+    "costGp": 3,
+    "note": ""
+  },
+  {
+    "name": "Silver dagger",
+    "costGp": 30,
+    "note": ""
+  },
+  {
+    "name": "Short Sword",
+    "costGp": 7,
+    "note": ""
+  },
+  {
+    "name": "Sword (normal)",
+    "costGp": 10,
+    "note": ""
+  },
+  {
+    "name": "Two-handed Sword",
+    "costGp": 15,
+    "note": ""
+  },
+  {
+    "name": "Mace*",
+    "costGp": 5,
+    "note": ""
+  },
+  {
+    "name": "Club*",
+    "costGp": 3,
+    "note": ""
+  },
+  {
+    "name": "Pole Arm (two-handed)",
+    "costGp": 7,
+    "note": "two-handed"
+  },
+  {
+    "name": "Sling with 30 Sling Stones*",
+    "costGp": 2,
+    "note": ""
+  },
+  {
+    "name": "Spear",
+    "costGp": 3,
+    "note": ""
+  },
+  {
+    "name": "War Hammer*",
+    "costGp": 5,
+    "note": ""
+  }
+]

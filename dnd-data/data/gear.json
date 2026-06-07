@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Backpack",
+    "costGp": 5
+  },
+  {
+    "name": "Flask of Oil",
+    "costGp": 2
+  },
+  {
+    "name": "Hammer (small)",
+    "costGp": 2
+  },
+  {
+    "name": "Holy Symbol",
+    "costGp": 25
+  },
+  {
+    "name": "Holy Water (1 vial)",
+    "costGp": 25
+  },
+  {
+    "name": "Iron Spikes (12)",
+    "costGp": 1
+  },
+  {
+    "name": "Lantern",
+    "costGp": 10
+  },
+  {
+    "name": "Mirror (hand-sized, steel)",
+    "costGp": 5
+  },
+  {
+    "name": "Iron Rations (preserved food, 1 person/1 week)",
+    "costGp": 15
+  },
+  {
+    "name": "Standard Rations (unpreserved food, 1 person/1 week)",
+    "costGp": 5
+  },
+  {
+    "name": "Rope (50' length)",
+    "costGp": 1
+  },
+  {
+    "name": "Small Sack",
+    "costGp": 1
+  },
+  {
+    "name": "Large Sack",
+    "costGp": 2
+  },
+  {
+    "name": "Thieves' Tools",
+    "costGp": 25
+  },
+  {
+    "name": "Tinder Box (flint & steel)",
+    "costGp": 3
+  },
+  {
+    "name": "Torches (6)",
+    "costGp": 1
+  },
+  {
+    "name": "Water/Wine Skin",
+    "costGp": 1
+  },
+  {
+    "name": "Wine (1 quart)",
+    "costGp": 1
+  },
+  {
+    "name": "Wolfsbane (1 bunch)",
+    "costGp": 10
+  },
+  {
+    "name": "Wooden Pole (10' long)",
+    "costGp": 1
+  }
+]

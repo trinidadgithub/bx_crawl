@@ -152,7 +152,7 @@ TEST_CASE("Initiative: 1d6 per side, re-roll ties") {
     Game g = make_minimal_game();
 
     SUBCASE("roll_initiative returns a bool and logs a message") {
-        bool result = roll_initiative(g);
+        roll_initiative(g);
 
         // Always returns true (monsters first) or false (hero first)
         CHECK(g.event_log.size() >= 1);
@@ -1744,4 +1744,167 @@ TEST_CASE("Hide command shows log message") {
     for (const auto& msg : g.event_log)
         if (msg.find("shadows") != std::string::npos) found = true;
     CHECK(found);
+}
+
+// ========== B/X Data smoke tests ==========
+#include "bx_data.hpp"
+
+TEST_CASE("bx_data ability score modifiers match B/X Moldvay") {
+    using namespace bx;
+
+    // Strength band 18
+    auto s18 = get_strength(18);
+    CHECK(s18.toHitMelee == 3);
+    CHECK(s18.damageAdj == 3);
+
+    // Strength band 3
+    auto s3 = get_strength(3);
+    CHECK(s3.toHitMelee == -3);
+    CHECK(s3.damageAdj == -3);
+
+    // Strength band 9-12 (mid)
+    auto s10 = get_strength(10);
+    CHECK(s10.toHitMelee == 0);
+    CHECK(s10.damageAdj == 0);
+
+    // Dexterity AC bonus: 18 gives -3 (bonus)
+    auto d18 = get_dexterity(18);
+    CHECK(d18.toHitMissile == 3);
+    CHECK(d18.acBonus == -3);
+
+    // Dexterity AC penalty: 3 gives +3 (penalty)
+    auto d3 = get_dexterity(3);
+    CHECK(d3.toHitMissile == -3);
+    CHECK(d3.acBonus == 3);
+
+    // Constitution HP bonus
+    auto c18 = get_constitution(18);
+    CHECK(c18.hpBonusPerDie == 3);
+
+    auto c6 = get_constitution(6);
+    CHECK(c6.hpBonusPerDie == -1);
+
+    // Wisdom saving throw bonus
+    auto w18 = get_wisdom(18);
+    CHECK(w18.savingThrowMagic == 3);
+
+    // Charisma retainer max
+    auto ch18 = get_charisma(18);
+    CHECK(ch18.maxRetainers == 7);
+    CHECK(ch18.retainerMorale == 10);
+}
+
+TEST_CASE("bx_data class definitions exist") {
+    using namespace bx;
+
+    // Check a few class names
+    bool found_fighter = false;
+    bool found_mu = false;
+    for (const auto& c : class_info) {
+        if (std::string_view(c.name) == "Fighter") found_fighter = true;
+        if (std::string_view(c.name) == "Magic-User") found_mu = true;
+    }
+    CHECK(found_fighter);
+    CHECK(found_mu);
+
+    // Fighter level 1
+    CHECK(fighter_levels[0].level == 1);
+    CHECK(fighter_levels[0].xp_required == 0);
+    CHECK(std::string_view(fighter_levels[0].title) == "Veteran");
+
+    // Magic-User gets 1 first-level spell at level 1
+    CHECK(magic_user_levels[0].first_level_spells == 1);
+
+    // Cleric gets 0 spells at level 1
+    CHECK(cleric_levels[0].first_level_spells == 0);
+}
+
+TEST_CASE("bx_data spells list is populated") {
+    using namespace bx;
+
+    // We should have all first-level spells
+    bool found_clw = false;   // Cure Light Wounds
+    bool found_mm = false;    // Magic Missile
+    bool found_sleep = false;
+
+    for (const auto& s : spells) {
+        if (std::string_view(s.name) == "Cure Light Wounds") found_clw = true;
+        if (std::string_view(s.name) == "Magic Missile") found_mm = true;
+        if (std::string_view(s.name) == "Sleep") found_sleep = true;
+    }
+
+    CHECK(found_clw);
+    CHECK(found_mm);
+    CHECK(found_sleep);
+    CHECK(spells.size() >= 37);  // Full B/X spell list
+}
+
+TEST_CASE("bx_data monsters are loaded") {
+    using namespace bx;
+
+    CHECK(!monsters.empty());
+    CHECK(monsters.size() >= 100);  // 101 B/X monsters
+
+    // Check a specific monster
+    bool found_dragon = false;
+    for (const auto& m : monsters) {
+        if (std::string_view(m.name) == "Dragon, Red") {
+            CHECK(m.ac == -1);
+            CHECK(m.morale == 8);
+            found_dragon = true;
+            break;
+        }
+    }
+    CHECK(found_dragon);
+}
+
+TEST_CASE("bx_data saving throws are correct") {
+    using namespace bx;
+
+    CHECK(saving_throws.size() == 7);  // 7 classes
+
+    // Fighter: Death Ray/Poison 12
+    // Index 1 = fighter (cleric=0, fighter=1)
+    CHECK(saving_throws[1].death_ray_poison == 12);
+
+    // Dwarf: Death Ray/Poison 8
+    CHECK(saving_throws[4].death_ray_poison == 8);
+}
+
+TEST_CASE("bx_data attack tables match THAC0 values") {
+    using namespace bx;
+
+    // Normal man vs AC 9 = 11
+    CHECK(character_attack_table[0].ac_9 == 11);
+
+    // 1st-3rd level vs AC 9 = 10
+    CHECK(character_attack_table[1].ac_9 == 10);
+
+    // 1st-3rd level vs AC 2 = 17
+    CHECK(character_attack_table[1].ac_2 == 17);
+}
+
+TEST_CASE("bx_data weapons and equipment") {
+    using namespace bx;
+
+    // Check a few weapons exist
+    bool found_sword = false;
+    bool found_dagger = false;
+    for (const auto& w : weapons) {
+        if (std::string_view(w.name) == "Sword") {
+            CHECK(w.damage_die == std::string_view("1d8"));
+            CHECK(w.cost_gp == 10);
+            found_sword = true;
+        }
+        if (std::string_view(w.name) == "Dagger") {
+            CHECK(w.thrown);
+            found_dagger = true;
+        }
+    }
+    CHECK(found_sword);
+    CHECK(found_dagger);
+
+    // Check armor
+    CHECK(armor_items[0].ac == 7);   // Leather Armor
+    CHECK(armor_items[2].ac == 3);   // Plate Mail
 }

@@ -1,0 +1,22 @@
+[
+  {
+    "Coin": "10 copper pieces (cp)",
+    "Value": "= 1 silver piece",
+    "Exchange": "100 cp = 10 sp = 2 ep = 1 gp = 1/5 pp"
+  },
+  {
+    "Coin": "10 silver pieces (sp)",
+    "Value": "= 1 gold piece",
+    "Exchange": ""
+  },
+  {
+    "Coin": "2 electrum pieces (ep)",
+    "Value": "= 1 gold piece",
+    "Exchange": ""
+  },
+  {
+    "Coin": "5 gold pieces (gp)",
+    "Value": "= 1 platinum piece (pp)",
+    "Exchange": ""
+  }
+]

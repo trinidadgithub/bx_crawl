@@ -1,0 +1,110 @@
+{
+  "//": "Spell definitions",
+  "schema": "bx-spells-v1",
+  "spells": [
+    {
+      "id": "cure-light-wounds",
+      "name": "Cure Light Wounds",
+      "level": 1,
+      "classes": ["cleric"],
+      "reversible": true,
+      "range": "0",
+      "duration": "permanent",
+      "description": "Heals 1d6+1 (2-7) points of damage when the cleric touches the individual. May also cure paralysis. Cannot increase hp above normal max.",
+      "damage": "",
+      "areaEffect": "1 creature touched"
+    },
+    {
+      "id": "detect-evil-clr",
+      "name": "Detect Evil",
+      "level": 1,
+      "classes": ["cleric"],
+      "range": "120'",
+      "duration": "6 turns",
+      "description": "Detects evil intentions or evilly enchanted objects within 120', causing them to glow.",
+      "areaEffect": "120' path"
+    },
+    {
+      "id": "charm-person",
+      "name": "Charm Person",
+      "level": 1,
+      "classes": ["magic-user", "elf"],
+      "range": "120'",
+      "duration": "until dispelled",
+      "description": "One humanoid creature must save vs. Spells or be charmed, treating the caster as a friend.",
+      "areaEffect": "1 humanoid"
+    },
+    {
+      "id": "magic-missile",
+      "name": "Magic Missile",
+      "level": 1,
+      "classes": ["magic-user", "elf"],
+      "range": "150'",
+      "duration": "1 turn",
+      "description": "Creates 1 glowing arrow that does 1d6+1 (2-7) damage. Auto-hits. +1 missile per 5 caster levels.",
+      "damage": "1d6+1 per missile",
+      "areaEffect": "1+ targets (multiple missiles)"
+    },
+    {
+      "id": "sleep",
+      "name": "Sleep",
+      "level": 1,
+      "classes": ["magic-user", "elf"],
+      "range": "240'",
+      "duration": "4d4 turns",
+      "description": "Puts 2d8 HD of creatures to sleep (max 4+1 HD each). Undead immune. Lower HD affected first.",
+      "areaEffect": "2d8 HD of creatures in 40' diameter"
+    },
+    {
+      "id": "bless",
+      "name": "Bless",
+      "level": 2,
+      "classes": ["cleric"],
+      "range": "60'",
+      "duration": "6 turns",
+      "description": "Raises morale +1, gives +1 to hit and damage for all friendly creatures in range. Must be cast before battle.",
+      "areaEffect": "all friendly creatures in 60'"
+    },
+    {
+      "id": "hold-person",
+      "name": "Hold Person",
+      "level": 2,
+      "classes": ["cleric"],
+      "range": "180'",
+      "duration": "9 turns",
+      "description": "Single target saves at -2 or paralyzed. Group: 1d4 targets affected.",
+      "areaEffect": "1 person (or 1d4 as group)"
+    },
+    {
+      "id": "fire-ball",
+      "name": "Fire Ball",
+      "level": 3,
+      "classes": ["magic-user", "elf"],
+      "range": "240'",
+      "duration": "instantaneous",
+      "description": "Missile explodes into 40' diameter ball. 1d6 damage per caster level. Save for half damage.",
+      "damage": "1d6/level",
+      "areaEffect": "40' diameter sphere"
+    },
+    {
+      "id": "fly",
+      "name": "Fly",
+      "level": 3,
+      "classes": ["magic-user", "elf"],
+      "range": "0",
+      "duration": "1d6 + caster level turns",
+      "description": "Caster or touched person can fly up to 120'/round in any direction.",
+      "areaEffect": "1 creature"
+    },
+    {
+      "id": "dispel-magic",
+      "name": "Dispel Magic",
+      "level": 3,
+      "classes": ["magic-user", "elf"],
+      "range": "120'",
+      "duration": "permanent",
+      "description": "Removes spell effects in 20'x20'x20' area. 5% failure chance per level difference if caster is lower level.",
+      "areaEffect": "20' cube"
+    }
+  ]
+}

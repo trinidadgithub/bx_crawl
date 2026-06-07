@@ -1,28 +1,12 @@
 #include "chargen.hpp"
 #include "game.hpp"
+#include "bx_data.hpp"
 
 #include <iostream>
 #include <string>
 #include <algorithm>
 #include <cctype>
-
-// Simple B/X-ish ability modifier:
-// 3: -3
-// 4-5: -2
-// 6-8: -1
-// 9-12: 0
-// 13-15: +1
-// 16-17: +2
-// 18: +3
-static int ability_modifier(int score) {
-    if (score <= 3)  return -3;
-    if (score <= 5)  return -2;
-    if (score <= 8)  return -1;
-    if (score <= 12) return 0;
-    if (score <= 15) return 1;
-    if (score <= 17) return 2;
-    return 3;
-}
+#include <cstdlib>
 
 // Roll 3d6 using the game's RNG
 static int roll_3d6(Game& g) {
@@ -61,6 +45,9 @@ static int hit_die_sides(CharacterClass cc) {
         case CharacterClass::Cleric:    return 6;
         case CharacterClass::Thief:     return 4;
         case CharacterClass::MagicUser: return 4;
+        case CharacterClass::Dwarf:     return 8;
+        case CharacterClass::Elf:       return 6;
+        case CharacterClass::Halfling:  return 6;
         default:                        return 8;
     }
 }
@@ -71,6 +58,9 @@ static int damage_die(CharacterClass cc) {
         case CharacterClass::Cleric:    return 6;
         case CharacterClass::Thief:     return 4;
         case CharacterClass::MagicUser: return 4;
+        case CharacterClass::Dwarf:     return 8;
+        case CharacterClass::Elf:       return 6;
+        case CharacterClass::Halfling:  return 6;
         default:                        return 8;
     }
 }
@@ -81,6 +71,9 @@ static int base_ac(CharacterClass cc) {
         case CharacterClass::Cleric:    return 14;
         case CharacterClass::Thief:     return 12;
         case CharacterClass::MagicUser: return 10;
+        case CharacterClass::Dwarf:     return 14;
+        case CharacterClass::Elf:       return 12;
+        case CharacterClass::Halfling:  return 12;
         default:                        return 14;
     }
 }
@@ -88,6 +81,7 @@ static int base_ac(CharacterClass cc) {
 static int attack_bonus_base(CharacterClass cc) {
     switch (cc) {
         case CharacterClass::Fighter:   return 1;
+        case CharacterClass::Dwarf:     return 1;
         default:                        return 0;
     }
 }
@@ -98,6 +92,9 @@ static int prime_requisite_score(const Abilities& a, CharacterClass cc) {
         case CharacterClass::MagicUser: return a.intelligence;
         case CharacterClass::Thief:     return a.dex;
         case CharacterClass::Cleric:    return a.wis;
+        case CharacterClass::Dwarf:     return a.str;
+        case CharacterClass::Elf:       return a.intelligence;
+        case CharacterClass::Halfling:  return a.dex;
         default:                        return a.str;
     }
 }
@@ -108,6 +105,9 @@ static const char* prime_name(CharacterClass cc) {
         case CharacterClass::MagicUser: return "INT";
         case CharacterClass::Thief:     return "DEX";
         case CharacterClass::Cleric:    return "WIS";
+        case CharacterClass::Dwarf:     return "STR";
+        case CharacterClass::Elf:       return "INT";
+        case CharacterClass::Halfling:  return "DEX";
         default:                        return "STR";
     }
 }
@@ -239,17 +239,21 @@ Entity create_hero(Game& g) {
         CharacterClass::Fighter,
         CharacterClass::MagicUser,
         CharacterClass::Thief,
-        CharacterClass::Cleric
+        CharacterClass::Cleric,
+        CharacterClass::Dwarf,
+        CharacterClass::Elf,
+        CharacterClass::Halfling
     };
+    const int num_choices = 7;
 
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < num_choices; ++i) {
         std::cout << i + 1 << ". ";
         show_class_info(hero.abilities, choices[i]);
     }
 
     CharacterClass chosen = CharacterClass::Fighter;
     while (true) {
-        std::cout << "Enter choice (1-4): ";
+        std::cout << "Enter choice (1-7): ";
         std::string line;
         std::getline(std::cin, line);
         if (line.empty()) continue;
@@ -258,14 +262,18 @@ Entity create_hero(Game& g) {
         if (c == '2') { chosen = CharacterClass::MagicUser; break; }
         if (c == '3') { chosen = CharacterClass::Thief; break; }
         if (c == '4') { chosen = CharacterClass::Cleric; break; }
+        if (c == '5') { chosen = CharacterClass::Dwarf; break; }
+        if (c == '6') { chosen = CharacterClass::Elf; break; }
+        if (c == '7') { chosen = CharacterClass::Halfling; break; }
     }
 
     hero.char_class = chosen;
 
-    // Build hero stats based on class
-    int con_mod = ability_modifier(hero.abilities.con);
-    int dex_mod = ability_modifier(hero.abilities.dex);
-    int str_mod = ability_modifier(hero.abilities.str);
+    // Build hero stats based on class using B/X data tables
+    int con_mod = bx::get_constitution(hero.abilities.con).hpBonusPerDie;
+    // DEX AC bonus is descending AC (negative = bonus); negate for ascending AC
+    int dex_mod = -bx::get_dexterity(hero.abilities.dex).acBonus;
+    int str_mod = bx::get_strength(hero.abilities.str).toHitMelee;
 
     int hd = hit_die_sides(chosen);
     int hp_roll = roll_d(g, hd);
@@ -277,6 +285,136 @@ Entity create_hero(Game& g) {
     hero.damage_die   = damage_die(chosen);
     hero.damage_bonus = str_mod;
     hero.ac           = base_ac(chosen) + dex_mod;
+
+    // --- Equipment selection ---
+
+    // Filter allowed weapons by class
+    auto weapon_allowed = [chosen](const bx::Weapon& w) -> bool {
+        if (chosen == CharacterClass::Fighter || chosen == CharacterClass::Dwarf ||
+            chosen == CharacterClass::Elf || chosen == CharacterClass::Halfling)
+            return true;
+        if (chosen == CharacterClass::Cleric)
+            return w.cleric_allowed;
+        if (chosen == CharacterClass::Thief) {
+            std::string id(w.id);
+            return id == "dagger" || id == "short-sword" || id == "sling";
+        }
+        if (chosen == CharacterClass::MagicUser) {
+            return std::string_view(w.id) == "dagger";
+        }
+        return false;
+    };
+
+    // Collect allowed weapon indices
+    std::vector<int> weapon_choices;
+    for (int i = 0; i < (int)bx::weapons.size(); ++i) {
+        if (weapon_allowed(bx::weapons[i]))
+            weapon_choices.push_back(i);
+    }
+    if (!weapon_choices.empty()) {
+        std::cout << "\nChoose your weapon:\n";
+        for (int i = 0; i < (int)weapon_choices.size(); ++i) {
+            const auto& w = bx::weapons[weapon_choices[i]];
+            std::cout << "  " << (i + 1) << ". " << w.name
+                      << " (1d" << w.damage_die[2] << ")"
+                      << " [" << w.cost_gp << " gp]"
+                      << (w.two_handed ? " (2H)" : "")
+                      << "\n";
+        }
+        while (true) {
+            std::cout << "Enter choice (1-" << weapon_choices.size() << "): ";
+            std::string line;
+            std::getline(std::cin, line);
+            if (line.empty()) continue;
+            char c = line[0];
+            int idx = c - '1';
+            if (idx >= 0 && idx < (int)weapon_choices.size()) {
+                const auto& chosen_w = bx::weapons[weapon_choices[idx]];
+                hero.weapon_id = chosen_w.id;
+                // Parse damage die from string like "1d8" → 8
+                int dmg = 4;
+                if (chosen_w.damage_die[0] == '1' && chosen_w.damage_die[1] == 'd')
+                    dmg = std::atoi(chosen_w.damage_die + 2);
+                hero.damage_die = dmg;
+                hero.damage_bonus = str_mod;
+                std::cout << "Armed with " << chosen_w.name << ".\n";
+                break;
+            }
+        }
+    }
+
+    // Armor selection: check class restrictions via bx_data class_info
+    {
+        using namespace bx;
+        bool can_wear_any = false;
+        bool can_shield = false;
+        for (const auto& ci : class_info) {
+            const char* cname = (chosen == CharacterClass::Fighter) ? "fighter" :
+                                (chosen == CharacterClass::Cleric) ? "cleric" :
+                                (chosen == CharacterClass::MagicUser) ? "magic-user" :
+                                (chosen == CharacterClass::Thief) ? "thief" :
+                                (chosen == CharacterClass::Dwarf) ? "dwarf" :
+                                (chosen == CharacterClass::Elf) ? "elf" :
+                                (chosen == CharacterClass::Halfling) ? "halfling" : "";
+            if (std::string_view(ci.id) == cname) {
+                can_wear_any = ci.allowed_armor_any;
+                can_shield = ci.allowed_shield;
+                break;
+            }
+        }
+
+        // Collect available armor
+        std::vector<int> armor_choices;
+        armor_choices.push_back(0); // "None"
+        if (can_wear_any) {
+            for (int i = 0; i < (int)armor_items.size(); ++i)
+                armor_choices.push_back(i + 1); // +1 because index 0 = None
+        } else {
+            // Thieves & Magic-Users: leather only (armor_items[0] = leather)
+            armor_choices.push_back(1); // leather
+        }
+
+        std::cout << "\nChoose your armor:\n";
+        std::cout << "  1. None (AC base)\n";
+        for (int i = 1; i < (int)armor_choices.size(); ++i) {
+            int ai = armor_choices[i] - 1;
+            const auto& a = armor_items[ai];
+            std::cout << "  " << (i + 1) << ". " << a.name
+                      << " (AC " << a.ac << ")"
+                      << " [" << a.cost_gp << " gp]\n";
+        }
+        while (true) {
+            std::cout << "Enter choice (1-" << armor_choices.size() << "): ";
+            std::string line;
+            std::getline(std::cin, line);
+            if (line.empty()) continue;
+            char c = line[0];
+            int idx = c - '1';
+            if (idx >= 0 && idx < (int)armor_choices.size()) {
+                if (idx == 0) {
+                    hero.armor_id = "none";
+                    hero.ac = base_ac(chosen) + dex_mod;
+                } else {
+                    int ai = armor_choices[idx] - 1;
+                    const auto& chosen_a = armor_items[ai];
+                    hero.armor_id = chosen_a.id;
+                    hero.ac = chosen_a.ac + dex_mod;
+                }
+                break;
+            }
+        }
+
+        // Shield?
+        if (can_shield) {
+            std::cout << "Use a shield? (y/n): ";
+            std::string shield_line;
+            std::getline(std::cin, shield_line);
+            if (!shield_line.empty() && (shield_line[0] == 'y' || shield_line[0] == 'Y')) {
+                hero.has_shield = true;
+                hero.ac -= 1; // shield gives -1 AC bonus in B/X descending
+            }
+        }
+    }
 
     hero.morale           = 0;
     hero.fleeing          = false;
@@ -317,7 +455,7 @@ Entity create_hero(Game& g) {
     };
 
     // Starting spells for spellcasters
-    if (chosen == CharacterClass::MagicUser) {
+    if (chosen == CharacterClass::MagicUser || chosen == CharacterClass::Elf) {
         hero.spell_slots[1] = 1; // one 1st-level slot
         hero.max_spell_slots[1] = 1;
         hero.spells.push_back("Read Magic");
@@ -406,7 +544,20 @@ Entity create_hero(Game& g) {
     int xp_bonus_val = xp_bonus(pr_score);
     std::cout << "HP: " << hero.hp << "/" << hero.max_hp << "\n";
     std::cout << "Attack bonus: " << hero.attack_bonus << "\n";
-    std::cout << "Damage: 1d" << hero.damage_die << "\n";
+    // Look up weapon name from ID
+    {
+        std::string wname = "None";
+        for (const auto& w : bx::weapons)
+            if (hero.weapon_id == w.id) { wname = w.name; break; }
+        std::cout << "Weapon: " << wname << " (1d" << hero.damage_die << ")\n";
+    }
+    {
+        std::string aname = "None";
+        for (const auto& a : bx::armor_items)
+            if (hero.armor_id == a.id) { aname = a.name; break; }
+        std::cout << "Armor: " << aname
+                  << (hero.has_shield ? " + Shield" : "") << "\n";
+    }
     std::cout << "AC (ascending): " << hero.ac << "\n";
     std::cout << "XP bonus: "
               << (xp_bonus_val > 0 ? "+" : "")

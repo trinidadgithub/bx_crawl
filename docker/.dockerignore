@@ -1,0 +1,8 @@
+build/
+dnd-data/*.pdf
+dnd-data/*.txt
+dnd-data/*.py
+.git/
+*.md
+.gitignore
+README.md

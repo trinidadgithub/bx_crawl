@@ -1,0 +1,10 @@
+services:
+  bx-crawl:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: bx-crawl:latest
+    container_name: bx-crawl
+    stdin_open: true
+    tty: true
+    entrypoint: ["/game/run.sh"]

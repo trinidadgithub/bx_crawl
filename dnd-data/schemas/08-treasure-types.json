@@ -1,0 +1,133 @@
+{
+  "//": "Treasure types for lairs (A-O) and individuals (P-V)",
+  "schema": "bx-treasure-types-v1",
+  "lairTypes": [
+    {
+      "id": "A",
+      "copper":   { "chancePct": 25, "range": "1-6",  "unit": "1000s" },
+      "silver":   { "chancePct": 30, "range": "1-6",  "unit": "1000s" },
+      "electrum": { "chancePct": 20, "range": "1-4",  "unit": "1000s" },
+      "gold":     { "chancePct": 35, "range": "2-12", "unit": "1000s" },
+      "platinum": { "chancePct": 25, "range": "1-2",  "unit": "1000s" },
+      "gems":     { "chancePct": 50, "range": "6-36" },
+      "jewelry":  null,
+      "magicItems": "30% Any 3",
+      "avgValueGp": 17000
+    },
+    {
+      "id": "B",
+      "copper":   { "chancePct": 50, "range": "1-8",  "unit": "1000s" },
+      "silver":   { "chancePct": 25, "range": "1-6",  "unit": "1000s" },
+      "electrum": { "chancePct": 25, "range": "1-4",  "unit": "1000s" },
+      "gold":     { "chancePct": 25, "range": "1-3",  "unit": "1000s" },
+      "platinum": null,
+      "gems":     { "chancePct": 25, "range": "1-6" },
+      "jewelry":  null,
+      "magicItems": "10% 1 sword, armor, or weapon",
+      "avgValueGp": 2000
+    }
+  ],
+  "individualTypes": [
+    {
+      "id": "P",
+      "copper":   { "range": "3-24", "unit": "per individual" },
+      "silver":   null,
+      "electrum": null,
+      "gold":     null,
+      "platinum": null,
+      "gems":     null,
+      "jewelry":  null,
+      "magicItems": null
+    },
+    {
+      "id": "Q",
+      "copper":   null,
+      "silver":   { "range": "3-18", "unit": "per individual" },
+      "electrum": null,
+      "gold":     null,
+      "platinum": null,
+      "gems":     null,
+      "jewelry":  null,
+      "magicItems": null
+    }
+  ],
+  "magicItemTables": {
+    "generalMagic": [
+      { "dieRange": "01-20", "subtable": "swords" },
+      { "dieRange": "21-40", "subtable": "weaponArmor" },
+      { "dieRange": "41-65", "subtable": "potions" },
+      { "dieRange": "66-85", "subtable": "scrolls" },
+      { "dieRange": "86-90", "subtable": "rings" },
+      { "dieRange": "91-95", "subtable": "wandStaffRod" },
+      { "dieRange": "96-00", "subtable": "miscMagic" }
+    ],
+    "swords": [
+      { "die": 1, "item": "Sword +1" },
+      { "die": 2, "item": "Sword +1, +2 vs lycanthropes" },
+      { "die": 3, "item": "Sword +1, +2 vs spell users" },
+      { "die": 4, "item": "Sword +1, +3 vs undead" },
+      { "die": 5, "item": "Sword +1, +3 vs dragons" },
+      { "die": 6, "item": "Sword +1, casts light on command" },
+      { "die": 7, "item": "Sword +2" },
+      { "die": 8, "item": "Sword -1, cursed" }
+    ],
+    "weaponArmor": [
+      { "die": 1, "item": "Arrows +1 (10)" },
+      { "die": 2, "item": "Axe +1" },
+      { "die": 3, "item": "Dagger +1" },
+      { "die": 4, "item": "Mace +1" },
+      { "die": 5, "item": "Armor +1" },
+      { "die": 6, "item": "Shield +1" },
+      { "die": 7, "item": "Armor & Shield (each +1)" },
+      { "die": 8, "item": "Armor, cursed as AC 9" }
+    ],
+    "potions": [
+      { "die": 1, "item": "Diminution" },
+      { "die": 2, "item": "ESP" },
+      { "die": 3, "item": "Gaseous Form" },
+      { "die": 4, "item": "Growth" },
+      { "die": 5, "item": "Healing" },
+      { "die": 6, "item": "Invisibility" },
+      { "die": 7, "item": "Levitation" },
+      { "die": 8, "item": "Poison" }
+    ],
+    "scrolls": [
+      { "die": 1, "item": "1 magic-user/elf spell" },
+      { "die": 2, "item": "2 magic-user/elf spells" },
+      { "die": 3, "item": "3 magic-user/elf spells" },
+      { "die": 4, "item": "Cursed scroll" },
+      { "die": 5, "item": "Protection from Lycanthropes" },
+      { "die": 6, "item": "Protection from Undead" },
+      { "die": 7, "item": "Treasure Map (1000-4000 gp)" },
+      { "die": 8, "item": "Treasure Map (1 hidden magic item)" }
+    ],
+    "rings": [
+      { "die": 1, "item": "Animal Control" },
+      { "die": 2, "item": "Fire Resistance" },
+      { "die": 3, "item": "Invisibility" },
+      { "die": 4, "item": "Protection +1" },
+      { "die": 5, "item": "Water Walking" },
+      { "die": 6, "item": "Weakness" }
+    ],
+    "wandStaffRod": [
+      { "die": 1, "item": "Wand of Enemy Detection" },
+      { "die": 2, "item": "Wand of Magic Detection" },
+      { "die": 3, "item": "Wand of Paralyzation" },
+      { "die": 4, "item": "Staff of Healing" },
+      { "die": 5, "item": "Snake Staff" },
+      { "die": 6, "item": "Rod of Cancellation" }
+    ],
+    "miscMagic": [
+      { "die": 1, "item": "Bag of Devouring" },
+      { "die": 2, "item": "Bag of Holding" },
+      { "die": 3, "item": "Broom of Flying" },
+      { "die": 4, "item": "Crystal Ball" },
+      { "die": 5, "item": "Elven Cloak & Boots" },
+      { "die": 6, "item": "Gauntlets of Ogre Power" },
+      { "die": 7, "item": "Helm of Alignment Changing" },
+      { "die": 8, "item": "Helm of Telepathy" },
+      { "die": 9, "item": "Medallion of ESP" },
+      { "die": 10, "item": "Rope of Climbing" }
+    ]
+  }
+}

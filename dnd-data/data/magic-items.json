@@ -1,0 +1,262 @@
+{
+  "general": [
+    {
+      "Die Roll (d%)": "01-20",
+      "Magic Subtable": "Sword"
+    },
+    {
+      "Die Roll (d%)": "21-40",
+      "Magic Subtable": "Weapon/Armor"
+    },
+    {
+      "Die Roll (d%)": "41-65",
+      "Magic Subtable": "Potion"
+    },
+    {
+      "Die Roll (d%)": "66-85",
+      "Magic Subtable": "Scroll"
+    },
+    {
+      "Die Roll (d%)": "86-90",
+      "Magic Subtable": "Ring"
+    },
+    {
+      "Die Roll (d%)": "91-95",
+      "Magic Subtable": "Wand/Staff/Rod"
+    },
+    {
+      "Die Roll (d%)": "96-00",
+      "Magic Subtable": "Miscellaneous Magic"
+    }
+  ],
+  "swords": [
+    {
+      "Die Roll": "1",
+      "Type of Sword": "Sword +1"
+    },
+    {
+      "Die Roll": "2",
+      "Type of Sword": "Sword +1, +2 against lycanthropes"
+    },
+    {
+      "Die Roll": "3",
+      "Type of Sword": "Sword +1, +2 against spell users"
+    },
+    {
+      "Die Roll": "4",
+      "Type of Sword": "Sword +1, +3 against undead"
+    },
+    {
+      "Die Roll": "5",
+      "Type of Sword": "Sword +1, +3 against dragons"
+    },
+    {
+      "Die Roll": "6",
+      "Type of Sword": "Sword +1, casts light on command (30' radius)"
+    },
+    {
+      "Die Roll": "7",
+      "Type of Sword": "Sword +2"
+    },
+    {
+      "Die Roll": "8",
+      "Type of Sword": "Sword -1, cursed"
+    }
+  ],
+  "weaponsArmor": [
+    {
+      "Die Roll": "1",
+      "Type of Weapon or Armor": "Arrows +1 (10 arrows)"
+    },
+    {
+      "Die Roll": "2",
+      "Type of Weapon or Armor": "Axe +1"
+    },
+    {
+      "Die Roll": "3",
+      "Type of Weapon or Armor": "Dagger +1"
+    },
+    {
+      "Die Roll": "4",
+      "Type of Weapon or Armor": "Mace +1"
+    },
+    {
+      "Die Roll": "5",
+      "Type of Weapon or Armor": "Armor +1"
+    },
+    {
+      "Die Roll": "6",
+      "Type of Weapon or Armor": "Shield +1"
+    },
+    {
+      "Die Roll": "7",
+      "Type of Weapon or Armor": "Armor & Shield (each +1)"
+    },
+    {
+      "Die Roll": "8",
+      "Type of Weapon or Armor": "Armor, cursed as AC 9 (looks like Armor +1)"
+    }
+  ],
+  "potions": [
+    {
+      "Die Roll": "1",
+      "Type of Potion": "Diminution"
+    },
+    {
+      "Die Roll": "2",
+      "Type of Potion": "ESP"
+    },
+    {
+      "Die Roll": "3",
+      "Type of Potion": "Gaseous Form"
+    },
+    {
+      "Die Roll": "4",
+      "Type of Potion": "Growth"
+    },
+    {
+      "Die Roll": "5",
+      "Type of Potion": "Healing"
+    },
+    {
+      "Die Roll": "6",
+      "Type of Potion": "Invisibility"
+    },
+    {
+      "Die Roll": "7",
+      "Type of Potion": "Levitation"
+    },
+    {
+      "Die Roll": "8",
+      "Type of Potion": "Poison"
+    }
+  ],
+  "scrolls": [
+    {
+      "Die Roll": "1",
+      "Type of Scroll": "Spell scroll: 1 magic-user/elf spell (any)*"
+    },
+    {
+      "Die Roll": "2",
+      "Type of Scroll": "Spell scroll: 2 magic-user/elf spells (any)*"
+    },
+    {
+      "Die Roll": "3",
+      "Type of Scroll": "Spell scroll: 3 magic-user/elf spells (any)*"
+    },
+    {
+      "Die Roll": "4",
+      "Type of Scroll": "Cursed scroll (affects reader immediately)"
+    },
+    {
+      "Die Roll": "5",
+      "Type of Scroll": "Protection from Lycanthropes"
+    },
+    {
+      "Die Roll": "6",
+      "Type of Scroll": "Protection from Undead"
+    },
+    {
+      "Die Roll": "7",
+      "Type of Scroll": "Treasure Map: location of 1,000-4,000 gp value"
+    },
+    {
+      "Die Roll": "8",
+      "Type of Scroll": "Treasure Map: location of 1 hidden magic item"
+    }
+  ],
+  "rings": [
+    {
+      "Die Roll": "1",
+      "Type of Ring": "Animal Control"
+    },
+    {
+      "Die Roll": "2",
+      "Type of Ring": "Fire Resistance"
+    },
+    {
+      "Die Roll": "3",
+      "Type of Ring": "Invisibility"
+    },
+    {
+      "Die Roll": "4",
+      "Type of Ring": "Protection +1"
+    },
+    {
+      "Die Roll": "5",
+      "Type of Ring": "Water Walking"
+    },
+    {
+      "Die Roll": "6",
+      "Type of Ring": "Weakness"
+    }
+  ],
+  "wandsStaffsRods": [
+    {
+      "Die Roll": "1",
+      "Type of Wand/Staff/Rod": "Wand of Enemy Detection"
+    },
+    {
+      "Die Roll": "2",
+      "Type of Wand/Staff/Rod": "Wand of Magic Detection"
+    },
+    {
+      "Die Roll": "3",
+      "Type of Wand/Staff/Rod": "Wand of Paralyzation"
+    },
+    {
+      "Die Roll": "4",
+      "Type of Wand/Staff/Rod": "Staff of Healing"
+    },
+    {
+      "Die Roll": "5",
+      "Type of Wand/Staff/Rod": "Snake Staff"
+    },
+    {
+      "Die Roll": "6",
+      "Type of Wand/Staff/Rod": "Rod of Cancellation"
+    }
+  ],
+  "miscMagic": [
+    {
+      "Die Roll": "1",
+      "Type of Magic Item": "Bag of Devouring"
+    },
+    {
+      "Die Roll": "2",
+      "Type of Magic Item": "Bag of Holding"
+    },
+    {
+      "Die Roll": "3",
+      "Type of Magic Item": "Broom of Flying"
+    },
+    {
+      "Die Roll": "4",
+      "Type of Magic Item": "Crystal Ball"
+    },
+    {
+      "Die Roll": "5",
+      "Type of Magic Item": "Elven Cloak & Boots"
+    },
+    {
+      "Die Roll": "6",
+      "Type of Magic Item": "Gauntlets of Ogre Power"
+    },
+    {
+      "Die Roll": "7",
+      "Type of Magic Item": "Helm of Alignment Changing"
+    },
+    {
+      "Die Roll": "8",
+      "Type of Magic Item": "Helm of Telepathy"
+    },
+    {
+      "Die Roll": "9",
+      "Type of Magic Item": "Medallion of ESP"
+    },
+    {
+      "Die Roll": "10",
+      "Type of Magic Item": "Rope of Climbing"
+    }
+  ]
+}
