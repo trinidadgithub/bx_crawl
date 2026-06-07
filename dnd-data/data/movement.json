@@ -1,0 +1,26 @@
+[
+  {
+    "Character Encumbrance": "400 coins or less OR unarmored",
+    "Normal Move (per turn)": "120'",
+    "Encounter or Combat Movement": "40'/round",
+    "Running": "120'/round"
+  },
+  {
+    "Character Encumbrance": "401-600 coins OR leather armored",
+    "Normal Move (per turn)": "90'",
+    "Encounter or Combat Movement": "30'/round",
+    "Running": "90'/round"
+  },
+  {
+    "Character Encumbrance": "601-800 coins OR metal armored",
+    "Normal Move (per turn)": "60'",
+    "Encounter or Combat Movement": "20'/round",
+    "Running": "60'/round"
+  },
+  {
+    "Character Encumbrance": "801-1600 coins OR metal armored and carrying treasure",
+    "Normal Move (per turn)": "30'",
+    "Encounter or Combat Movement": "10'/round",
+    "Running": "30'/round"
+  }
+]

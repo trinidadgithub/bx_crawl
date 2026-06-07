@@ -1,0 +1,202 @@
+{
+  "cleric-level1": [
+    {
+      "name": "Cure Light Wounds",
+      "level": 1,
+      "class": "Cleric"
+    },
+    {
+      "name": "Detect Evil",
+      "level": 1,
+      "class": "Cleric"
+    },
+    {
+      "name": "Detect Magic",
+      "level": 1,
+      "class": "Cleric"
+    },
+    {
+      "name": "Light",
+      "level": 1,
+      "class": "Cleric"
+    },
+    {
+      "name": "Protection from Evil",
+      "level": 1,
+      "class": "Cleric"
+    },
+    {
+      "name": "Purify Food  and Water",
+      "level": 1,
+      "class": "Cleric"
+    },
+    {
+      "name": "Remove Fear",
+      "level": 1,
+      "class": "Cleric"
+    },
+    {
+      "name": "Resist Cold",
+      "level": 1,
+      "class": "Cleric"
+    }
+  ],
+  "magicuser-level1": [
+    {
+      "name": "Charm Person",
+      "level": 1,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Detect Magic",
+      "level": 1,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Floating Disc",
+      "level": 1,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Hold Portal",
+      "level": 1,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Light",
+      "level": 1,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Magic Missile",
+      "level": 1,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Protection from Evil",
+      "level": 1,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Read Languages",
+      "level": 1,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Read Magic",
+      "level": 1,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Shield",
+      "level": 1,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Sleep",
+      "level": 1,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Ventriloquism",
+      "level": 1,
+      "class": "Magic-User"
+    }
+  ],
+  "magicuser-level2": [
+    {
+      "name": "Continual Light",
+      "level": 2,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Detect Evil",
+      "level": 2,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Detect Invisible",
+      "level": 2,
+      "class": "Magic-User"
+    },
+    {
+      "name": "ESP",
+      "level": 2,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Invisibility",
+      "level": 2,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Knock",
+      "level": 2,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Levitate",
+      "level": 2,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Locate Object",
+      "level": 2,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Mirror Image",
+      "level": 2,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Phantasmal Force",
+      "level": 2,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Web",
+      "level": 2,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Wizard Lock",
+      "level": 2,
+      "class": "Magic-User"
+    }
+  ],
+  "cleric-level2": [
+    {
+      "name": "Bless",
+      "level": 2,
+      "class": "Cleric"
+    },
+    {
+      "name": "Hold Person",
+      "level": 2,
+      "class": "Cleric"
+    },
+    {
+      "name": "Silence 15' radius",
+      "level": 2,
+      "class": "Cleric"
+    }
+  ],
+  "magicuser-level3": [
+    {
+      "name": "Dispel Magic",
+      "level": 3,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Fire Ball",
+      "level": 3,
+      "class": "Magic-User"
+    },
+    {
+      "name": "Fly",
+      "level": 3,
+      "class": "Magic-User"
+    }
+  ]
+}

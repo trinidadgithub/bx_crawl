@@ -1,0 +1,69 @@
+{
+  "//": "Saving throw tables per class and level",
+  "schema": "bx-saving-throws-v1",
+  "savingThrows": [
+    {
+      "class": "cleric",
+      "levels": "1st-3rd",
+      "deathRayPoison": 11,
+      "magicWands": 12,
+      "paralysisPetrify": 14,
+      "dragonBreath": 16,
+      "spells": 15
+    },
+    {
+      "class": "fighter",
+      "levels": "1st-3rd",
+      "deathRayPoison": 12,
+      "magicWands": 13,
+      "paralysisPetrify": 14,
+      "dragonBreath": 15,
+      "spells": 16
+    },
+    {
+      "class": "magicUser",
+      "levels": "1st-3rd",
+      "deathRayPoison": 13,
+      "magicWands": 14,
+      "paralysisPetrify": 13,
+      "dragonBreath": 16,
+      "spells": 15
+    },
+    {
+      "class": "thief",
+      "levels": "1st-3rd",
+      "deathRayPoison": 13,
+      "magicWands": 14,
+      "paralysisPetrify": 13,
+      "dragonBreath": 16,
+      "spells": 15
+    },
+    {
+      "class": "dwarf",
+      "levels": "1st-3rd",
+      "deathRayPoison": 8,
+      "magicWands": 9,
+      "paralysisPetrify": 10,
+      "dragonBreath": 13,
+      "spells": 12
+    },
+    {
+      "class": "elf",
+      "levels": "1st-3rd",
+      "deathRayPoison": 12,
+      "magicWands": 13,
+      "paralysisPetrify": 13,
+      "dragonBreath": 15,
+      "spells": 15
+    },
+    {
+      "class": "halfling",
+      "levels": "1st-3rd",
+      "deathRayPoison": 8,
+      "magicWands": 9,
+      "paralysisPetrify": 10,
+      "dragonBreath": 13,
+      "spells": 12
+    }
+  ]
+}

@@ -1,0 +1,263 @@
+[
+  {
+    "type": "A",
+    "copper": {
+      "chance": 25,
+      "amount": "1-6"
+    },
+    "silver": {
+      "chance": 30,
+      "amount": "1-6"
+    },
+    "electrum": {
+      "chance": 20,
+      "amount": "1-4"
+    },
+    "gold": {
+      "chance": 35,
+      "amount": "2-12"
+    },
+    "platinum": {
+      "chance": 25,
+      "amount": "1-2"
+    },
+    "gemsJewelry": "50% 6-36",
+    "magicItems": "30% Any 3"
+  },
+  {
+    "type": "B",
+    "copper": {
+      "chance": 50,
+      "amount": "1-8"
+    },
+    "silver": {
+      "chance": 25,
+      "amount": "1-6"
+    },
+    "electrum": {
+      "chance": 25,
+      "amount": "1-4"
+    },
+    "gold": {
+      "chance": 25,
+      "amount": "1-3"
+    },
+    "platinum": null,
+    "gemsJewelry": "25% 1-6",
+    "magicItems": "10% 1 sword, armor, or weapon"
+  },
+  {
+    "type": "C",
+    "copper": {
+      "chance": 20,
+      "amount": "1-12"
+    },
+    "silver": {
+      "chance": 30,
+      "amount": "1-4"
+    },
+    "electrum": {
+      "chance": 10,
+      "amount": "1-4"
+    },
+    "gold": null,
+    "platinum": null,
+    "gemsJewelry": "25% 1-4",
+    "magicItems": "10% Any 2"
+  },
+  {
+    "type": "D",
+    "copper": {
+      "chance": 10,
+      "amount": "1-8"
+    },
+    "silver": {
+      "chance": 15,
+      "amount": "1-12"
+    },
+    "electrum": null,
+    "gold": {
+      "chance": 60,
+      "amount": "1-6"
+    },
+    "platinum": null,
+    "gemsJewelry": "30% 1-8",
+    "magicItems": "15% Any 2 + 1 potion"
+  },
+  {
+    "type": "E",
+    "copper": {
+      "chance": 5,
+      "amount": "1-10"
+    },
+    "silver": {
+      "chance": 30,
+      "amount": "1-12"
+    },
+    "electrum": {
+      "chance": 25,
+      "amount": "1-4"
+    },
+    "gold": {
+      "chance": 25,
+      "amount": "1-8"
+    },
+    "platinum": null,
+    "gemsJewelry": "10% 1-10",
+    "magicItems": "25% Any 3 + 1 scroll"
+  },
+  {
+    "type": "F",
+    "copper": null,
+    "silver": {
+      "chance": 10,
+      "amount": "2-20"
+    },
+    "electrum": {
+      "chance": 20,
+      "amount": "1-8"
+    },
+    "gold": {
+      "chance": 45,
+      "amount": "1-12"
+    },
+    "platinum": {
+      "chance": 30,
+      "amount": "1-3"
+    },
+    "gemsJewelry": "20% 2-24 / 10% 1-12*",
+    "magicItems": "30% Any 3 except weapons, + 1 potion + 1 scroll"
+  },
+  {
+    "type": "G",
+    "copper": null,
+    "silver": null,
+    "electrum": null,
+    "gold": {
+      "chance": 50,
+      "amount": "10-40"
+    },
+    "platinum": {
+      "chance": 50,
+      "amount": "1-6"
+    },
+    "gemsJewelry": "25% 3-18 / 25% 1-10*",
+    "magicItems": "35% Any 4 + 1 scroll"
+  },
+  {
+    "type": "H",
+    "copper": {
+      "chance": 25,
+      "amount": "3-24"
+    },
+    "silver": {
+      "chance": 50,
+      "amount": "1-100"
+    },
+    "electrum": {
+      "chance": 50,
+      "amount": "10-40"
+    },
+    "gold": {
+      "chance": 50,
+      "amount": "10-60"
+    },
+    "platinum": {
+      "chance": 25,
+      "amount": "5-20"
+    },
+    "gemsJewelry": "50% 1-100",
+    "magicItems": "15% Any 4 + 1 potion + 1 scroll"
+  },
+  {
+    "type": "I",
+    "copper": null,
+    "silver": null,
+    "electrum": null,
+    "gold": null,
+    "platinum": {
+      "chance": 30,
+      "amount": "1-8"
+    },
+    "gemsJewelry": "50% 10-40",
+    "magicItems": "15% Any 1"
+  },
+  {
+    "type": "J",
+    "copper": {
+      "chance": 25,
+      "amount": "1-4"
+    },
+    "silver": {
+      "chance": 10,
+      "amount": "1-3"
+    },
+    "electrum": null,
+    "gold": null,
+    "platinum": null,
+    "gemsJewelry": "50% 2-12",
+    "magicItems": null
+  },
+  {
+    "type": "K",
+    "copper": null,
+    "silver": {
+      "chance": 30,
+      "amount": "1-6"
+    },
+    "electrum": {
+      "chance": 10,
+      "amount": "1-2"
+    },
+    "gold": null,
+    "platinum": null,
+    "gemsJewelry": null,
+    "magicItems": null
+  },
+  {
+    "type": "L",
+    "copper": null,
+    "silver": null,
+    "electrum": null,
+    "gold": null,
+    "platinum": null,
+    "gemsJewelry": null,
+    "magicItems": null
+  },
+  {
+    "type": "M",
+    "copper": null,
+    "silver": null,
+    "electrum": null,
+    "gold": {
+      "chance": 40,
+      "amount": "2-8"
+    },
+    "platinum": {
+      "chance": 50,
+      "amount": "5-30"
+    },
+    "gemsJewelry": "50% 1-4",
+    "magicItems": null
+  },
+  {
+    "type": "N",
+    "copper": null,
+    "silver": null,
+    "electrum": null,
+    "gold": null,
+    "platinum": null,
+    "gemsJewelry": null,
+    "magicItems": null
+  },
+  {
+    "type": "O",
+    "copper": null,
+    "silver": null,
+    "electrum": null,
+    "gold": null,
+    "platinum": null,
+    "gemsJewelry": "55% 5-20 / 45% 2-12*",
+    "magicItems": "40% 2-8 potions / 50% 1-4 scrolls"
+  }
+]

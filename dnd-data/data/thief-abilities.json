@@ -1,0 +1,32 @@
+[
+  {
+    "Level": "1",
+    "Open Locks": "15%",
+    "Find/Remove Traps": "10%",
+    "Pick Pockets": "20%",
+    "Move Silently": "20%",
+    "Climb Surfaces": "87%",
+    "Hide in Shadows": "10%",
+    "Hear Noise": "1-2"
+  },
+  {
+    "Level": "2",
+    "Open Locks": "20%",
+    "Find/Remove Traps": "15%",
+    "Pick Pockets": "25%",
+    "Move Silently": "25%",
+    "Climb Surfaces": "88%",
+    "Hide in Shadows": "15%",
+    "Hear Noise": "1-2"
+  },
+  {
+    "Level": "3",
+    "Open Locks": "25%",
+    "Find/Remove Traps": "20%",
+    "Pick Pockets": "30%",
+    "Move Silently": "30%",
+    "Climb Surfaces": "89%",
+    "Hide in Shadows": "20%",
+    "Hear Noise": "1-3"
+  }
+]

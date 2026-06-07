@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Chain Mail Armor",
+    "armorClass": 5,
+    "costGp": 40
+  },
+  {
+    "name": "Leather Armor",
+    "armorClass": 7,
+    "costGp": 20
+  },
+  {
+    "name": "Plate Mail Armor",
+    "armorClass": 3,
+    "costGp": 60
+  },
+  {
+    "name": "Shield",
+    "armorClass": -1,
+    "costGp": 10
+  }
+]

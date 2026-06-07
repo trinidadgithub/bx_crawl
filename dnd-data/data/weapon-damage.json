@@ -1,0 +1,62 @@
+[
+  {
+    "Weapon": "Torch",
+    "Damage": "1-4"
+  },
+  {
+    "Weapon": "Dagger",
+    "Damage": "1-4"
+  },
+  {
+    "Weapon": "Sling stone",
+    "Damage": "1-4"
+  },
+  {
+    "Weapon": "Club",
+    "Damage": "1-4"
+  },
+  {
+    "Weapon": "Arrow",
+    "Damage": "1-6"
+  },
+  {
+    "Weapon": "Hand Axe",
+    "Damage": "1-6"
+  },
+  {
+    "Weapon": "Mace",
+    "Damage": "1-6"
+  },
+  {
+    "Weapon": "Quarrel* (Crossbow Bolt)",
+    "Damage": "1-6"
+  },
+  {
+    "Weapon": "Short Sword",
+    "Damage": "1-6"
+  },
+  {
+    "Weapon": "Spear",
+    "Damage": "1-6"
+  },
+  {
+    "Weapon": "War Hammer",
+    "Damage": "1-6"
+  },
+  {
+    "Weapon": "Battle Axe*",
+    "Damage": "1-8"
+  },
+  {
+    "Weapon": "Sword",
+    "Damage": "1-8"
+  },
+  {
+    "Weapon": "Pole Arm*",
+    "Damage": "1-8"
+  },
+  {
+    "Weapon": "Two-handed Sword*",
+    "Damage": "1-10"
+  }
+]

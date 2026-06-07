@@ -1,0 +1,22 @@
+[
+  {
+    "range": "3-5",
+    "xpAdjustment": -20
+  },
+  {
+    "range": "6-8",
+    "xpAdjustment": -10
+  },
+  {
+    "range": "9-12",
+    "xpAdjustment": 0
+  },
+  {
+    "range": "13-15",
+    "xpAdjustment": 5
+  },
+  {
+    "range": "16-18",
+    "xpAdjustment": 10
+  }
+]

@@ -1,0 +1,164 @@
+{
+  "//": "Character class definitions with full level progression",
+  "schema": "bx-character-class-v1",
+  "classes": [
+    {
+      "id": "cleric",
+      "name": "Cleric",
+      "primeRequisite": "wisdom",
+      "hitDie": "d6",
+      "savesAs": "cleric",
+      "allowedArmor": ["any"],
+      "allowedShield": true,
+      "allowedWeapons": ["mace", "club", "warHammer", "sling"],
+      "xpBonusTable": {
+        "//": "maps prime req score to xp multiplier label",
+        "15": "+5%",
+        "16": "+10%"
+      },
+      "levels": [
+        {
+          "level": 1,
+          "title": "Acolyte",
+          "xpRequired": 0,
+          "hitDice": "1d6",
+          "spells": { "first": 0 }
+        },
+        {
+          "level": 2,
+          "title": "Adept",
+          "xpRequired": 1500,
+          "hitDice": "2d6",
+          "spells": { "first": 1 }
+        },
+        {
+          "level": 3,
+          "title": "Priest",
+          "xpRequired": 3000,
+          "hitDice": "3d6",
+          "spells": { "first": 2 }
+        }
+      ],
+      "specialAbilities": {
+        "turnUndead": true,
+        "turnUndeadTable": [
+          { "clericLevel": 1, "skeletons": 7,  "zombies": 9,  "ghouls": 11,  "wights": "none",   "wraiths": "none" },
+          { "clericLevel": 2, "skeletons": "T", "zombies": 7,  "ghouls": 9,   "wights": 11,    "wraiths": "none" },
+          { "clericLevel": 3, "skeletons": "T", "zombies": "T","ghouls": 7,   "wights": 9,     "wraiths": 11 }
+        ]
+      }
+    },
+    {
+      "id": "fighter",
+      "name": "Fighter",
+      "primeRequisite": "strength",
+      "hitDie": "d8",
+      "savesAs": "fighter",
+      "allowedArmor": ["any"],
+      "allowedShield": true,
+      "allowedWeapons": ["any"],
+      "levels": [
+        { "level": 1, "title": "Veteran",    "xpRequired": 0,    "hitDice": "1d8", "spells": {} },
+        { "level": 2, "title": "Warrior",    "xpRequired": 2000, "hitDice": "2d8", "spells": {} },
+        { "level": 3, "title": "Swordsmaster", "xpRequired": 4000, "hitDice": "3d8", "spells": {} }
+      ]
+    },
+    {
+      "id": "magic-user",
+      "name": "Magic-User",
+      "primeRequisite": "intelligence",
+      "hitDie": "d4",
+      "savesAs": "magicUser",
+      "allowedArmor": ["none"],
+      "allowedShield": false,
+      "allowedWeapons": ["dagger"],
+      "levels": [
+        { "level": 1, "title": "Medium",  "xpRequired": 0,    "hitDice": "1d4", "spells": { "first": 1 } },
+        { "level": 2, "title": "Seer",    "xpRequired": 2500, "hitDice": "2d4", "spells": { "first": 2 } },
+        { "level": 3, "title": "Conjurer","xpRequired": 5000, "hitDice": "3d4", "spells": { "first": 2, "second": 1 } }
+      ]
+    },
+    {
+      "id": "thief",
+      "name": "Thief",
+      "primeRequisite": "dexterity",
+      "hitDie": "d4",
+      "savesAs": "thief",
+      "allowedArmor": ["leather"],
+      "allowedShield": false,
+      "allowedWeapons": ["dagger", "shortSword", "sling"],
+      "levels": [
+        { "level": 1, "title": "Apprentice",  "xpRequired": 0,    "hitDice": "1d4", "spells": {} },
+        { "level": 2, "title": "Footpad",     "xpRequired": 1200, "hitDice": "2d4", "spells": {} },
+        { "level": 3, "title": "Robber",      "xpRequired": 2400, "hitDice": "3d4", "spells": {} }
+      ],
+      "specialAbilities": {
+        "thiefSkills": [
+          { "level": 1, "openLocks": 15, "findRemoveTraps": 10, "pickPockets": 20, "moveSilently": 20, "climbSurfaces": 87, "hideInShadows": 10, "hearNoise": "1-2" },
+          { "level": 2, "openLocks": 20, "findRemoveTraps": 15, "pickPockets": 25, "moveSilently": 25, "climbSurfaces": 88, "hideInShadows": 15, "hearNoise": "1-2" },
+          { "level": 3, "openLocks": 25, "findRemoveTraps": 20, "pickPockets": 30, "moveSilently": 30, "climbSurfaces": 89, "hideInShadows": 20, "hearNoise": "1-3" }
+        ]
+      }
+    },
+    {
+      "id": "dwarf",
+      "name": "Dwarf",
+      "primeRequisite": "strength",
+      "hitDie": "d8",
+      "savesAs": "dwarf",
+      "savesBonusVs": ["magic", "poison"],
+      "allowedArmor": ["any"],
+      "allowedShield": true,
+      "allowedWeapons": ["any"],
+      "levels": [
+        { "level": 1, "title": "Dwarven Veteran",   "xpRequired": 0,    "hitDice": "1d8", "spells": {} },
+        { "level": 2, "title": "Dwarven Warrior",   "xpRequired": 2200, "hitDice": "2d8", "spells": {} },
+        { "level": 3, "title": "Dwarven Swordmaster","xpRequired": 4400, "hitDice": "3d8", "spells": {} }
+      ],
+      "specialAbilities": {
+        "infravision": true,
+        "detectTraps": "1-2 on d6",
+        "languages": ["dwarvish", "gnome", "goblin", "kobold"]
+      }
+    },
+    {
+      "id": "elf",
+      "name": "Elf",
+      "primeRequisite": "strength AND intelligence",
+      "hitDie": "d6",
+      "savesAs": "elf",
+      "allowedArmor": ["any"],
+      "allowedShield": true,
+      "allowedWeapons": ["any"],
+      "levels": [
+        { "level": 1, "title": "Veteran-Medium",       "xpRequired": 0,    "hitDice": "1d6", "spells": { "first": 1 } },
+        { "level": 2, "title": "Warrior-Seer",         "xpRequired": 4000, "hitDice": "2d6", "spells": { "first": 2 } },
+        { "level": 3, "title": "Swordmaster-Conjurer", "xpRequired": 8000, "hitDice": "3d6", "spells": { "first": 2, "second": 1 } }
+      ],
+      "specialAbilities": {
+        "infravision": true,
+        "detectSecretDoors": "1-2 on d6",
+        "languages": ["elvish", "gnoll", "hobgoblin", "orc"]
+      }
+    },
+    {
+      "id": "halfling",
+      "name": "Halfling",
+      "primeRequisite": "strength AND dexterity",
+      "hitDie": "d6",
+      "savesAs": "halfling",
+      "savesBonusVs": ["magic", "poison"],
+      "allowedArmor": ["any"],
+      "allowedShield": true,
+      "allowedWeapons": ["any"],
+      "levels": [
+        { "level": 1, "title": "Halfling Veteran",   "xpRequired": 0,    "hitDice": "1d6", "spells": {} },
+        { "level": 2, "title": "Halfling Warrior",   "xpRequired": 2000, "hitDice": "2d6", "spells": {} },
+        { "level": 3, "title": "Halfling Swordmaster","xpRequired": 4000, "hitDice": "3d6", "spells": {} }
+      ],
+      "specialAbilities": {
+        "missileBonus": "+1 to hit with missile weapons"
+      }
+    }
+  ]
+}

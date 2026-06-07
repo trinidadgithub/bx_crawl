@@ -1,0 +1,44 @@
+[
+  {
+    "Weapon": "Crossbow",
+    "Short (+1)": "5-80'",
+    "Medium (0)": "81-160'",
+    "Long (-1)": "161-240'"
+  },
+  {
+    "Weapon": "Long Bow",
+    "Short (+1)": "5-70'",
+    "Medium (0)": "71-140'",
+    "Long (-1)": "141-210'"
+  },
+  {
+    "Weapon": "Short Bow",
+    "Short (+1)": "5-50'",
+    "Medium (0)": "51-100'",
+    "Long (-1)": "101-150'"
+  },
+  {
+    "Weapon": "Sling",
+    "Short (+1)": "5-40'",
+    "Medium (0)": "41-80'",
+    "Long (-1)": "81-160'"
+  },
+  {
+    "Weapon": "Spear*",
+    "Short (+1)": "5-20'",
+    "Medium (0)": "21-40'",
+    "Long (-1)": "41-60'"
+  },
+  {
+    "Weapon": "Axe* or Dagger*",
+    "Short (+1)": "5-10'",
+    "Medium (0)": "11-20'",
+    "Long (-1)": "21-30'"
+  },
+  {
+    "Weapon": "Oil* or Holy Water*",
+    "Short (+1)": "5-10'",
+    "Medium (0)": "11-30'",
+    "Long (-1)": "31-50'"
+  }
+]

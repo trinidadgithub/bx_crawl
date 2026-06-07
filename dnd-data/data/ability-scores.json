@@ -1,0 +1,210 @@
+{
+  "Strength": [
+    {
+      "Score": "3",
+      "Adjustments": "-3 to hit, damage, and opening doors"
+    },
+    {
+      "Score": "4-5",
+      "Adjustments": "-2 to hit, damage, and opening doors"
+    },
+    {
+      "Score": "6-8",
+      "Adjustments": "-1 to hit, damage, and opening doors"
+    },
+    {
+      "Score": "9-12",
+      "Adjustments": "No adjustments due to Strength"
+    },
+    {
+      "Score": "13-15",
+      "Adjustments": "+1 to hit, damage, and opening doors"
+    },
+    {
+      "Score": "16-17",
+      "Adjustments": "+2 to hit, damage, and opening doors"
+    },
+    {
+      "Score": "18",
+      "Adjustments": "+3 to hit, damage, and opening doors"
+    }
+  ],
+  "Intelligence": [
+    {
+      "Score": "3",
+      "Use of Languages": "Has trouble with speaking, cannot read or write"
+    },
+    {
+      "Score": "4-5",
+      "Use of Languages": "Cannot read or write Common"
+    },
+    {
+      "Score": "6-8",
+      "Use of Languages": "Can write simple Common words"
+    },
+    {
+      "Score": "9-12",
+      "Use of Languages": "Reads and writes native languages (usually 2*)"
+    },
+    {
+      "Score": "13-15",
+      "Use of Languages": "Reads and writes native languages, +1 added language"
+    },
+    {
+      "Score": "16-17",
+      "Use of Languages": "Reads and writes native languages, +2 added languages"
+    },
+    {
+      "Score": "18",
+      "Use of Languages": "Reads and writes native languages, +3 added languages"
+    }
+  ],
+  "Wisdom": [
+    {
+      "Score": "3",
+      "Saving Throw Adjustments": "-3 on magic-based saving throws"
+    },
+    {
+      "Score": "4-5",
+      "Saving Throw Adjustments": "-2 on magic-based saving throws"
+    },
+    {
+      "Score": "6-8",
+      "Saving Throw Adjustments": "-1 on magic-based saving throws"
+    },
+    {
+      "Score": "9-12",
+      "Saving Throw Adjustments": "Normal magic-based saving throws"
+    },
+    {
+      "Score": "13-15",
+      "Saving Throw Adjustments": "+1 on magic-based saving throws"
+    },
+    {
+      "Score": "16-17",
+      "Saving Throw Adjustments": "+2 on magic-based saving throws"
+    },
+    {
+      "Score": "18",
+      "Saving Throw Adjustments": "+3 on magic-based saving throws"
+    }
+  ],
+  "Dexterity": [
+    {
+      "Score": "3",
+      "Missile Fire Adjustment": "-3 on \"to hit\" rolls",
+      "Armor Class Adjustment": "+3 penalty",
+      "Initiative Adjustment (Optional)": "-2"
+    },
+    {
+      "Score": "4-5",
+      "Missile Fire Adjustment": "-2 on \"to hit\" rolls",
+      "Armor Class Adjustment": "+2 penalty",
+      "Initiative Adjustment (Optional)": "-1"
+    },
+    {
+      "Score": "6-8",
+      "Missile Fire Adjustment": "-1 on \"to hit\" rolls",
+      "Armor Class Adjustment": "+1 penalty",
+      "Initiative Adjustment (Optional)": "-1"
+    },
+    {
+      "Score": "9-12",
+      "Missile Fire Adjustment": "No adjustment",
+      "Armor Class Adjustment": "No adjustment",
+      "Initiative Adjustment (Optional)": "No adjustment"
+    },
+    {
+      "Score": "13-15",
+      "Missile Fire Adjustment": "+1 on \"to hit\" rolls",
+      "Armor Class Adjustment": "-1 bonus",
+      "Initiative Adjustment (Optional)": "+1"
+    },
+    {
+      "Score": "16-17",
+      "Missile Fire Adjustment": "+2 on \"to hit\" rolls",
+      "Armor Class Adjustment": "-2 bonus",
+      "Initiative Adjustment (Optional)": "+1"
+    },
+    {
+      "Score": "18",
+      "Missile Fire Adjustment": "+3 on \"to hit\" rolls",
+      "Armor Class Adjustment": "-3 bonus",
+      "Initiative Adjustment (Optional)": "+2"
+    }
+  ],
+  "Constitution": [
+    {
+      "Score": "3",
+      "Hit Point Adjustment": "-3 points per hit die"
+    },
+    {
+      "Score": "4-5",
+      "Hit Point Adjustment": "-2 points per hit die"
+    },
+    {
+      "Score": "6-8",
+      "Hit Point Adjustment": "-1 points per hit die"
+    },
+    {
+      "Score": "9-12",
+      "Hit Point Adjustment": "No adjustment to hit points"
+    },
+    {
+      "Score": "13-15",
+      "Hit Point Adjustment": "+1 points per hit die"
+    },
+    {
+      "Score": "16-17",
+      "Hit Point Adjustment": "+2 points per hit die"
+    },
+    {
+      "Score": "18",
+      "Hit Point Adjustment": "+3 points per hit die"
+    }
+  ],
+  "Charisma": [
+    {
+      "Score": "3",
+      "Adjustment to Reactions": "-2",
+      "Maximum Number of Retainers": "1",
+      "Morale of Retainers": "4"
+    },
+    {
+      "Score": "4-5",
+      "Adjustment to Reactions": "-1",
+      "Maximum Number of Retainers": "2",
+      "Morale of Retainers": "5"
+    },
+    {
+      "Score": "6-8",
+      "Adjustment to Reactions": "-1",
+      "Maximum Number of Retainers": "3",
+      "Morale of Retainers": "6"
+    },
+    {
+      "Score": "9-12",
+      "Adjustment to Reactions": "None",
+      "Maximum Number of Retainers": "4",
+      "Morale of Retainers": "7"
+    },
+    {
+      "Score": "13-15",
+      "Adjustment to Reactions": "+1",
+      "Maximum Number of Retainers": "5",
+      "Morale of Retainers": "8"
+    },
+    {
+      "Score": "16-17",
+      "Adjustment to Reactions": "+1",
+      "Maximum Number of Retainers": "6",
+      "Morale of Retainers": "9"
+    },
+    {
+      "Score": "18",
+      "Adjustment to Reactions": "+2",
+      "Maximum Number of Retainers": "7",
+      "Morale of Retainers": "10"
+    }
+  ]
+}

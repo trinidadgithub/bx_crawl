@@ -1,6 +1,7 @@
 #include "game.hpp"
 #include "map.hpp"
 #include "chargen.hpp"
+#include "bx_data.hpp"
 
 #include <iostream>
 #include <chrono>
@@ -33,15 +34,9 @@ void log_event(Game& g, const std::string& msg) {
     }
 }
 
-// Same B/X-ish modifier table as chargen, for display/logging.
+// B/X ability modifier from bx_data tables, for display/logging.
 int ability_modifier_display(int score) {
-    if (score <= 3)  return -3;
-    if (score <= 5)  return -2;
-    if (score <= 8)  return -1;
-    if (score <= 12) return 0;
-    if (score <= 15) return 1;
-    if (score <= 17) return 2;
-    return 3;
+    return bx::get_strength(score).toHitMelee;
 }
 
 // Monster XP values (B/X Moldvay)
@@ -254,11 +249,64 @@ int roll_2d6(Game& g) {
     return roll_d(g, 6) + roll_d(g, 6);
 }
 
+// Shared monster template data
+struct MonsterTemplate {
+    EntityType type;
+    const char* name;
+    int hp;
+    int atk_bonus;
+    int damage_die;
+    int ac;
+    int morale;
+    int xp;
+};
+
+inline const MonsterTemplate monster_templates[] = {
+    {EntityType::Goblin,     "Goblin",     5, 1, 6, 12, 8,  10},
+    {EntityType::Kobold,     "Kobold",     3, 0, 4, 11, 6,   5},
+    {EntityType::GiantRat,   "Giant Rat",  2, 0, 3, 12, 8,   5},
+    {EntityType::Skeleton,   "Skeleton",   4, 0, 6, 12, 12, 10},
+    {EntityType::Orc,        "Orc",        5, 1, 6, 13, 8,  10},
+    {EntityType::GiantSpider,"Giant Spider",4, 0, 6, 11, 8,  13},
+    {EntityType::Zombie,     "Zombie",     9, 1, 6, 11, 12,  20},
+};
+const int num_monster_types = 7;
+
 // Forward declarations for morale/attack internals
 void try_morale_check(Game& g, Entity& m, Entity& attacker,
                       int& free_attacks_remaining, const std::string& reason);
 void morale_allies_on_death(Game& g, const Entity& fallen, Entity& attacker,
                             int& free_attacks_remaining);
+
+// Saving throw helper
+static bool make_save(Game& g, CharacterClass cc, int category) {
+    bx::SaveClass sc = [&]() {
+        switch (cc) {
+            case CharacterClass::Cleric:    return bx::SaveClass::cleric;
+            case CharacterClass::Fighter:   return bx::SaveClass::fighter;
+            case CharacterClass::Dwarf:     return bx::SaveClass::dwarf;
+            case CharacterClass::Elf:       return bx::SaveClass::elf;
+            case CharacterClass::Halfling:  return bx::SaveClass::halfling;
+            case CharacterClass::MagicUser: return bx::SaveClass::magicUser;
+            case CharacterClass::Thief:     return bx::SaveClass::thief;
+            default:                        return bx::SaveClass::fighter;
+        }
+    }();
+    const bx::SaveRow& row = bx::saving_throws[static_cast<int>(sc)];
+    int target = 0;
+    switch (category) {
+        case 0: target = row.death_ray_poison; break;
+        case 1: target = row.magic_wands; break;
+        case 2: target = row.paralysis_petrify; break;
+        case 3: target = row.dragon_breath; break;
+        case 4: target = row.rods_spells; break;
+        default: target = row.death_ray_poison; break;
+    }
+    int roll = roll_d(g, 20);
+    int wis_mod = bx::get_wisdom(g.hero.abilities.wis).savingThrowMagic;
+    if (category == 4) roll += wis_mod;
+    return roll >= target;
+}
 
 // Core attack implementation with optional morale triggering
 void attack_internal(Game& g, Entity& attacker, Entity& defender,
@@ -330,6 +378,37 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
                                        free_attacks_remaining);
             }
         } else {
+            // Poison/disease saves for hero attacked by special monsters
+            if (defender.type == EntityType::Hero && attacker.type != EntityType::Hero) {
+                if (attacker.type == EntityType::GiantSpider) {
+                    if (make_save(g, g.hero.char_class, 0)) {
+                        log_event(g, "You resist the spider's poison!");
+                    } else {
+                        int poison_dmg = roll_d(g, 4);
+                        defender.hp -= poison_dmg;
+                        {
+                            std::ostringstream oss;
+                            oss << "Spider poison deals " << poison_dmg << " damage!";
+                            log_event(g, oss.str());
+                        }
+                        if (defender.hp <= 0) {
+                            defender.hp = 0;
+                            defender.alive = false;
+                            log_event(g, "You succumb to the poison!");
+                        }
+                    }
+                } else if (attacker.type == EntityType::GiantRat) {
+                    if (!make_save(g, g.hero.char_class, 0)) {
+                        log_event(g, "The rat's bite carries disease!");
+                        int disease_dmg = 1;
+                        defender.hp -= disease_dmg;
+                        if (defender.hp <= 0) {
+                            defender.hp = 0;
+                            defender.alive = false;
+                        }
+                    }
+                }
+            }
             if (trigger_morale && defender_is_monster &&
                 attacker.type == EntityType::Hero) {
                 try_morale_check(g, defender, attacker,
@@ -540,33 +619,10 @@ void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data
         e.pos = {room.x + room.w / 2, room.y + room.h / 2};
     };
 
-    // Monster templates
-    struct MonsterTemplate {
-        EntityType type;
-        std::string name;
-        int hp;
-        int atk_bonus;
-        int damage_die;
-        int ac;
-        int morale;
-        int xp;
-    };
-
-    MonsterTemplate templates[] = {
-        {EntityType::Goblin,     "Goblin",     5, 1, 6, 12, 8,  10},
-        {EntityType::Kobold,     "Kobold",     3, 0, 4, 11, 6,   5},
-        {EntityType::GiantRat,   "Giant Rat",  2, 0, 3, 12, 8,   5},
-        {EntityType::Skeleton,   "Skeleton",   4, 0, 6, 12, 12, 10},
-        {EntityType::Orc,        "Orc",        5, 1, 6, 13, 8,  10},
-        {EntityType::GiantSpider,"Giant Spider",4, 0, 6, 11, 8,  13},
-        {EntityType::Zombie,     "Zombie",     9, 1, 6, 11, 12,  20},
-    };
-    const int num_types = 7;
-
     // Spawn 4-6 monsters
     int num_monsters = 4 + roll_d(g, 3); // 4..6
     for (int i = 0; i < num_monsters; ++i) {
-        const auto& t = templates[roll_d(g, num_types) - 1];
+        const auto& t = monster_templates[roll_d(g, num_monster_types) - 1];
 
         Entity e;
         e.name             = t.name;
@@ -612,6 +668,9 @@ const char* class_name(CharacterClass cc) {
         case CharacterClass::MagicUser: return "Magic-User";
         case CharacterClass::Thief:     return "Thief";
         case CharacterClass::Cleric:    return "Cleric";
+        case CharacterClass::Dwarf:     return "Dwarf";
+        case CharacterClass::Elf:       return "Elf";
+        case CharacterClass::Halfling:  return "Halfling";
         default:                        return "None";
     }
 }
@@ -908,12 +967,8 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
             int roll   = roll_d(g, 20);
             int penalty = (dist >= 4) ? -2 : (dist >= 2) ? -1 : 0;
             // Ranged uses DEX mod instead of STR mod
-            int dex = attacker.abilities.dex;
-            int dex_mod = (dex <= 3) ? -3 : (dex <= 5) ? -2 : (dex <= 8) ? -1
-                        : (dex <= 12) ? 0 : (dex <= 15) ? 1 : (dex <= 17) ? 2 : 3;
-            int str = attacker.abilities.str;
-            int str_mod = (str <= 3) ? -3 : (str <= 5) ? -2 : (str <= 8) ? -1
-                        : (str <= 12) ? 0 : (str <= 15) ? 1 : (str <= 17) ? 2 : 3;
+            int dex_mod = bx::get_dexterity(attacker.abilities.dex).toHitMissile;
+            int str_mod = bx::get_strength(attacker.abilities.str).toHitMelee;
             int total  = roll + (attacker.attack_bonus - str_mod + dex_mod) + penalty;
 
             {
@@ -977,6 +1032,14 @@ static bool is_undead(EntityType type) {
     return type == EntityType::Skeleton || type == EntityType::Zombie;
 }
 
+// Look up spell level from bx_data.hpp by name. Returns 0 if not found.
+static int spell_level_by_name(const std::string& name) {
+    for (const auto& s : bx::spells) {
+        if (name == s.name) return s.level;
+    }
+    return 0;
+}
+
 // Resolve a cast of the spell at spell_index (0-based) toward (dx,dy).
 // Returns true if the spell slot was consumed.
 static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
@@ -987,8 +1050,12 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
     }
     const std::string& spell = hero.spells[spell_index];
 
-    // Check spell slot availability (level 1 slots for now)
-    if (hero.spell_slots[1] <= 0) {
+    int spell_level = spell_level_by_name(spell);
+    if (spell_level < 1 || spell_level > Entity::MaxSpellLevel) {
+        log_event(g, "Unknown spell level.");
+        return false;
+    }
+    if (hero.spell_slots[spell_level] <= 0) {
         log_event(g, "No spell slots remaining!");
         return false;
     }
@@ -1006,7 +1073,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
             if (is_blocked(g, nx, ny))
                 break;
             if (Entity* target = monster_at(g, nx, ny)) {
-                --hero.spell_slots[1];
+                --hero.spell_slots[spell_level];
                 int dmg = roll_d(g, 4) + 1;
                 target->hp -= dmg;
                 {
@@ -1034,7 +1101,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
 
     // --- Sleep ---
     if (spell == "Sleep") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         int hd_affected = roll_d(g, 4) + roll_d(g, 4); // 2d4
         int affected = 0;
         for (auto& m : g.monsters) {
@@ -1054,7 +1121,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
 
     // --- Light ---
     if (spell == "Light") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         hero.light_spell_turns = 20;
         log_event(g, "A magical light illuminates the area.");
         return true;
@@ -1062,7 +1129,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
 
     // --- Cure Light Wounds ---
     if (spell == "Cure Light Wounds") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         int heal = roll_d(g, 6) + 1;
         int actual = std::min(heal, hero.max_hp - hero.hp);
         hero.hp += actual;
@@ -1077,7 +1144,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
 
     // --- Read Magic ---
     if (spell == "Read Magic") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         log_event(g, "You study the arcane sigils — they become clear.");
         return true;
     }
@@ -1099,7 +1166,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
             log_event(g, "Undead are immune to Charm Person.");
             return false;
         }
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         target->charmed = true;
         log_event(g, target->name + " is charmed!");
         return true;
@@ -1107,14 +1174,14 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
 
     // --- Detect Magic ---
     if (spell == "Detect Magic") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         log_event(g, "You detect magical auras in the area.");
         return true;
     }
 
     // --- Floating Disc ---
     if (spell == "Floating Disc") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         log_event(g, "A floating disc materialises and follows you.");
         return true;
     }
@@ -1139,13 +1206,13 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
             log_event(g, "No adjacent door to hold.");
             return false;
         }
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         return true;
     }
 
     // --- Protection from Evil ---
     if (spell == "Protection from Evil") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         hero.protection_turns = 6;
         log_event(g, "A protective aura surrounds you.");
         return true;
@@ -1153,7 +1220,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
 
     // --- Shield ---
     if (spell == "Shield") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         hero.shield_turns = 6;
         log_event(g, "A shimmering shield appears before you.");
         return true;
@@ -1161,7 +1228,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
 
     // --- Ventriloquism ---
     if (spell == "Ventriloquism") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         log_event(g, "You throw your voice to confuse the monsters.");
         return true;
     }
@@ -1169,7 +1236,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
     // --- Cleric spells ---
 
     if (spell == "Detect Evil") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         int count = 0;
         for (auto& m : g.monsters)
             if (m.alive) ++count;
@@ -1183,7 +1250,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
     }
 
     if (spell == "Purify Food and Water") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         int heal = roll_d(g, 4);
         int actual = std::min(heal, hero.max_hp - hero.hp);
         hero.hp += actual;
@@ -1197,16 +1264,233 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
     }
 
     if (spell == "Remove Fear") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         hero.courage_turns = 6;
         log_event(g, "Divine courage fills you — +1 to attack rolls.");
         return true;
     }
 
     if (spell == "Resist Cold") {
-        --hero.spell_slots[1];
+        --hero.spell_slots[spell_level];
         hero.resist_cold_turns = 6;
         log_event(g, "A cold-resistant aura surrounds you.");
+        return true;
+    }
+
+    // --- Level 2 Magic-User spells ---
+
+    if (spell == "Continual Light") {
+        --hero.spell_slots[spell_level];
+        hero.light_spell_turns = 999;
+        log_event(g, "A permanent magical glow fills the area.");
+        return true;
+    }
+
+    if (spell == "Detect Invisible") {
+        --hero.spell_slots[spell_level];
+        log_event(g, "You can now see invisible creatures.");
+        return true;
+    }
+
+    if (spell == "ESP") {
+        --hero.spell_slots[spell_level];
+        int count = 0;
+        for (auto& m : g.monsters)
+            if (m.alive) ++count;
+        {
+            std::ostringstream oss;
+            oss << "You sense " << count << " thinking mind"
+                << (count == 1 ? "" : "s") << " nearby.";
+            log_event(g, oss.str());
+        }
+        return true;
+    }
+
+    if (spell == "Invisibility") {
+        --hero.spell_slots[spell_level];
+        hero.hidden = true;
+        log_event(g, "You fade from sight!");
+        return true;
+    }
+
+    if (spell == "Knock") {
+        --hero.spell_slots[spell_level];
+        static const int dirs[] = {-1, 0, 1, 0, 0, -1, 0, 1};
+        bool opened = false;
+        for (int i = 0; i < 4; ++i) {
+            int nx = hero.pos.x + dirs[i * 2];
+            int ny = hero.pos.y + dirs[i * 2 + 1];
+            if (!in_bounds(g, nx, ny)) continue;
+            auto& tile = g.map[index_for(g, nx, ny)];
+            if (tile.type == TileType::DoorClosed) {
+                tile.type = TileType::DoorOpen;
+                tile.held = false;
+                opened = true;
+                log_event(g, "The door swings open!");
+                break;
+            }
+        }
+        if (!opened)
+            log_event(g, "No locked door adjacent.");
+        return true;
+    }
+
+    if (spell == "Levitate") {
+        --hero.spell_slots[spell_level];
+        log_event(g, "You rise gently into the air.");
+        return true;
+    }
+
+    if (spell == "Locate Object") {
+        --hero.spell_slots[spell_level];
+        log_event(g, "You concentrate on a known object...");
+        return true;
+    }
+
+    if (spell == "Mirror Image") {
+        --hero.spell_slots[spell_level];
+        log_event(g, "Mirror images of you shimmer into being.");
+        return true;
+    }
+
+    if (spell == "Phantasmal Force") {
+        --hero.spell_slots[spell_level];
+        log_event(g, "An illusion shimmers into existence.");
+        return true;
+    }
+
+    if (spell == "Web") {
+        --hero.spell_slots[spell_level];
+        int webbed = 0;
+        for (auto& m : g.monsters) {
+            if (!m.alive) continue;
+            m.fleeing = false;
+            ++webbed;
+        }
+        {
+            std::ostringstream oss;
+            oss << "Thick webs entangle " << webbed << " monster"
+                << (webbed == 1 ? "" : "s") << "!";
+            log_event(g, oss.str());
+        }
+        return true;
+    }
+
+    if (spell == "Wizard Lock") {
+        --hero.spell_slots[spell_level];
+        static const int dirs[] = {-1, 0, 1, 0, 0, -1, 0, 1};
+        bool locked = false;
+        for (int i = 0; i < 4; ++i) {
+            int nx = hero.pos.x + dirs[i * 2];
+            int ny = hero.pos.y + dirs[i * 2 + 1];
+            if (!in_bounds(g, nx, ny)) continue;
+            auto& tile = g.map[index_for(g, nx, ny)];
+            if (tile.type == TileType::DoorClosed) {
+                tile.held = true;
+                locked = true;
+                log_event(g, "The door is wizard-locked!");
+                break;
+            }
+        }
+        if (!locked)
+            log_event(g, "No adjacent door to lock.");
+        return true;
+    }
+
+    // --- Level 2 Cleric spells ---
+
+    if (spell == "Bless") {
+        --hero.spell_slots[spell_level];
+        int heal = roll_d(g, 4);
+        int actual = std::min(heal, hero.max_hp - hero.hp);
+        hero.hp += actual;
+        hero.courage_turns = std::max(hero.courage_turns, 6);
+        {
+            std::ostringstream oss;
+            oss << "Bless restores " << actual
+                << " HP and emboldens you (+1 attack).";
+            log_event(g, oss.str());
+        }
+        return true;
+    }
+
+    if (spell == "Hold Person") {
+        --hero.spell_slots[spell_level];
+        int held = 0;
+        for (auto& m : g.monsters) {
+            if (!m.alive) continue;
+            if (m.morale <= 0) continue;
+            m.alive = false;
+            ++held;
+        }
+        {
+            std::ostringstream oss;
+            oss << "Hold Person paralyzes " << held << " humanoid"
+                << (held == 1 ? "" : "s") << "!";
+            log_event(g, oss.str());
+        }
+        return true;
+    }
+
+    if (spell == "Silence 15' radius") {
+        --hero.spell_slots[spell_level];
+        log_event(g, "An eerie silence envelops the area.");
+        return true;
+    }
+
+    // --- Level 3 Magic-User spells ---
+
+    if (spell == "Dispel Magic") {
+        --hero.spell_slots[spell_level];
+        // Remove buffs from hero
+        hero.shield_turns = 0;
+        hero.protection_turns = 0;
+        hero.courage_turns = 0;
+        hero.resist_cold_turns = 0;
+        hero.light_spell_turns = 0;
+        // Un-hold nearby doors
+        for (auto& tile : g.map)
+            tile.held = false;
+        log_event(g, "Magic dissipates around you — all enchantments end.");
+        return true;
+    }
+
+    if (spell == "Fire Ball") {
+        --hero.spell_slots[spell_level];
+        int killed = 0;
+        for (auto& m : g.monsters) {
+            if (!m.alive) continue;
+            int dmg = roll_d(g, 6) + roll_d(g, 6);
+            m.hp -= dmg;
+            if (m.hp <= 0) {
+                m.hp = 0;
+                m.alive = false;
+                ++killed;
+                log_event(g, m.name + " is consumed by the fire ball!");
+            } else {
+                log_event(g, m.name + " is scorched by the fire ball!");
+            }
+        }
+        {
+            std::ostringstream oss;
+            oss << "Fire ball kills " << killed << " monster"
+                << (killed == 1 ? "" : "s") << "!";
+            log_event(g, oss.str());
+        }
+        return true;
+    }
+
+    if (spell == "Fly") {
+        --hero.spell_slots[spell_level];
+        log_event(g, "You take to the air!");
+        return true;
+    }
+
+    // --- Level 1 Magic-User spells not yet implemented ---
+
+    if (spell == "Read Languages") {
+        --hero.spell_slots[spell_level];
+        log_event(g, "You can read all languages for a short time.");
         return true;
     }
 
@@ -1279,22 +1563,7 @@ static bool turn_undead(Game& g, int dx, int dy) {
 static int spawn_wandering_monsters(Game& g) {
     if (g.rooms.size() <= 1) return 0;
 
-    // Monster templates (duplicated from init_game — keep in sync)
-    struct WTemplate {
-        EntityType type;
-        std::string name;
-        int hp, atk, dmg, ac, mor, xp;
-    };
-    WTemplate templates[] = {
-        {EntityType::Goblin,     "Goblin",     5, 1, 6, 12, 8,  10},
-        {EntityType::Kobold,     "Kobold",     3, 0, 4, 11, 6,   5},
-        {EntityType::GiantRat,   "Giant Rat",  2, 0, 3, 12, 8,   5},
-        {EntityType::Skeleton,   "Skeleton",   4, 0, 6, 12, 12, 10},
-        {EntityType::Orc,        "Orc",        5, 1, 6, 13, 8,  10},
-        {EntityType::GiantSpider,"Giant Spider",4, 0, 6, 11, 8,  13},
-        {EntityType::Zombie,     "Zombie",     9, 1, 6, 11, 12,  20},
-    };
-    const int num_templates = 7;
+    // Monster templates (shared from namespace scope)
 
     // Pick a random room that is not the entrance
     int room_idx = roll_d(g, static_cast<int>(g.rooms.size()) - 1); // 1 .. n-1
@@ -1303,16 +1572,16 @@ static int spawn_wandering_monsters(Game& g) {
     int count = roll_d(g, 3); // 1..3
 
     for (int i = 0; i < count; ++i) {
-        const auto& t = templates[roll_d(g, num_templates) - 1];
+        const auto& t = monster_templates[roll_d(g, num_monster_types) - 1];
         Entity e;
         e.name             = t.name;
         e.type             = t.type;
         e.max_hp           = t.hp;
         e.hp               = t.hp;
-        e.attack_bonus     = t.atk;
-        e.damage_die       = t.dmg;
+        e.attack_bonus     = t.atk_bonus;
+        e.damage_die       = t.damage_die;
         e.ac               = t.ac;
-        e.morale           = t.mor;
+        e.morale           = t.morale;
         e.fleeing          = false;
         e.alive            = true;
         e.attacks_per_turn = 1;
@@ -1618,3 +1887,5 @@ bool any_monsters_alive(const Game& g) {
     }
     return false;
 }
+
+

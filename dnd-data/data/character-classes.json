@@ -1,0 +1,163 @@
+{
+  "Cleric": [
+    {
+      "Level": "1",
+      "Title": "Acolyte",
+      "Exp. Points": "0",
+      "Hit Dice": "1d6",
+      "Spells": "None"
+    },
+    {
+      "Level": "2",
+      "Title": "Adept",
+      "Exp. Points": "1500",
+      "Hit Dice": "2d6",
+      "Spells": "1 first level"
+    },
+    {
+      "Level": "3",
+      "Title": "Priest (or Priestess)",
+      "Exp. Points": "3000",
+      "Hit Dice": "3d6",
+      "Spells": "2 first level"
+    }
+  ],
+  "Dwarf": [
+    {
+      "Level": "1",
+      "Title": "Dwarven Veteran",
+      "Exp. Points": "0",
+      "Hit Dice": "1d8",
+      "Spells": "None"
+    },
+    {
+      "Level": "2",
+      "Title": "Dwarven Warrior",
+      "Exp. Points": "2200",
+      "Hit Dice": "2d8",
+      "Spells": "None"
+    },
+    {
+      "Level": "3",
+      "Title": "Dwarven Swordmaster",
+      "Exp. Points": "4400",
+      "Hit Dice": "3d8",
+      "Spells": "None"
+    }
+  ],
+  "Elf": [
+    {
+      "Level": "1",
+      "Title": "Veteran-Medium",
+      "Exp. Points": "0",
+      "Hit Dice": "1d6",
+      "Spells": "1 first level"
+    },
+    {
+      "Level": "2",
+      "Title": "Warrior-Seer",
+      "Exp. Points": "4000",
+      "Hit Dice": "2d6",
+      "Spells": "2 first level"
+    },
+    {
+      "Level": "3",
+      "Title": "Swordmaster-Conjurer",
+      "Exp. Points": "8000",
+      "Hit Dice": "3d6",
+      "Spells": "2 first level + 1 second level"
+    }
+  ],
+  "Fighter": [
+    {
+      "Level": "1",
+      "Title": "Veteran",
+      "Exp. Points": "0",
+      "Hit Dice": "1d8",
+      "Spells": "None"
+    },
+    {
+      "Level": "2",
+      "Title": "Warrior",
+      "Exp. Points": "2000",
+      "Hit Dice": "2d8",
+      "Spells": "None"
+    },
+    {
+      "Level": "3",
+      "Title": "Swordsmaster",
+      "Exp. Points": "4000",
+      "Hit Dice": "3d8",
+      "Spells": "None"
+    }
+  ],
+  "Halfling": [
+    {
+      "Level": "1",
+      "Title": "Halfling Veteran",
+      "Exp. Points": "0",
+      "Hit Dice": "1d6",
+      "Spells": "None"
+    },
+    {
+      "Level": "2",
+      "Title": "Halfling Warrior",
+      "Exp. Points": "2000",
+      "Hit Dice": "2d6",
+      "Spells": "None"
+    },
+    {
+      "Level": "3",
+      "Title": "Halfling Swordmaster",
+      "Exp. Points": "4000",
+      "Hit Dice": "3d6",
+      "Spells": "None"
+    }
+  ],
+  "Magic-User": [
+    {
+      "Level": "1",
+      "Title": "Medium",
+      "Exp. Points": "0",
+      "Hit Dice": "1d4",
+      "Spells": "1 first level"
+    },
+    {
+      "Level": "2",
+      "Title": "Seer",
+      "Exp. Points": "2500",
+      "Hit Dice": "2d4",
+      "Spells": "2 first level"
+    },
+    {
+      "Level": "3",
+      "Title": "Conjurer",
+      "Exp. Points": "5000",
+      "Hit Dice": "3d4",
+      "Spells": "2 first level + 1 second level"
+    }
+  ],
+  "Thief": [
+    {
+      "Level": "1",
+      "Title": "Apprentice",
+      "Exp. Points": "0",
+      "Hit Dice": "1d4",
+      "Spells": "None"
+    },
+    {
+      "Level": "2",
+      "Title": "Footpad",
+      "Exp. Points": "1200",
+      "Hit Dice": "2d4",
+      "Spells": "None"
+    },
+    {
+      "Level": "3",
+      "Title": "Robber",
+      "Exp. Points": "2400",
+      "Hit Dice": "3d4",
+      "Spells": "None"
+    }
+  ]
+}

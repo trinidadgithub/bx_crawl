@@ -1,0 +1,119 @@
+{
+  "//": "Attack matrices for character and monster combat",
+  "schema": "bx-attack-tables-v1",
+  "characterAttacks": [
+    {
+      "type": "character",
+      "label": "Normal Man",
+      "acColumns": [9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3],
+      "toHitRow":    [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 20, 20, 20]
+    },
+    {
+      "type": "character",
+      "label": "1st to 3rd",
+      "acColumns": [9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3],
+      "toHitRow":    [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 20, 20]
+    },
+    {
+      "type": "character",
+      "label": "4th + higher",
+      "acColumns": [9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3],
+      "toHitRow":     [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    }
+  ],
+  "monsterAttacks": [
+    {
+      "type": "monster",
+      "hdRange": { "min": 0,    "max": 1,   "label": "up to 1" },
+      "acColumns": [9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3],
+      "toHitRow":    [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 20, 20]
+    },
+    {
+      "type": "monster",
+      "hdRange": { "min": "1+1", "max": 2,   "label": "1+ to 2" },
+      "toHitRow":     [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 20]
+    },
+    {
+      "type": "monster",
+      "hdRange": { "min": "2+1", "max": 3,   "label": "2+ to 3" },
+      "toHitRow":     [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    },
+    {
+      "type": "monster",
+      "hdRange": { "min": "3+1", "max": 4,   "label": "3+ to 4" },
+      "toHitRow":     [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    },
+    {
+      "type": "monster",
+      "hdRange": { "min": "4+1", "max": 5,   "label": "4+ to 5" },
+      "toHitRow":     [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+    },
+    {
+      "type": "monster",
+      "hdRange": { "min": "5+1", "max": 6,   "label": "5+ to 6" },
+      "toHitRow":     [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    },
+    {
+      "type": "monster",
+      "hdRange": { "min": "6+1", "max": 7,   "label": "6+ to 7" },
+      "toHitRow":     [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    },
+    {
+      "type": "monster",
+      "hdRange": { "min": "7+1", "max": 9,   "label": "7+ to 9" },
+      "toHitRow":     [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    },
+    {
+      "type": "monster",
+      "hdRange": { "min": "9+1", "max": 11,  "label": "9+ to 11" },
+      "toHitRow":     [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    },
+    {
+      "type": "monster",
+      "hdRange": { "min": "11+1","max": 13,  "label": "11+ to 13" },
+      "toHitRow":     [2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    },
+    {
+      "type": "monster",
+      "hdRange": { "min": "13+1","max": 15,  "label": "13+ to 15" },
+      "toHitRow":     [2, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    },
+    {
+      "type": "monster",
+      "hdRange": { "min": "15+1","max": 17,  "label": "15+ to 17" },
+      "toHitRow":     [2, 2, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    },
+    {
+      "type": "monster",
+      "hdRange": { "min": "17+1","max": null, "label": "17+ or more" },
+      "toHitRow":     [2, 2, 2, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    }
+  ],
+  "weaponAttacks": [
+    {
+      "type": "weapon",
+      "name": "Crossbow",
+      "toHitRow": [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 20]
+    },
+    {
+      "type": "weapon",
+      "name": "Long Bow",
+      "toHitRow": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 20, 20]
+    },
+    {
+      "type": "weapon",
+      "name": "Short Bow",
+      "toHitRow": [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    },
+    {
+      "type": "weapon",
+      "name": "Sling",
+      "toHitRow": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    },
+    {
+      "type": "weapon",
+      "name": "Spear",
+      "toHitRow": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+    }
+  ]
+}

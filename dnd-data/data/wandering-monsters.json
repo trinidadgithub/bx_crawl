@@ -1,0 +1,163 @@
+{
+  "1": [
+    {
+      "roll": 2,
+      "monster": "Acolyte",
+      "alignment": "A"
+    },
+    {
+      "roll": 3,
+      "monster": "Bandit",
+      "alignment": "N-C"
+    },
+    {
+      "roll": 4,
+      "monster": "Beetle, Fire",
+      "alignment": "N"
+    },
+    {
+      "roll": 5,
+      "monster": "Dwarf",
+      "alignment": "L"
+    },
+    {
+      "roll": 6,
+      "monster": "Gnome",
+      "alignment": "L"
+    },
+    {
+      "roll": 7,
+      "monster": "Goblin",
+      "alignment": "C"
+    }
+  ],
+  "2": [
+    {
+      "roll": 2,
+      "monster": "Beetle, Oil",
+      "alignment": "N"
+    },
+    {
+      "roll": 3,
+      "monster": "Berserker",
+      "alignment": "N"
+    },
+    {
+      "roll": 4,
+      "monster": "Cat, Mt. Lion",
+      "alignment": "N"
+    },
+    {
+      "roll": 5,
+      "monster": "Elf",
+      "alignment": "N"
+    },
+    {
+      "roll": 6,
+      "monster": "Ghoul",
+      "alignment": "C"
+    },
+    {
+      "roll": 7,
+      "monster": "Gnoll",
+      "alignment": "C"
+    }
+  ],
+  "3": [
+    {
+      "roll": 2,
+      "monster": "Ape, White",
+      "alignment": "N"
+    },
+    {
+      "roll": 3,
+      "monster": "Beetle, Tiger",
+      "alignment": "N"
+    },
+    {
+      "roll": 4,
+      "monster": "Bugbear",
+      "alignment": "C"
+    },
+    {
+      "roll": 5,
+      "monster": "Carrion Crawler",
+      "alignment": "N"
+    },
+    {
+      "roll": 6,
+      "monster": "Doppleganger",
+      "alignment": "C"
+    },
+    {
+      "roll": 7,
+      "monster": "Driver Ant",
+      "alignment": "N"
+    },
+    {
+      "roll": 8,
+      "monster": "Gargoyle",
+      "alignment": "C"
+    },
+    {
+      "roll": 9,
+      "monster": "Gelatinous Cube",
+      "alignment": "N"
+    },
+    {
+      "roll": 10,
+      "monster": "Harpy",
+      "alignment": "C"
+    },
+    {
+      "roll": 11,
+      "monster": "Living Statue, Crystal",
+      "alignment": "L"
+    },
+    {
+      "roll": 12,
+      "monster": "Lycanthrope, Wererat",
+      "alignment": "C"
+    },
+    {
+      "roll": 13,
+      "monster": "Medium",
+      "alignment": "A"
+    },
+    {
+      "roll": 14,
+      "monster": "Medusa",
+      "alignment": "C"
+    },
+    {
+      "roll": 15,
+      "monster": "NPC Party",
+      "alignment": "A"
+    },
+    {
+      "roll": 16,
+      "monster": "Ochre Jelly",
+      "alignment": "N"
+    },
+    {
+      "roll": 17,
+      "monster": "Ogre",
+      "alignment": "C"
+    },
+    {
+      "roll": 18,
+      "monster": "Shadow",
+      "alignment": "C"
+    },
+    {
+      "roll": 19,
+      "monster": "Spider, Tarantella",
+      "alignment": "N"
+    },
+    {
+      "roll": 20,
+      "monster": "Thoul",
+      "alignment": "C"
+    }
+  ]
+}
