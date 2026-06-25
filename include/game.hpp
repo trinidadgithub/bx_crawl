@@ -19,6 +19,9 @@ struct Game {
     DescriptionStore descriptions;
     std::string current_location_id;
 
+    // Data directory for descriptions, etc.
+    std::filesystem::path data_dir;
+
     // Event log
     std::vector<std::string> event_log;
 
@@ -26,6 +29,7 @@ struct Game {
     int total_gold{};
     int total_xp{};
     int hero_level{1};
+    int dungeon_level{1};
 
     // Dungeon rooms (used for wandering monster placement)
     std::vector<Room> rooms;
