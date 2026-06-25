@@ -228,5 +228,48 @@ std::vector<Room> init_map(Game& g) {
         }
     }
 
+    // Lock some doors (approx 30%, skip entrance room door)
+    for (auto& t : g.map) {
+        if (t.type == TileType::DoorClosed && rand_range(g, 0, 9) < 3) {
+            t.locked = true;
+        }
+    }
+
+    // Place traps in rooms (skip entrance room) and occasionally in corridors
+    for (std::size_t ri = 1; ri < rooms.size(); ++ri) {
+        const auto& r = rooms[ri];
+        // 25% chance this room has a trap
+        if (rand_range(g, 0, 3) == 0) {
+            int tx = r.x + rand_range(g, 1, r.w - 2);
+            int ty = r.y + rand_range(g, 1, r.h - 2);
+            auto& tile = g.map[index_for(g, tx, ty)];
+            if (!tile.has_trap) {
+                tile.has_trap = true;
+                int trap_roll = rand_range(g, 0, 2);
+                if (trap_roll == 0) tile.trap_type = TrapType::Pit;
+                else if (trap_roll == 1) tile.trap_type = TrapType::Dart;
+                else tile.trap_type = TrapType::PoisonDart;
+            }
+        }
+    }
+    // Place a few traps in corridor tiles
+    int corridor_traps = rand_range(g, 0, 2);
+    for (int i = 0; i < corridor_traps; ++i) {
+        // Find a non-room floor tile
+        for (int attempt = 0; attempt < 50; ++attempt) {
+            int x = rand_range(g, 1, g.width - 2);
+            int y = rand_range(g, 1, g.height - 2);
+            auto& tile = g.map[index_for(g, x, y)];
+            if (tile.type == TileType::Floor && !is_inside_any_room(x, y, rooms) && !tile.has_trap) {
+                tile.has_trap = true;
+                int trap_roll = rand_range(g, 0, 2);
+                if (trap_roll == 0) tile.trap_type = TrapType::Pit;
+                else if (trap_roll == 1) tile.trap_type = TrapType::Dart;
+                else tile.trap_type = TrapType::PoisonDart;
+                break;
+            }
+        }
+    }
+
     return rooms;
 }

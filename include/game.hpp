@@ -77,7 +77,8 @@ enum class PlayerCommandType {
     Help,
     Get,
     Use,
-    Hide
+    Hide,
+    Search
 };
 
 struct PlayerCommand {
