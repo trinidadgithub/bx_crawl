@@ -6,10 +6,12 @@
 #include <iostream>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <sstream>
 #include <utility>
+#include <vector>
 
 // ---------------------------
 // Random helper
@@ -55,6 +57,7 @@ int class_hd_sides(CharacterClass cc) {
 
 // Monster XP values (B/X Moldvay)
 int monster_xp_value(const Entity& m) {
+    if (m.type == EntityType::Monster) return m.xp_value;
     switch (m.type) {
         case EntityType::GiantRat:   return 5;
         case EntityType::Kobold:     return 5;
@@ -250,6 +253,7 @@ static const char* wall_glyph(const Game& game, int x, int y) {
 }
 
 char glyph_for(const Entity& e) {
+    if (e.type == EntityType::Monster) return e.glyph;
     switch (e.type) {
         case EntityType::Hero:       return '@';
         case EntityType::Goblin:     return 'g';
@@ -330,6 +334,243 @@ inline const MonsterTemplate monster_templates[] = {
     {EntityType::Zombie,     "Zombie",     9, 1, 6, 11, 12,  20},
 };
 const int num_monster_types = 7;
+
+// ── Data-driven monster helpers (bx_data integration) ──────
+
+// Parse a hit-dice string and return average HP and effective HD count.
+// Accepts formats: "1", "2", "1+1", "2+2", "1/2 (1-4 hp)", "1 point", etc.
+struct ParsedHD {
+    int hd_count;    // number of hit dice (0 = fractional)
+    int hp_per_hd;   // typically 4.5 (1d8) in B/X
+    int bonus_hp;    // flat bonus (e.g. "2+2" → bonus=2)
+    int avg_hp;      // pre-computed average HP
+};
+static ParsedHD parse_hit_dice(const char* hd) {
+    ParsedHD result{1, 5, 0, 5}; // default: 1 HD, ~5 HP
+    if (!hd || !*hd) return result;
+
+    std::string s(hd);
+
+    // "1 point" or "1/2 (1-4 hp)" or similar fractional
+    if (s.find("point") != std::string::npos) {
+        result.hd_count = 0;
+        result.avg_hp = 1;
+        return result;
+    }
+    if (s.find("1/2") != std::string::npos) {
+        result.hd_count = 0;
+        result.avg_hp = 3; // average of 1-4
+        return result;
+    }
+
+    // Strip asterisk
+    auto star = s.find('*');
+    if (star != std::string::npos) s.erase(star);
+
+    // Strip trailing non-numeric after the HD expression
+    auto paren = s.find('(');
+    if (paren != std::string::npos) s.erase(paren);
+
+    // Parse "N+M" or "N-M" or "N"
+    int hd_num = 1, bonus = 0;
+    auto plus = s.find('+');
+    if (plus == std::string::npos) plus = s.find('-');
+    if (plus != std::string::npos) {
+        hd_num = std::atoi(s.c_str());
+        bonus = std::atoi(s.c_str() + plus + 1);
+        if (s[plus] == '-') bonus = -bonus;
+    } else {
+        hd_num = std::atoi(s.c_str());
+        if (hd_num == 0) hd_num = 1;
+    }
+
+    result.hd_count = hd_num;
+    result.bonus_hp = bonus;
+    // B/X HD are d8, average 4.5 per die
+    int raw = hd_num * 5 + bonus; // approximate using 5 per die
+    result.avg_hp = raw < 1 ? 1 : raw;
+    return result;
+}
+
+// Parse a damage string like "1-6", "2-8", "1-4/1-4" and return the primary die size.
+static int parse_damage_die(const char* dmg) {
+    if (!dmg || !*dmg) return 6;
+    std::string s(dmg);
+
+    // "by spell", "by weapon", "special", "paralysis", "nil" → default
+    if (s.find("by ") == 0 || s == "special" || s == "paralysis"
+        || s == "nil" || s == "Nil") return 6;
+
+    // Take first damage expression before '/'
+    auto slash = s.find('/');
+    if (slash != std::string::npos) s = s.substr(0, slash);
+
+    // "or weapon" → skip, use default
+    if (s.find("or weapon") != std::string::npos) return 6;
+    // "or " → take first part
+    auto or_pos = s.find(" or ");
+    if (or_pos != std::string::npos) s = s.substr(0, or_pos);
+
+    // "1-6" → die=6
+    auto dash = s.find('-');
+    if (dash != std::string::npos) {
+        return std::atoi(s.c_str() + dash + 1);
+    }
+    // "Nil" → default
+    return 6;
+}
+
+// Choose a monster glyph based on name (Roguelike convention: first letter lowercase)
+static char monster_glyph(const char* name) {
+    if (!name || !*name) return '?';
+    char c = name[0];
+    if (c >= 'A' && c <= 'Z') c += 32; // lowercase
+
+    // Special cases for common letters
+    if (c == 'a') return 'A'; // Ape, Acolyte — use uppercase A
+    // Default: use first letter
+    return c;
+}
+
+// Pick a random monster from bx_data suitable for the given dungeon level.
+// Uses HD as a proxy for difficulty: level N gets monsters with HD roughly N or N/2+1.
+static int choose_monster_index(Game& g, int dungeon_level) {
+    // Target HD range: allow monsters with HD in [lo, hi]
+    int lo = std::max(0, (dungeon_level - 1) / 2);
+    int hi = dungeon_level + 1;
+
+    // Collect candidate indices
+    std::vector<int> candidates;
+    for (int i = 0; i < 101; ++i) {
+        const auto& m = bx::monsters[i];
+        // Skip NPC parties and duplicate entries
+        if (std::string_view(m.name).find("NPC Party") != std::string_view::npos) continue;
+        if (m.morale == 0) continue; // invalid entries
+
+        // Parse HD
+        int hd = 1;
+        std::string s(m.hit_dice);
+        auto star = s.find('*');
+        if (star != std::string::npos) s.erase(star);
+        auto paren = s.find('(');
+        if (paren != std::string::npos) s.erase(paren);
+        auto plus = s.find('+');
+        if (plus == std::string::npos) plus = s.find('-');
+        if (plus != std::string::npos) {
+            hd = std::atoi(s.c_str());
+        } else if (s.find("point") != std::string::npos) {
+            hd = 0;
+        } else if (s.find("1/2") != std::string::npos) {
+            hd = 0;
+        } else {
+            hd = std::atoi(s.c_str());
+        }
+
+        if (hd >= lo && hd <= hi) {
+            candidates.push_back(i);
+        }
+    }
+
+    if (candidates.empty()) {
+        // Fallback: any monster
+        return roll_d(g, 101) - 1;
+    }
+
+    return candidates[roll_d(g, static_cast<int>(candidates.size())) - 1];
+}
+
+// Compute XP value for a monster from bx_data.
+// B/X formula: HD < 1 → 5 XP; HD 1 → 10 XP; HD 1+ → +75 XP per HD (roughly)
+static int compute_xp_value(const char* hit_dice) {
+    int hd = 1;
+    std::string s(hit_dice);
+    auto star = s.find('*');
+    if (star != std::string::npos) s.erase(star);
+    auto paren = s.find('(');
+    if (paren != std::string::npos) s.erase(paren);
+    auto plus = s.find('+');
+    if (plus == std::string::npos) plus = s.find('-');
+    if (plus != std::string::npos) {
+        hd = std::atoi(s.c_str());
+    } else if (s.find("point") != std::string::npos) {
+        hd = 0;
+    } else if (s.find("1/2") != std::string::npos) {
+        hd = 0;
+    } else {
+        hd = std::atoi(s.c_str());
+    }
+    if (hd <= 0) return 5;
+    if (hd == 1) return 10;
+    return 10 + (hd - 1) * 75; // rough B/X approximation
+}
+
+// Check if a monster name indicates undead
+static bool is_name_undead(const char* name) {
+    std::string_view n(name);
+    return n.find("Skeleton") != std::string_view::npos
+        || n.find("Zombie") != std::string_view::npos
+        || n.find("Ghoul") != std::string_view::npos
+        || n.find("Wight") != std::string_view::npos
+        || n.find("Wraith") != std::string_view::npos
+        || n.find("Shadow") != std::string_view::npos
+        || n.find("Mummy") != std::string_view::npos;
+}
+
+// Check if a monster name indicates poison attack
+static bool is_name_poison(const char* name) {
+    std::string_view n(name);
+    return n.find("poison") != std::string_view::npos
+        || n.find("Spider") != std::string_view::npos
+        || n.find("Cobra") != std::string_view::npos
+        || n.find("Viper") != std::string_view::npos
+        || n.find("Centipede") != std::string_view::npos
+        || n.find("Scorpion") != std::string_view::npos;
+}
+
+// Check if a monster name indicates disease attack
+static bool is_name_disease(const char* name) {
+    std::string_view n(name);
+    return n.find("disease") != std::string_view::npos
+        || n.find("Rat,") != std::string_view::npos
+        || n.find("Tick") != std::string_view::npos;
+}
+
+// Spawn a monster from bx_data. Returns the populated Entity.
+static Entity spawn_bx_monster(Game& g, int dungeon_level) {
+    int idx = choose_monster_index(g, dungeon_level);
+    const auto& m = bx::monsters[idx];
+
+    Entity e;
+    e.name       = m.name;
+    e.type       = EntityType::Monster;
+    e.glyph      = monster_glyph(m.name);
+    e.ac         = m.ac;
+
+    auto hd = parse_hit_dice(m.hit_dice);
+    e.max_hp     = hd.avg_hp;
+    e.hp         = hd.avg_hp;
+    e.attack_bonus = hd.hd_count; // rough: atk bonus ≈ HD
+    e.damage_die = parse_damage_die(m.damage);
+    e.morale     = m.morale;
+    e.xp_value   = compute_xp_value(m.hit_dice);
+    e.undead     = is_name_undead(m.name);
+    e.has_poison = is_name_poison(m.name);
+    e.has_disease = is_name_disease(m.name);
+    e.fleeing    = false;
+    e.alive      = true;
+    e.attacks_per_turn = 1;
+
+    // Gold: some monsters carry treasure
+    int gold_chance = roll_d(g, 6);
+    if (gold_chance <= 2) {
+        // 1-2 on 1d6: carries gold based on HD
+        e.gold_pieces = roll_d(g, 6) * 10 * std::max(1, hd.hd_count);
+    } else {
+        e.gold_pieces = 0;
+    }
+
+    return e;
+}
 
 // Forward declarations for morale/attack internals
 void try_morale_check(Game& g, Entity& m, Entity& attacker,
@@ -439,15 +680,15 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
         } else {
             // Poison/disease saves for hero attacked by special monsters
             if (defender.type == EntityType::Hero && attacker.type != EntityType::Hero) {
-                if (attacker.type == EntityType::GiantSpider) {
+                if (attacker.has_poison) {
                     if (make_save(g, g.hero.char_class, 0)) {
-                        log_event(g, "You resist the spider's poison!");
+                        log_event(g, "You resist the poison!");
                     } else {
                         int poison_dmg = roll_d(g, 4);
                         defender.hp -= poison_dmg;
                         {
                             std::ostringstream oss;
-                            oss << "Spider poison deals " << poison_dmg << " damage!";
+                            oss << attacker.name << " poison deals " << poison_dmg << " damage!";
                             log_event(g, oss.str());
                         }
                         if (defender.hp <= 0) {
@@ -456,9 +697,9 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
                             log_event(g, "You succumb to the poison!");
                         }
                     }
-                } else if (attacker.type == EntityType::GiantRat) {
+                } else if (attacker.has_disease) {
                     if (!make_save(g, g.hero.char_class, 0)) {
-                        log_event(g, "The rat's bite carries disease!");
+                        log_event(g, "The " + attacker.name + " infects you with disease!");
                         int disease_dmg = 1;
                         defender.hp -= disease_dmg;
                         if (defender.hp <= 0) {
@@ -681,38 +922,10 @@ void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data
         e.pos = {room.x + room.w / 2, room.y + room.h / 2};
     };
 
-    // Spawn 4-6 monsters
+    // Spawn 4-6 monsters using bx_data roster
     int num_monsters = 4 + roll_d(g, 3); // 4..6
     for (int i = 0; i < num_monsters; ++i) {
-        const auto& t = monster_templates[roll_d(g, num_monster_types) - 1];
-
-        Entity e;
-        e.name             = t.name;
-        e.type             = t.type;
-        e.max_hp           = t.hp;
-        e.hp               = t.hp;
-        e.attack_bonus     = t.atk_bonus;
-        e.damage_die       = t.damage_die;
-        e.ac               = t.ac;
-        e.morale           = t.morale;
-        e.fleeing          = false;
-        e.alive            = true;
-        e.attacks_per_turn = 1;
-
-        // Gold by type
-        switch (t.type) {
-            case EntityType::Goblin:
-            case EntityType::Orc:
-                e.gold_pieces = roll_d(g, 6) * 10;
-                break;
-            case EntityType::Kobold:
-                e.gold_pieces = roll_d(g, 6) * 5;
-                break;
-            default:
-                e.gold_pieces = 0;
-                break;
-        }
-
+        Entity e = spawn_bx_monster(g, g.dungeon_level);
         place_monster(e, rooms[static_cast<std::size_t>(random_monster_room())]);
         g.monsters.push_back(e);
     }
@@ -776,39 +989,7 @@ void regenerate_dungeon(Game& g, int new_dungeon_level) {
     if (num_monsters > 12) num_monsters = 12;
 
     for (int i = 0; i < num_monsters; ++i) {
-        const auto& t = monster_templates[roll_d(g, num_monster_types) - 1];
-
-        Entity e;
-        e.name             = t.name;
-        e.type             = t.type;
-        e.fleeing          = false;
-        e.alive            = true;
-        e.attacks_per_turn = 1;
-
-        // Scale with dungeon level
-        int extra_hp = g.dungeon_level - 1;
-        e.max_hp           = t.hp + extra_hp;
-        e.hp               = t.hp + extra_hp;
-        e.attack_bonus     = t.atk_bonus + (g.dungeon_level - 1) / 2;
-        e.damage_die       = t.damage_die;
-        e.ac               = t.ac - (g.dungeon_level - 1); // descending AC: lower = harder
-        if (e.ac < 0) e.ac = 0;
-        e.morale           = t.morale;
-
-        // Scale gold with dungeon level
-        switch (t.type) {
-            case EntityType::Goblin:
-            case EntityType::Orc:
-                e.gold_pieces = roll_d(g, 6) * 10 * g.dungeon_level;
-                break;
-            case EntityType::Kobold:
-                e.gold_pieces = roll_d(g, 6) * 5 * g.dungeon_level;
-                break;
-            default:
-                e.gold_pieces = 0;
-                break;
-        }
-
+        Entity e = spawn_bx_monster(g, g.dungeon_level);
         place_monster(e, rooms[static_cast<std::size_t>(random_monster_room())]);
         g.monsters.push_back(e);
     }
@@ -1227,9 +1408,10 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
 // Spellcasting helpers
 // ---------------------------
 
-// Returns true if the name is an undead type
-static bool is_undead(EntityType type) {
-    return type == EntityType::Skeleton || type == EntityType::Zombie;
+// Returns true if the entity is undead
+static bool is_undead(const Entity& e) {
+    if (e.type == EntityType::Monster) return e.undead;
+    return e.type == EntityType::Skeleton || e.type == EntityType::Zombie;
 }
 
 // Look up spell level from bx_data.hpp by name. Returns 0 if not found.
@@ -1306,7 +1488,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
         int affected = 0;
         for (auto& m : g.monsters) {
             if (!m.alive) continue;
-            if (is_undead(m.type)) continue; // undead immune
+            if (is_undead(m)) continue; // undead immune
             if (affected >= hd_affected * 2) break; // approx HD
             m.hp    = 0;
             m.alive = false;
@@ -1362,7 +1544,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
             log_event(g, "No one there to charm.");
             return false;
         }
-        if (is_undead(target->type)) {
+        if (is_undead(*target)) {
             log_event(g, "Undead are immune to Charm Person.");
             return false;
         }
@@ -1722,7 +1904,7 @@ static bool turn_undead(Game& g, int dx, int dy) {
         return false;
     }
     Entity* target = monster_at(g, nx, ny);
-    if (!target || !is_undead(target->type)) {
+    if (!target || !is_undead(*target)) {
         log_event(g, "No undead there.");
         return false;
     }
@@ -1763,8 +1945,6 @@ static bool turn_undead(Game& g, int dx, int dy) {
 static int spawn_wandering_monsters(Game& g) {
     if (g.rooms.size() <= 1) return 0;
 
-    // Monster templates (shared from namespace scope)
-
     // Pick a random room that is not the entrance
     int room_idx = roll_d(g, static_cast<int>(g.rooms.size()) - 1); // 1 .. n-1
     const Room& r = g.rooms[room_idx];
@@ -1772,19 +1952,7 @@ static int spawn_wandering_monsters(Game& g) {
     int count = roll_d(g, 3); // 1..3
 
     for (int i = 0; i < count; ++i) {
-        const auto& t = monster_templates[roll_d(g, num_monster_types) - 1];
-        Entity e;
-        e.name             = t.name;
-        e.type             = t.type;
-        e.max_hp           = t.hp;
-        e.hp               = t.hp;
-        e.attack_bonus     = t.atk_bonus;
-        e.damage_die       = t.damage_die;
-        e.ac               = t.ac;
-        e.morale           = t.morale;
-        e.fleeing          = false;
-        e.alive            = true;
-        e.attacks_per_turn = 1;
+        Entity e = spawn_bx_monster(g, g.dungeon_level);
 
         // Place in the room
         for (int attempt = 0; attempt < 20; ++attempt) {
