@@ -2,6 +2,7 @@
 #include "map.hpp"
 #include "chargen.hpp"
 #include "bx_data.hpp"
+#include "sound.hpp"
 
 #include <iostream>
 #include <chrono>
@@ -650,7 +651,10 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
         dmg = std::max(1, dmg);
         if (backstab_bonus) {
             dmg *= 2;
+            sound_backstab();
             log_event(g, "Backstab hits for double damage!");
+        } else if (attacker.type == EntityType::Hero) {
+            sound_attack_hit();
         }
         defender.hp -= dmg;
 
@@ -664,6 +668,13 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
         if (defender.hp <= 0) {
             defender.hp    = 0;
             defender.alive = false;
+
+            // Play sound: monster death or hero death
+            if (defender.type == EntityType::Hero) {
+                sound_player_death();
+            } else {
+                sound_monster_death();
+            }
 
             {
                 std::ostringstream oss;
@@ -862,6 +873,7 @@ void seed_rng(Game& g) {
 
 void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data_dir,
                          bool should_seed_rng) {
+    sound_init();
     g.width  = 40;
     g.height = 20;
 
@@ -1453,6 +1465,8 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
         return false;
     }
 
+    sound_spell();
+
     // --- Magic Missile ---
     if (spell == "Magic Missile") {
         if (dx == 0 && dy == 0) {
@@ -1993,6 +2007,7 @@ static int spawn_wandering_monsters(Game& g) {
 // Trigger a trap on the hero
 static void trigger_trap(Game& g, Entity& hero, Tile& tile) {
     if (!tile.has_trap || tile.trap_type == TrapType::None) return;
+    sound_trap();
     int dmg = 0;
     const char* msg = "";
     switch (tile.trap_type) {
@@ -2025,6 +2040,7 @@ static void trigger_trap(Game& g, Entity& hero, Tile& tile) {
         if (hero.hp <= 0) {
             hero.hp    = 0;
             hero.alive = false;
+            sound_player_death();
             log_event(g, "You have died.");
         }
     }
@@ -2106,12 +2122,14 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                         log_event(g, "You scale the wall.");
                         g.hero.pos.x = nx;
                         g.hero.pos.y = ny;
+                        sound_footstep();
                         update_location_description(g);
                     } else {
                         log_event(g, "You fail to climb the wall.");
                     }
                 } else if (tt != TileType::Wall) {
                     move_entity(g, g.hero, dx, dy);
+                    sound_footstep();
                     update_location_description(g);
                 }
 
@@ -2156,6 +2174,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                             tile.locked = false;
                             tile.type   = TileType::DoorOpen;
                             log_event(g, "You pick the lock and open the door.");
+                            sound_door_open();
                             opened = true;
                             break;
                         } else {
@@ -2171,6 +2190,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 }
                 if (tile.type == TileType::DoorClosed) {
                     tile.type = TileType::DoorOpen;
+                    sound_door_open();
                     opened = true;
                     log_event(g, "You open a door.");
                     break;
@@ -2193,6 +2213,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 auto& tile = g.map[index_for(g, nx, ny)];
                 if (tile.type == TileType::DoorOpen) {
                     tile.type = TileType::DoorClosed;
+                    sound_door_close();
                     closed = true;
                     log_event(g, "You close a door.");
                     break;
@@ -2288,6 +2309,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 }
             }
             if (torches > 0 || gp_found > 0) {
+                if (gp_found > 0) sound_gold_pickup();
                 std::ostringstream oss;
                 if (torches > 0) {
                     oss << "Picked up " << torches << " torch" << (torches == 1 ? "" : "es") << ".";
