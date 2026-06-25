@@ -879,14 +879,16 @@ void render(const Game& g) {
 
                 // If no entity, show items on the ground (dim if explored only)
                 if (ch == '.' && !t.items.empty()) {
-                    bool is_scroll = false;
-                    for (auto it : t.items) {
-                        if (it == ItemType::ScrollArcane || it == ItemType::ScrollClerical) {
-                            is_scroll = true;
-                            break;
-                        }
+                    ItemType top = t.items.back();
+                    if (top == ItemType::ScrollArcane || top == ItemType::ScrollClerical) {
+                        ch = '?';
+                    } else if (top == ItemType::Gold) {
+                        ch = '$';
+                    } else if (top == ItemType::Gem) {
+                        ch = '*';
+                    } else {
+                        ch = '!';
                     }
-                    ch = is_scroll ? '?' : '!';
                 }
 
                 std::cout << ch;
@@ -1815,19 +1817,41 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
         case PlayerCommandType::Get: {
             auto& hero = g.hero;
             auto& tile = g.map[index_for(g, hero.pos.x, hero.pos.y)];
-            int picked = 0;
+            int torches = 0;
+            int gp_found = 0;
+            int gems = 0;
             for (auto it = tile.items.begin(); it != tile.items.end();) {
                 if (*it == ItemType::Torch) {
                     hero.torch_turns += 20;
                     it = tile.items.erase(it);
-                    ++picked;
+                    ++torches;
+                } else if (*it == ItemType::Gold) {
+                    int value = 10 + roll_d(g, 20); // 11-30 gp per pile
+                    g.total_gold += value;
+                    gp_found += value;
+                    it = tile.items.erase(it);
+                } else if (*it == ItemType::Gem) {
+                    int value = 50 + roll_d(g, 100); // 51-150 gp
+                    g.total_gold += value;
+                    g.total_xp += value; // Gems give XP too
+                    gems++;
+                    gp_found += value;
+                    it = tile.items.erase(it);
                 } else {
                     ++it;
                 }
             }
-            if (picked > 0) {
+            if (torches > 0 || gp_found > 0) {
                 std::ostringstream oss;
-                oss << "Picked up " << picked << " torch" << (picked == 1 ? "" : "es") << ".";
+                if (torches > 0) {
+                    oss << "Picked up " << torches << " torch" << (torches == 1 ? "" : "es") << ".";
+                    if (gp_found > 0) oss << " ";
+                }
+                if (gp_found > 0) {
+                    oss << "Found " << gp_found << " gp";
+                    if (gems > 0) oss << " (+" << gems << " gem" << (gems == 1 ? "" : "s") << ")";
+                    oss << "!";
+                }
                 log_event(g, oss.str());
             } else {
                 log_event(g, "Nothing to pick up here.");
