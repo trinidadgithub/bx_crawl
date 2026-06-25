@@ -22,3 +22,4 @@ void sound_spell();
 void sound_trap();
 void sound_player_death();
 void sound_backstab();
+void sound_throw();

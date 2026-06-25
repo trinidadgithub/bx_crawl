@@ -23,7 +23,7 @@ static void set_raw_mode() {
     std::atexit(restore_terminal);
     termios raw = original_termios;
     raw.c_lflag &= ~(ECHO | ICANON | ISIG);
-    raw.c_oflag |= (OPOST | ONLCR);  // \n → CR+NL on output
+    raw.c_oflag |= (OPOST | ONLCR);
     raw.c_cc[VMIN] = 1;
     raw.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
@@ -46,7 +46,6 @@ static bool read_direction(int& dx, int& dy) {
     return true;
 }
 
-// Single-key input – no Enter required. Unknown keys are silently ignored.
 static PlayerCommand read_player_command(const Game& g) {
     for (;;) {
         char c;
@@ -139,7 +138,6 @@ static PlayerCommand read_player_command(const Game& g) {
             if (idx < 0 || idx >= (int)spells.size())
                 continue;
             int dx = 0, dy = 0;
-            // Spells that need a target direction
             const std::string& spell = spells[idx];
             if (spell == "Magic Missile" || spell == "Charm Person") {
                 std::cout << "In which direction? " << std::flush;
@@ -168,7 +166,7 @@ static PlayerCommand read_player_command(const Game& g) {
             return PlayerCommand{cmd_type, dx, dy, 0};
         }
 
-        // Space / Enter / Return → wait a turn
+        // Space / Enter / Return -> wait a turn
         if (c == ' ' || c == '\n' || c == '\r') {
             return PlayerCommand{PlayerCommandType::Wait, 0, 0};
         }
@@ -190,6 +188,80 @@ static PlayerCommand read_player_command(const Game& g) {
     }
 }
 
+// ── Town input: map single-key presses to commands ───────
+static PlayerCommand read_town_command(const Game& g) {
+    for (;;) {
+        char c;
+        if (read(STDIN_FILENO, &c, 1) != 1) {
+            return PlayerCommand{PlayerCommandType::Quit, 0, 0};
+        }
+        c = std::tolower(c);
+
+        if (c == 'x') {
+            std::cout << "Really quit? (y/n) " << std::flush;
+            char reply;
+            if (read(STDIN_FILENO, &reply, 1) != 1) continue;
+            if (reply == 'y' || reply == 'Y')
+                return PlayerCommand{PlayerCommandType::Quit, 0, 0};
+            continue;
+        }
+
+        // Map keys to locations / actions
+        switch (g.state) {
+        case GameState::Town:
+            if (c == '1') return PlayerCommand{PlayerCommandType::Move,   0, -1}; // tavern
+            if (c == '2') return PlayerCommand{PlayerCommandType::Move,  -1,  0}; // temple
+            if (c == '3') return PlayerCommand{PlayerCommandType::Move,   1,  0}; // shop
+            if (c == '4') return PlayerCommand{PlayerCommandType::Move,  -1,  1}; // armorer
+            if (c == '5') return PlayerCommand{PlayerCommandType::Move,   0,  1}; // camp
+            break;
+
+        case GameState::Camp:
+            if (c == '1') return PlayerCommand{PlayerCommandType::Rest, 0, 0};
+            if (c == '2') return PlayerCommand{PlayerCommandType::Help, 0, 0}; // save
+            if (c == '3') return PlayerCommand{PlayerCommandType::Move, 0, -1}; // enter dungeon
+            if (c == 't') return PlayerCommand{PlayerCommandType::Move, 0,  1}; // return to town
+            break;
+
+        case GameState::Tavern:
+            if (c == '1') return PlayerCommand{PlayerCommandType::Rest, 0, 0};
+            if (c == '2') return PlayerCommand{PlayerCommandType::Help, 0, 0}; // rumors
+            if (c == 't') return PlayerCommand{PlayerCommandType::Move, 2, 0}; // return to town
+            if (c == 'c') return PlayerCommand{PlayerCommandType::Move, 0, 1};
+            break;
+
+        case GameState::Temple:
+            if (c == '1') return PlayerCommand{PlayerCommandType::Cast, 0, 0}; // healing
+            if (c == '2') return PlayerCommand{PlayerCommandType::Turn, 0, 0}; // donate
+            if (c == 't') return PlayerCommand{PlayerCommandType::Move, 2, 0};
+            if (c == 'c') return PlayerCommand{PlayerCommandType::Move, 0, 1};
+            break;
+
+        case GameState::Shop:
+            if (c == '1') return PlayerCommand{PlayerCommandType::Get, 0, 0}; // buy torch
+            if (c == '2') return PlayerCommand{PlayerCommandType::Use, 0, 0}; // rations
+            if (c == 't') return PlayerCommand{PlayerCommandType::Move, 2, 0};
+            if (c == 'c') return PlayerCommand{PlayerCommandType::Move, 0, 1};
+            break;
+
+        case GameState::Armorer:
+            if (c == '1') return PlayerCommand{PlayerCommandType::Get, 0, 0};
+            if (c == '2') return PlayerCommand{PlayerCommandType::Use, 0, 0};
+            if (c == '3') return PlayerCommand{PlayerCommandType::Open, 0, 0};
+            if (c == 't') return PlayerCommand{PlayerCommandType::Move, 2, 0};
+            if (c == 'c') return PlayerCommand{PlayerCommandType::Move, 0, 1};
+            break;
+
+        default:
+            break;
+        }
+
+        // If nothing matched, ignore the key (don't loop back to render
+        // — the caller will re-render after this returns with the same state)
+        continue;
+    }
+}
+
 int main() {
     Game g;
     init_game(g);
@@ -198,55 +270,69 @@ int main() {
     // Raw mode for instant keypress AFTER character creation
     set_raw_mode();
 
-    // Clear residual chargen text before entering the dungeon
+    // Clear residual chargen text
     std::cout << "\x1B[2J\x1B[H" << std::flush;
 
     while (true) {
-        compute_visibility(g);
+        // ── Render ──────────────────────────────────────
         render(g);
 
-        bool monsters_first = roll_initiative(g);
+        // ── Command input & dispatch ─────────────────────
+        bool keep_playing = true;
 
-        if (monsters_first) {
-            monsters_turn(g);
-            if (!g.hero.alive) {
-                render(g);
-                std::cout << "You have died.\n";
-                std::cout << "Game over.\n";
-                break;
+        if (g.state == GameState::Dungeon) {
+            // ── Dungeon loop ────────────────────────────
+            compute_visibility(g);
+            render(g);
+
+            bool monsters_first = roll_initiative(g);
+
+            if (monsters_first) {
+                monsters_turn(g);
+                if (!g.hero.alive) {
+                    render(g);
+                    std::cout << "You have died.\r\n";
+                    std::cout << "Game over.\r\n";
+                    break;
+                }
             }
-        }
 
-        PlayerCommand cmd = read_player_command(g);
-        bool keep_playing = apply_player_command(g, cmd);
-        if (!keep_playing) {
-            render(g);
-            std::cout << "Game over.\n";
-            break;
-        }
+            {
+                PlayerCommand cmd = read_player_command(g);
+                keep_playing = apply_player_command(g, cmd);
+            }
 
-        if (!g.hero.alive) {
-            render(g);
-            std::cout << "You have died.\n";
-            break;
-        }
+            if (!keep_playing) break;
 
-        if (!any_monsters_alive(g)) {
-            render(g);
-            std::cout << "All monsters defeated!\n";
-            std::cout << "Game over.\n";
-            break;
-        }
-
-        if (!monsters_first) {
-            monsters_turn(g);
+            // State may have changed to Camp via ascend_stairs — skip dungeon-only checks
+            if (g.state != GameState::Dungeon) continue;
 
             if (!g.hero.alive) {
                 render(g);
-                std::cout << "You have died.\n";
-                std::cout << "Game over.\n";
+                std::cout << "You have died.\r\n";
                 break;
             }
+
+            if (!any_monsters_alive(g)) {
+                render(g);
+                std::cout << "All monsters defeated!\r\n";
+                std::cout << "Game over.\r\n";
+                break;
+            }
+
+            if (!monsters_first) {
+                monsters_turn(g);
+                if (!g.hero.alive) {
+                    render(g);
+                    std::cout << "You have died.\r\n";
+                    break;
+                }
+            }
+        } else {
+            // ── Town loop ───────────────────────────────
+            PlayerCommand cmd = read_town_command(g);
+            keep_playing = apply_town_command(g, cmd);
+            if (!keep_playing) break;
         }
     }
 
