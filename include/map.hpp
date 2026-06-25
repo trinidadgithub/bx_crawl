@@ -24,9 +24,20 @@ enum class ItemType {
     Gem
 };
 
+enum class TrapType {
+    None,
+    Pit,
+    Dart,
+    PoisonDart
+};
+
 struct Tile {
     TileType type = TileType::Floor;
     bool held{false};   // magically held (Hold Portal)
+    bool locked{false}; // locked (non-magical, can be picked by Thief)
+    bool has_trap{false};
+    bool trap_visible{false}; // revealed by Search
+    TrapType trap_type{TrapType::None};
     bool explored{false};
     bool visible{false};
     // Items lying on this tile (only on visible/explored tiles)
