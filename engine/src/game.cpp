@@ -8,7 +8,9 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <sstream>
 #include <utility>
@@ -895,6 +897,8 @@ void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data
     g.monsters.clear();
 
     g.hero = std::move(hero);
+    g.state = GameState::Town;
+    g.total_gold = (roll_d(g, 6) + roll_d(g, 6) + roll_d(g, 6)) * 10; // 3d6 × 10 B/X starting gold
 
     // Place hero at centre of first room
     if (!rooms.empty()) {
@@ -1021,7 +1025,8 @@ void descend_stairs(Game& g) {
 
 void ascend_stairs(Game& g) {
     if (g.dungeon_level <= 1) {
-        log_event(g, "The stairs above are blocked by rubble — you cannot ascend further.");
+        leave_dungeon(g);
+        log_event(g, "You climb out of the dungeon and return to camp.");
         return;
     }
     int prev = g.dungeon_level - 1;
@@ -1099,22 +1104,29 @@ static void cast_ray(Game& g, int x0, int y0, int x1, int y1) {
 void compute_visibility(Game& g) {
     Entity& hero = g.hero;
 
-    // Check torch state before decrement
-    bool torch_was_lit = hero.torch_turns > 0 && hero.light_spell_turns == 0;
+    // Advance turn clock (10 actions = 1 B/X turn)
+    ++g.tick_clock;
+    static constexpr int ticks_per_turn = 10;
+    bool is_turn_tick = (g.tick_clock % ticks_per_turn == 0);
 
-    // Decrement light sources
-    if (hero.light_spell_turns > 0)
-        --hero.light_spell_turns;
-    else if (hero.torch_turns > 0)
-        --hero.torch_turns;
+    if (is_turn_tick) {
+        // Check torch state before decrement (for message logic)
+        bool torch_was_lit = hero.torch_turns > 0 && hero.light_spell_turns == 0;
 
-    // Torch status messages
-    if (torch_was_lit && hero.torch_turns == 0)
-        log_event(g, "Your torch sputters out!");
-    else if (torch_was_lit && hero.torch_turns == 10)
-        log_event(g, "Your torch is burning low.");
-    else if (torch_was_lit && hero.torch_turns == 5)
-        log_event(g, "Your torch is almost out!");
+        // Decrement light sources once per turn
+        if (hero.light_spell_turns > 0)
+            --hero.light_spell_turns;
+        else if (hero.torch_turns > 0)
+            --hero.torch_turns;
+
+        // Torch status messages (in turns remaining)
+        if (torch_was_lit && hero.torch_turns == 0)
+            log_event(g, "Your torch sputters out!");
+        else if (torch_was_lit && hero.torch_turns == 10)
+            log_event(g, "Your torch is burning low.");
+        else if (torch_was_lit && hero.torch_turns == 5)
+            log_event(g, "Your torch is almost out!");
+    }
 
     // Determine light radius
     int radius = 6;
@@ -1169,8 +1181,105 @@ static void put_line(const std::string& s) {
     std::cout << s << "\r\n";
 }
 
+// ── Town screen rendering ────────────────────────────────
+
+static void render_town_screen(const Game& g) {
+    std::cout << "\x1B[2J\x1B[H";
+
+    auto status = [&]() {
+        std::ostringstream oss;
+        int next_xp = xp_for_level(g.hero.char_class, g.hero_level + 1);
+        oss << g.hero.name << "(" << class_name(g.hero.char_class) << ")"
+            << "  HP:" << g.hero.hp << "/" << g.hero.max_hp
+            << "  G:" << g.total_gold
+            << "  XP:" << g.total_xp << "/" << next_xp;
+        return oss.str();
+    };
+
+    auto menu_item = [](const char* key, const char* label) {
+        std::cout << "  [" << key << "] " << label << "\r\n";
+    };
+
+    switch (g.state) {
+    case GameState::Town:
+        std::cout << "=== Town Square ===\r\n\r\n";
+        menu_item("1", "Tavern — rest, hear rumors");
+        menu_item("2", "Temple — healing, donate for XP");
+        menu_item("3", "Shop — buy supplies");
+        menu_item("4", "Armorer — weapons & armor");
+        menu_item("5", "Camp — rest, save, enter dungeon");
+        std::cout << "\r\n" << status() << "\r\n";
+        std::cout << "[x] Quit\r\n";
+        break;
+
+    case GameState::Tavern:
+        std::cout << "=== The Laughing Goblin Tavern ===\r\n\r\n";
+        std::cout << "\"Welcome, friend! What'll it be?\"\r\n\r\n";
+        menu_item("1", "Rest (1 gp — recover 1d3 HP)");
+        menu_item("2", "Listen to rumors (free)");
+        std::cout << "\r\n" << status() << "\r\n";
+        menu_item("t", "Return to town");
+        menu_item("c", "Go to camp");
+        break;
+
+    case GameState::Temple:
+        std::cout << "=== Temple of the Lawful Light ===\r\n\r\n";
+        std::cout << "\"The stars speak of your coming. How may we serve?\"\r\n\r\n";
+        menu_item("1", "Healing (10 gp — restore 1 HP)");
+        menu_item("2", "Donate gold for XP (1 gp = 1 XP, max 100)");
+        std::cout << "\r\n" << status() << "\r\n";
+        menu_item("t", "Return to town");
+        menu_item("c", "Go to camp");
+        break;
+
+    case GameState::Shop:
+        std::cout << "=== The Adventurer's Emporium ===\r\n\r\n";
+        std::cout << "\"Fine wares! Torches, rations, rope — we've got it all!\"\r\n\r\n";
+        menu_item("1", "Buy Torch (1 gp — +20 light turns)");
+        menu_item("2", "Buy Rations (out of stock)");
+        std::cout << "\r\n" << status() << "\r\n";
+        menu_item("t", "Return to town");
+        menu_item("c", "Go to camp");
+        break;
+
+    case GameState::Armorer:
+        std::cout << "=== The Iron Forge Armory ===\r\n\r\n";
+        std::cout << "\"Armor and weapons, forged right here!\"\r\n\r\n";
+        menu_item("1", "Buy Weapon");
+        menu_item("2", "Buy Armor");
+        menu_item("3", "Sell Equipment (sell for half price)");
+        std::cout << "\r\n" << status() << "\r\n";
+        menu_item("t", "Return to town");
+        menu_item("c", "Go to camp");
+        break;
+
+    case GameState::Camp:
+        std::cout << "=== Camp at the Dungeon's Edge ===\r\n\r\n";
+        std::cout << "A small clearing with a fire pit. The entrance to\r\n";
+        std::cout << "the dungeon looms nearby.\r\n\r\n";
+        menu_item("1", "Rest (free — full heal, restore spells)");
+        menu_item("2", "Save game");
+        menu_item("3", "Enter Dungeon");
+        std::cout << "\r\n" << status() << "\r\n";
+        menu_item("t", "Return to town");
+        menu_item("x", "Quit");
+        break;
+
+    default:
+        break;
+    }
+
+    std::cout << "\r\n> " << std::flush;
+}
+
 void render(const Game& g) {
-    // Clear entire screen so we always start at a known scroll position
+    // Town / meta-game screens
+    if (g.state != GameState::Dungeon) {
+        render_town_screen(g);
+        return;
+    }
+
+    // ── Dungeon render (original) ──
     std::cout << "\x1B[2J\x1B[H";
     for (int y = 0; y < g.height; ++y) {
         for (int x = 0; x < g.width; ++x) {
@@ -1354,6 +1463,8 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
         log_event(g, "No " + weapon_name + "s left!");
         return false;
     }
+
+    sound_throw();
 
     int dist = 1;
     int nx = attacker.pos.x + dx;
@@ -2516,6 +2627,399 @@ bool any_monsters_alive(const Game& g) {
         if (m.alive) return true;
     }
     return false;
+}
+
+// ── Save / Load ──────────────────────────────────────────
+
+namespace {
+
+// Write a length-prefixed string to a binary stream.
+static void write_str(std::ofstream& out, const std::string& s) {
+    int32_t len = static_cast<int32_t>(s.size());
+    out.write(reinterpret_cast<const char*>(&len), sizeof(len));
+    out.write(s.data(), len);
+}
+
+// Read a length-prefixed string from a binary stream.
+static std::string read_str(std::ifstream& in) {
+    int32_t len = 0;
+    in.read(reinterpret_cast<char*>(&len), sizeof(len));
+    std::string s(static_cast<std::size_t>(len), '\0');
+    in.read(s.data(), len);
+    return s;
+}
+
+template<typename T>
+static void write_int(std::ofstream& out, T v) {
+    out.write(reinterpret_cast<const char*>(&v), sizeof(v));
+}
+
+template<typename T>
+static void read_int(std::ifstream& in, T& v) {
+    in.read(reinterpret_cast<char*>(&v), sizeof(v));
+}
+
+} // anonymous namespace
+
+bool save_game(const Game& g, const std::filesystem::path& path) {
+    // Ensure parent directory exists
+    auto parent = path.parent_path();
+    if (!parent.empty()) {
+        std::error_code ec;
+        std::filesystem::create_directories(parent, ec);
+        if (ec) return false;
+    }
+
+    std::ofstream out(path, std::ios::binary);
+    if (!out) return false;
+
+    // Magic + version
+    out.write("BXSV", 4);
+    int32_t version = 1;
+    out.write(reinterpret_cast<const char*>(&version), sizeof(version));
+
+    const auto& h = g.hero;
+
+    // Game-level state
+    write_int(out, static_cast<int32_t>(g.state));
+    write_int(out, g.total_gold);
+    write_int(out, g.total_xp);
+    write_int(out, g.hero_level);
+    write_int(out, g.dungeon_level);
+
+    // Hero data
+    write_str(out, h.name);
+    write_int(out, h.hp);
+    write_int(out, h.max_hp);
+    write_int(out, h.attack_bonus);
+    write_int(out, h.damage_die);
+    write_int(out, h.damage_bonus);
+    write_int(out, h.ac);
+
+    write_int(out, h.abilities.str);
+    write_int(out, h.abilities.intelligence);
+    write_int(out, h.abilities.wis);
+    write_int(out, h.abilities.dex);
+    write_int(out, h.abilities.con);
+    write_int(out, h.abilities.cha);
+
+    write_int(out, static_cast<int32_t>(h.char_class));
+    write_int(out, h.torch_turns);
+    write_int(out, h.light_spell_turns);
+    write_int(out, h.knives);
+    write_int(out, h.darts);
+    write_int(out, h.shield_turns);
+    write_int(out, h.protection_turns);
+    write_int(out, h.courage_turns);
+    write_int(out, h.resist_cold_turns);
+
+    write_str(out, h.weapon_id);
+    write_str(out, h.armor_id);
+    write_int(out, h.has_shield ? 1 : 0);
+
+    write_int(out, h.skill_hide);
+    write_int(out, h.skill_pick_locks);
+    write_int(out, h.skill_find_traps);
+    write_int(out, h.skill_climb);
+    write_int(out, h.skill_move_silent);
+    write_int(out, h.skill_hear_noise);
+
+    // Known spells
+    write_int(out, static_cast<int32_t>(h.spells.size()));
+    for (const auto& s : h.spells)
+        write_str(out, s);
+
+    // Spell slots (including index 0 — unused placeholder)
+    for (int i = 0; i <= Entity::MaxSpellLevel; ++i) {
+        write_int(out, h.spell_slots[i]);
+        write_int(out, h.max_spell_slots[i]);
+    }
+
+    return true;
+}
+
+bool load_game(Game& g, const std::filesystem::path& path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return false;
+
+    // Check magic
+    char magic[4];
+    in.read(magic, 4);
+    if (magic[0] != 'B' || magic[1] != 'X' || magic[2] != 'S' || magic[3] != 'V')
+        return false;
+
+    int32_t version = 0;
+    read_int(in, version);
+    if (version != 1) return false;
+
+    auto& h = g.hero;
+
+    // Game-level state
+    int32_t st = 0;
+    read_int(in, st);   g.state = static_cast<GameState>(st);
+    read_int(in, g.total_gold);
+    read_int(in, g.total_xp);
+    read_int(in, g.hero_level);
+    read_int(in, g.dungeon_level);
+
+    // Hero data
+    h.name = read_str(in);
+    read_int(in, h.hp);
+    read_int(in, h.max_hp);
+    read_int(in, h.attack_bonus);
+    read_int(in, h.damage_die);
+    read_int(in, h.damage_bonus);
+    read_int(in, h.ac);
+
+    read_int(in, h.abilities.str);
+    read_int(in, h.abilities.intelligence);
+    read_int(in, h.abilities.wis);
+    read_int(in, h.abilities.dex);
+    read_int(in, h.abilities.con);
+    read_int(in, h.abilities.cha);
+
+    int32_t cc = 0;
+    read_int(in, cc);   h.char_class = static_cast<CharacterClass>(cc);
+    read_int(in, h.torch_turns);
+    read_int(in, h.light_spell_turns);
+    read_int(in, h.knives);
+    read_int(in, h.darts);
+    read_int(in, h.shield_turns);
+    read_int(in, h.protection_turns);
+    read_int(in, h.courage_turns);
+    read_int(in, h.resist_cold_turns);
+
+    h.weapon_id = read_str(in);
+    h.armor_id  = read_str(in);
+    int32_t shield = 0;
+    read_int(in, shield); h.has_shield = (shield != 0);
+
+    read_int(in, h.skill_hide);
+    read_int(in, h.skill_pick_locks);
+    read_int(in, h.skill_find_traps);
+    read_int(in, h.skill_climb);
+    read_int(in, h.skill_move_silent);
+    read_int(in, h.skill_hear_noise);
+
+    // Known spells
+    int32_t nspells = 0;
+    read_int(in, nspells);
+    h.spells.clear();
+    for (int32_t i = 0; i < nspells; ++i)
+        h.spells.push_back(read_str(in));
+
+    // Spell slots
+    for (int i = 0; i <= Entity::MaxSpellLevel; ++i) {
+        read_int(in, h.spell_slots[i]);
+        read_int(in, h.max_spell_slots[i]);
+    }
+
+    // Restore runtime-only fields
+    h.type  = EntityType::Hero;
+    h.alive = true;
+    h.hidden = false;
+    h.charmed = false;
+    h.gold_pieces = 0;
+    h.morale = 0;
+    h.fleeing = false;
+    h.attacks_per_turn = 1;
+    h.glyph = '@';
+    h.xp_value = 0;
+    h.undead = false;
+    h.has_poison = false;
+    h.has_disease = false;
+
+    return true;
+}
+
+// ── Dungeon entry / exit ──────────────────────────────────
+
+void enter_dungeon(Game& g) {
+    g.state = GameState::Dungeon;
+    g.event_log.clear();
+    g.wander_counter = 0;
+    g.tick_clock = 0;
+    g.monsters.clear();
+    regenerate_dungeon(g, 1);
+    log_event(g, "You enter the dungeon.");
+}
+
+void leave_dungeon(Game& g) {
+    g.state = GameState::Camp;
+    g.monsters.clear();
+    g.map.clear();
+    g.rooms.clear();
+    g.event_log.clear();
+    g.wander_counter = 0;
+    g.tick_clock = 0;
+}
+
+// ── Town command handler ──────────────────────────────────
+
+bool apply_town_command(Game& g, const PlayerCommand& cmd) {
+    auto set_state = [&](GameState s) {
+        g.state = s;
+        g.event_log.clear();
+    };
+
+    switch (g.state) {
+    // ─── Town ──────────────────────────────────────────────
+    case GameState::Town:
+        switch (cmd.type) {
+            case PlayerCommandType::Quit:     return false;
+            case PlayerCommandType::Move:
+                if      (cmd.dx == 0 && cmd.dy == -1) set_state(GameState::Tavern);
+                else if (cmd.dx == -1 && cmd.dy == 0) set_state(GameState::Temple);
+                else if (cmd.dx == 1  && cmd.dy == 0) set_state(GameState::Shop);
+                else if (cmd.dx == -1 && cmd.dy == 1) set_state(GameState::Armorer);
+                else if (cmd.dx == 0 && cmd.dy == 1)  set_state(GameState::Camp);
+                break;
+            default: break;
+        }
+        return true;
+
+    // ─── Tavern ────────────────────────────────────────────
+    case GameState::Tavern:
+        switch (cmd.type) {
+            case PlayerCommandType::Rest: {
+                if (g.total_gold < 1) {
+                    log_event(g, "You don't have a single gold piece to pay for a room.");
+                } else {
+                    --g.total_gold;
+                    int heal = roll_d(g, 3);
+                    g.hero.hp += heal;
+                    if (g.hero.hp > g.hero.max_hp) g.hero.hp = g.hero.max_hp;
+                    log_event(g, "You rent a room for 1 gp and rest, recovering "
+                                + std::to_string(heal) + " HP.");
+                }
+                return true;
+            }
+            default: break;
+        }
+        // Navigation from tavern
+        if (cmd.type == PlayerCommandType::Move) {
+            if (cmd.dx == 2) set_state(GameState::Town);
+            else if (cmd.dy == 1) set_state(GameState::Camp);
+            return true;
+        }
+        return true;
+
+    // ─── Temple ────────────────────────────────────────────
+    case GameState::Temple:
+        switch (cmd.type) {
+            case PlayerCommandType::Cast: {
+                int cost = 10;
+                if (g.total_gold < cost) {
+                    log_event(g, "You cannot afford the 10 gp donation for healing.");
+                } else if (g.hero.hp >= g.hero.max_hp) {
+                    log_event(g, "You are already at full health.");
+                } else {
+                    g.total_gold -= cost;
+                    g.hero.hp += 1;
+                    if (g.hero.hp > g.hero.max_hp) g.hero.hp = g.hero.max_hp;
+                    log_event(g, "You donate 10 gp — the clerics restore 1 HP.");
+                }
+                return true;
+            }
+            case PlayerCommandType::Turn: {
+                int amount = std::min(g.total_gold, 100);
+                if (amount <= 0) {
+                    log_event(g, "You have no gold to donate.");
+                } else {
+                    g.total_gold -= amount;
+                    g.total_xp += amount;
+                    log_event(g, "You donate " + std::to_string(amount)
+                                + " gp to the temple and gain "
+                                + std::to_string(amount) + " XP.");
+                }
+                return true;
+            }
+            default: break;
+        }
+        // Navigation from temple
+        if (cmd.type == PlayerCommandType::Move) {
+            if (cmd.dx == 2) set_state(GameState::Town);
+            else if (cmd.dy == 1) set_state(GameState::Camp);
+            return true;
+        }
+        return true;
+
+    // ─── Shop ──────────────────────────────────────────────
+    case GameState::Shop:
+        switch (cmd.type) {
+            case PlayerCommandType::Get:
+                if (g.total_gold >= 1) {
+                    g.total_gold -= 1;
+                    g.hero.torch_turns += 20;
+                    log_event(g, "You buy a torch for 1 gp.");
+                } else {
+                    log_event(g, "You can't afford a torch (1 gp).");
+                }
+                return true;
+            case PlayerCommandType::Use:
+                log_event(g, "\"We're out of rations, soldier. Try the general store.\"");
+                return true;
+            default: break;
+        }
+        // Navigation from shop
+        if (cmd.type == PlayerCommandType::Move) {
+            if (cmd.dx == 2) set_state(GameState::Town);
+            else if (cmd.dy == 1) set_state(GameState::Camp);
+            return true;
+        }
+        return true;
+
+    // ─── Armorer ───────────────────────────────────────────
+    case GameState::Armorer:
+        switch (cmd.type) {
+            case PlayerCommandType::Get: {
+                log_event(g, "\"I've got weapons and armor. Come back with the feature!\"");
+                return true;
+            }
+            default: break;
+        }
+        // Navigation from armorer
+        if (cmd.type == PlayerCommandType::Move) {
+            if (cmd.dx == 2) set_state(GameState::Town);
+            else if (cmd.dy == 1) set_state(GameState::Camp);
+            return true;
+        }
+        return true;
+
+    // ─── Camp ──────────────────────────────────────────────
+    case GameState::Camp:
+        switch (cmd.type) {
+            case PlayerCommandType::Rest:
+                g.hero.hp = g.hero.max_hp;
+                g.hero.torch_turns = 60;
+                for (int i = 1; i <= Entity::MaxSpellLevel; ++i)
+                    g.hero.spell_slots[i] = g.hero.max_spell_slots[i];
+                log_event(g, "You rest at camp and recover fully.");
+                return true;
+            case PlayerCommandType::Help: {
+                auto save_path = std::filesystem::path(getenv("HOME")) / ".bx_crawl" / "save.dat";
+                if (save_game(g, save_path))
+                    log_event(g, "Game saved.");
+                else
+                    log_event(g, "Failed to save game.");
+                return true;
+            }
+            case PlayerCommandType::Move:
+                if (cmd.dy == -1) {
+                    enter_dungeon(g);
+                    return true;
+                } else if (cmd.dy == 1) {
+                    set_state(GameState::Town);
+                    return true;
+                }
+                break;
+            default: break;
+        }
+        return true;
+
+    default:
+        return true;
+    }
 }
 
 

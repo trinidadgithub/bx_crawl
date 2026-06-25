@@ -6,6 +6,7 @@ add_library(bx_engine STATIC
     src/description.cpp
     src/chargen.cpp
     src/sound.cpp
+    src/debug_log.cpp
 )
 
 target_include_directories(bx_engine PUBLIC
