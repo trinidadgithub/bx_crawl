@@ -11,6 +11,7 @@ struct Vec2 {
 
 enum class EntityType {
     Hero,
+    Monster, // generic catch-all for bx_data monsters
     Goblin,
     Kobold,
     GiantRat,
@@ -99,6 +100,13 @@ struct Entity {
 
     // Known spell names (for Magic-Users / Clerics)
     std::vector<std::string> spells;
+
+    // Data-driven monster fields (used with EntityType::Monster)
+    char glyph{'?'};
+    int xp_value{};
+    bool undead{false};
+    bool has_poison{false};
+    bool has_disease{false};
 
     // Equipment (weapon + armor IDs from bx_data.hpp)
     std::string weapon_id;
