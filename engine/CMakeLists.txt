@@ -5,6 +5,7 @@ add_library(bx_engine STATIC
     src/map.cpp
     src/description.cpp
     src/chargen.cpp
+    src/sound.cpp
 )
 
 target_include_directories(bx_engine PUBLIC

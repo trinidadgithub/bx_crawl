@@ -1,4 +1,5 @@
 #include "game.hpp"
+#include "sound.hpp"
 
 #include <iostream>
 #include <cctype>
@@ -192,6 +193,7 @@ static PlayerCommand read_player_command(const Game& g) {
 int main() {
     Game g;
     init_game(g);
+    sound_set_enabled(true);
 
     // Raw mode for instant keypress AFTER character creation
     set_raw_mode();
