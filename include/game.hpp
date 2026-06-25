@@ -31,6 +31,9 @@ struct Game {
     int hero_level{1};
     int dungeon_level{1};
 
+    // Wandering monster timer (checked every ~8 actions)
+    int wander_counter{};
+
     // Dungeon rooms (used for wandering monster placement)
     std::vector<Room> rooms;
 };

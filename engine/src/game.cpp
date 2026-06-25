@@ -1811,6 +1811,17 @@ static int spawn_wandering_monsters(Game& g) {
     return count;
 }
 
+// Advance the wandering monster counter. Approximately every 8 actions
+// (excluding Wait, Help, None, Quit), roll 1-in-6 for random encounters.
+void tick_wander_counter(Game& g) {
+    g.wander_counter++;
+    if (g.wander_counter >= 8) {
+        g.wander_counter = 0;
+        if (roll_d(g, 6) == 1)
+            spawn_wandering_monsters(g);
+    }
+}
+
 // Player command application
 // ---------------------------
 bool apply_player_command(Game& g, const PlayerCommand& cmd) {
@@ -1859,6 +1870,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                     update_location_description(g);
                 }
             }
+            tick_wander_counter(g);
             return true;
         }
 
@@ -1886,6 +1898,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             if (!opened) {
                 log_event(g, "Nothing to open.");
             }
+            tick_wander_counter(g);
             return true;
         }
 
@@ -1907,6 +1920,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             if (!closed) {
                 log_event(g, "Nothing to close.");
             }
+            tick_wander_counter(g);
             return true;
         }
 
@@ -1945,19 +1959,23 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
 
         case PlayerCommandType::ThrowKnife: {
             ranged_attack(g, g.hero, cmd.dx, cmd.dy, 4, "knife", g.hero.knives);
+            tick_wander_counter(g);
             return true;
         }
         case PlayerCommandType::ThrowDart: {
             ranged_attack(g, g.hero, cmd.dx, cmd.dy, 3, "dart", g.hero.darts);
+            tick_wander_counter(g);
             return true;
         }
 
         case PlayerCommandType::Cast: {
             cast_spell(g, cmd.spell_index, cmd.dx, cmd.dy);
+            tick_wander_counter(g);
             return true;
         }
         case PlayerCommandType::Turn: {
             turn_undead(g, cmd.dx, cmd.dy);
+            tick_wander_counter(g);
             return true;
         }
 
@@ -2003,6 +2021,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             } else {
                 log_event(g, "Nothing to pick up here.");
             }
+            tick_wander_counter(g);
             return true;
         }
 
@@ -2056,6 +2075,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             if (!used) {
                 log_event(g, "Nothing usable here.");
             }
+            tick_wander_counter(g);
             return true;
         }
 
@@ -2071,6 +2091,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             } else {
                 log_event(g, "You fail to hide.");
             }
+            tick_wander_counter(g);
             return true;
         }
 
