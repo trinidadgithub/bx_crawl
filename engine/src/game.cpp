@@ -618,7 +618,9 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
     // Remove Fear: +1 attack for the hero
     if (attacker.type == EntityType::Hero && attacker.courage_turns > 0)
         extra_atk += 1;
-    int total  = roll + attacker.attack_bonus + extra_atk;
+    // Backstab: hidden Thief gets +4 to hit and double damage
+    int backstab_bonus = (attacker.type == EntityType::Hero && attacker.hidden) ? 4 : 0;
+    int total  = roll + attacker.attack_bonus + extra_atk + backstab_bonus;
     int target = defender.ac; // ascending AC: higher = harder
 
     // Defensive buffs on the defender
@@ -646,6 +648,10 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
     if (total >= target) {
         int dmg = roll_d(g, attacker.damage_die) + attacker.damage_bonus;
         dmg = std::max(1, dmg);
+        if (backstab_bonus) {
+            dmg *= 2;
+            log_event(g, "Backstab hits for double damage!");
+        }
         defender.hp -= dmg;
 
         {
@@ -1206,6 +1212,11 @@ void render(const Game& g) {
                     } else {
                         ch = '!';
                     }
+                }
+
+                // Show visible traps
+                if (ch == '.' && t.trap_visible && t.has_trap) {
+                    ch = '^';
                 }
 
                 std::cout << ch;
@@ -1979,6 +1990,48 @@ static int spawn_wandering_monsters(Game& g) {
     return count;
 }
 
+// Trigger a trap on the hero
+static void trigger_trap(Game& g, Entity& hero, Tile& tile) {
+    if (!tile.has_trap || tile.trap_type == TrapType::None) return;
+    int dmg = 0;
+    const char* msg = "";
+    switch (tile.trap_type) {
+        case TrapType::Pit:
+            dmg = roll_d(g, 6);
+            msg = "You fall into a pit!";
+            break;
+        case TrapType::Dart:
+            dmg = roll_d(g, 4);
+            msg = "A dart shoots out at you!";
+            break;
+        case TrapType::PoisonDart:
+            dmg = roll_d(g, 4);
+            msg = "A poisoned dart hits you!";
+            // Poison save
+            if (!make_save(g, hero.char_class, 0)) {
+                dmg += roll_d(g, 4); // extra poison damage
+            }
+            break;
+        default:
+            break;
+    }
+    if (dmg > 0) {
+        hero.hp -= dmg;
+        {
+            std::ostringstream oss;
+            oss << msg << " (" << dmg << " damage)";
+            log_event(g, oss.str());
+        }
+        if (hero.hp <= 0) {
+            hero.hp    = 0;
+            hero.alive = false;
+            log_event(g, "You have died.");
+        }
+    }
+    tile.has_trap  = false;
+    tile.trap_type = TrapType::None;
+}
+
 // Advance the wandering monster counter. Approximately every 8 actions
 // (excluding Wait, Help, None, Quit), roll 1-in-6 for random encounters.
 void tick_wander_counter(Game& g) {
@@ -1993,12 +2046,13 @@ void tick_wander_counter(Game& g) {
 // Player command application
 // ---------------------------
 bool apply_player_command(Game& g, const PlayerCommand& cmd) {
-    // Break stealth on most actions (not Wait, Hide, Help, or None)
+    // Break stealth on most actions (not Wait, Hide, Search, Help, or None)
     if (g.hero.hidden) {
         switch (cmd.type) {
             case PlayerCommandType::Wait:
             case PlayerCommandType::Rest:
             case PlayerCommandType::Hide:
+            case PlayerCommandType::Search:
             case PlayerCommandType::Help:
             case PlayerCommandType::None:
                 break; // keep hidden
@@ -2024,18 +2078,57 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             int nx = g.hero.pos.x + dx;
             int ny = g.hero.pos.y + dy;
 
-            // If a monster is there, attack that monster
+            // If a monster is there, attack that monster (with backstab if hidden)
             if (Entity* target = monster_at(g, nx, ny)) {
                 attack(g, g.hero, *target);
+                // Backstab breaks stealth
+                if (g.hero.hidden) {
+                    g.hero.hidden = false;
+                    log_event(g, "You emerge from the shadows.");
+                }
             } else if (in_bounds(g, nx, ny)) {
-                TileType tt = g.map[index_for(g, nx, ny)].type;
+                Tile& tile = g.map[index_for(g, nx, ny)];
+
+                // Check for trap on destination tile
+                if (tile.has_trap && tile.trap_type != TrapType::None && !g.hero.hidden) {
+                    trigger_trap(g, g.hero, tile);
+                }
+
+                TileType tt = tile.type;
                 if (tt == TileType::StairsDown) {
                     descend_stairs(g);
                 } else if (tt == TileType::StairsUp) {
                     ascend_stairs(g);
-                } else {
+                } else if (tt == TileType::Wall && g.hero.char_class == CharacterClass::Thief) {
+                    // Climb walls: Thief can move into wall tiles on success
+                    int roll = roll_d(g, 100);
+                    if (roll <= g.hero.skill_climb) {
+                        log_event(g, "You scale the wall.");
+                        g.hero.pos.x = nx;
+                        g.hero.pos.y = ny;
+                        update_location_description(g);
+                    } else {
+                        log_event(g, "You fail to climb the wall.");
+                    }
+                } else if (tt != TileType::Wall) {
                     move_entity(g, g.hero, dx, dy);
                     update_location_description(g);
+                }
+
+                // Move silently check: if hidden, check if monsters nearby notice
+                if (g.hero.hidden) {
+                    for (auto& m : g.monsters) {
+                        if (!m.alive) continue;
+                        int dist = std::abs(m.pos.x - g.hero.pos.x) + std::abs(m.pos.y - g.hero.pos.y);
+                        if (dist <= 3) {
+                            int roll = roll_d(g, 100);
+                            if (roll > g.hero.skill_move_silent) {
+                                g.hero.hidden = false;
+                                log_event(g, "A monster notices you!");
+                                break;
+                            }
+                        }
+                    }
                 }
             }
             tick_wander_counter(g);
@@ -2043,7 +2136,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
         }
 
         case PlayerCommandType::Open: {
-            // Try to open an adjacent closed door
+            // Try to open an adjacent closed door or pick a lock
             static const int dirs[] = {-1, 0, 1, 0, 0, -1, 0, 1};
             bool opened = false;
             for (int i = 0; i < 4; ++i) {
@@ -2055,6 +2148,26 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                     log_event(g, "The door is magically held — it won't budge!");
                     opened = true;
                     break;
+                }
+                if (tile.type == TileType::DoorClosed && tile.locked) {
+                    if (g.hero.char_class == CharacterClass::Thief) {
+                        int roll = roll_d(g, 100);
+                        if (roll <= g.hero.skill_pick_locks) {
+                            tile.locked = false;
+                            tile.type   = TileType::DoorOpen;
+                            log_event(g, "You pick the lock and open the door.");
+                            opened = true;
+                            break;
+                        } else {
+                            log_event(g, "You fail to pick the lock.");
+                            opened = true;
+                            break;
+                        }
+                    } else {
+                        log_event(g, "The door is locked.");
+                        opened = true;
+                        break;
+                    }
                 }
                 if (tile.type == TileType::DoorClosed) {
                     tile.type = TileType::DoorOpen;
@@ -2258,6 +2371,83 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 log_event(g, "You melt into the shadows.");
             } else {
                 log_event(g, "You fail to hide.");
+            }
+            tick_wander_counter(g);
+            return true;
+        }
+
+        case PlayerCommandType::Search: {
+            static const int dirs[] = {-1, 0, 1, 0, 0, -1, 0, 1};
+            bool found_anything = false;
+
+            // Search for traps on adjacent tiles
+            for (int i = 0; i < 4; ++i) {
+                int nx = g.hero.pos.x + dirs[i * 2];
+                int ny = g.hero.pos.y + dirs[i * 2 + 1];
+                if (!in_bounds(g, nx, ny)) continue;
+                auto& tile = g.map[index_for(g, nx, ny)];
+                if (tile.has_trap && tile.trap_type != TrapType::None) {
+                    bool found = false;
+                    if (g.hero.char_class == CharacterClass::Thief) {
+                        found = (roll_d(g, 100) <= g.hero.skill_find_traps);
+                    } else {
+                        found = (roll_d(g, 6) == 1); // 1-in-6 for non-thieves
+                    }
+                    if (found) {
+                        tile.trap_visible = true;
+                        log_event(g, "You find a trap!");
+                        found_anything = true;
+                        // Thief can try to disarm
+                        if (g.hero.char_class == CharacterClass::Thief) {
+                            int remove_roll = roll_d(g, 100);
+                            if (remove_roll <= g.hero.skill_find_traps) {
+                                tile.has_trap   = false;
+                                tile.trap_type  = TrapType::None;
+                                log_event(g, "You skillfully disarm the trap.");
+                            } else {
+                                log_event(g, "You fail to disarm the trap.");
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Hear noise at adjacent doors (anyone can try, Thief uses skill)
+            for (int i = 0; i < 4; ++i) {
+                int nx = g.hero.pos.x + dirs[i * 2];
+                int ny = g.hero.pos.y + dirs[i * 2 + 1];
+                if (!in_bounds(g, nx, ny)) continue;
+                auto& tile = g.map[index_for(g, nx, ny)];
+                if (tile.type == TileType::DoorClosed) {
+                    bool heard = false;
+                    if (g.hero.char_class == CharacterClass::Thief) {
+                        heard = (roll_d(g, 100) <= g.hero.skill_hear_noise);
+                    } else {
+                        heard = (roll_d(g, 6) == 1); // 1-in-6
+                    }
+                    if (heard) {
+                        bool monster_near = false;
+                        for (const auto& m : g.monsters) {
+                            if (!m.alive) continue;
+                            int md_x = std::abs(m.pos.x - nx);
+                            int md_y = std::abs(m.pos.y - ny);
+                            if (md_x <= 1 && md_y <= 1) {
+                                monster_near = true;
+                                break;
+                            }
+                        }
+                        if (monster_near) {
+                            log_event(g, "You hear something moving behind the door!");
+                        } else {
+                            log_event(g, "You hear nothing behind the door.");
+                        }
+                        found_anything = true;
+                    }
+                }
+            }
+
+            if (!found_anything) {
+                log_event(g, "You find nothing of interest.");
             }
             tick_wander_counter(g);
             return true;
