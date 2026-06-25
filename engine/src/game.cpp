@@ -39,6 +39,20 @@ int ability_modifier_display(int score) {
     return bx::get_strength(score).toHitMelee;
 }
 
+// Class hit-die sides
+int class_hd_sides(CharacterClass cc) {
+    switch (cc) {
+        case CharacterClass::Fighter:   return 8;
+        case CharacterClass::Cleric:    return 6;
+        case CharacterClass::Thief:     return 4;
+        case CharacterClass::MagicUser: return 4;
+        case CharacterClass::Dwarf:     return 8;
+        case CharacterClass::Elf:       return 6;
+        case CharacterClass::Halfling:  return 6;
+        default:                        return 8;
+    }
+}
+
 // Monster XP values (B/X Moldvay)
 int monster_xp_value(const Entity& m) {
     switch (m.type) {
@@ -53,9 +67,32 @@ int monster_xp_value(const Entity& m) {
     }
 }
 
-int xp_for_level(int level) {
+// XP needed to reach a given level, class-aware via bx_data tables.
+// Falls back to a generic formula for CharacterClass::None or beyond the table.
+int xp_for_level(CharacterClass cc, int level) {
+    if (level <= 1) return 0;
+
+    auto lookup = [&](const auto& table) -> int {
+        for (const auto& entry : table)
+            if (entry.level == level) return entry.xp_required;
+        return -1;
+    };
+
+    int xp = -1;
+    switch (cc) {
+        case CharacterClass::Fighter:   xp = lookup(bx::fighter_levels);   break;
+        case CharacterClass::MagicUser: xp = lookup(bx::magic_user_levels); break;
+        case CharacterClass::Thief:     xp = lookup(bx::thief_levels);     break;
+        case CharacterClass::Cleric:    xp = lookup(bx::cleric_levels);    break;
+        case CharacterClass::Dwarf:     xp = lookup(bx::dwarf_levels);     break;
+        case CharacterClass::Elf:       xp = lookup(bx::elf_levels);       break;
+        case CharacterClass::Halfling:  xp = lookup(bx::halfling_levels);  break;
+        default: break;
+    }
+    if (xp >= 0) return xp;
+
+    // Generic fallback
     if (level >= 9) return 240000 + (level - 9) * 120000;
-    if (level == 1) return 0;
     return 2000 * (1 << (level - 2));
 }
 
@@ -87,10 +124,11 @@ void award_treasure(Game& g, Entity& monster) {
 }
 
 void check_level_up(Game& g) {
-    int needed = xp_for_level(g.hero_level + 1);
+    int needed = xp_for_level(g.hero.char_class, g.hero_level + 1);
     while (g.total_xp >= needed && g.hero_level < 14) {
         int con_mod = ability_modifier_display(g.hero.abilities.con);
-        int hp_gain = roll_d(g, 8) + con_mod;
+        int hd = class_hd_sides(g.hero.char_class);
+        int hp_gain = roll_d(g, hd) + con_mod;
         hp_gain = std::max(1, hp_gain);
 
         g.hero_level++;
@@ -98,15 +136,35 @@ void check_level_up(Game& g) {
         g.hero.hp     += hp_gain;
         g.hero.attack_bonus++;
 
+        // Grant new spell slots from bx_data class tables
+        auto grant_slots = [&](const auto& table) {
+            for (const auto& entry : table) {
+                if (entry.level == g.hero_level) {
+                    g.hero.max_spell_slots[1] = entry.first_level_spells;
+                    g.hero.max_spell_slots[2] = entry.second_level_spells;
+                    g.hero.spell_slots[1]      = entry.first_level_spells;
+                    g.hero.spell_slots[2]      = entry.second_level_spells;
+                    break;
+                }
+            }
+        };
+        switch (g.hero.char_class) {
+            case CharacterClass::MagicUser: grant_slots(bx::magic_user_levels); break;
+            case CharacterClass::Cleric:    grant_slots(bx::cleric_levels);    break;
+            case CharacterClass::Elf:       grant_slots(bx::elf_levels);       break;
+            default: break;
+        }
+
         {
             std::ostringstream oss;
             oss << g.hero.name << " reaches level " << g.hero_level
                 << "! HP +" << hp_gain
+                << " (1d" << hd << ")"
                 << ", attack bonus now " << g.hero.attack_bonus;
             log_event(g, oss.str());
         }
 
-        needed = xp_for_level(g.hero_level + 1);
+        needed = xp_for_level(g.hero.char_class, g.hero_level + 1);
     }
 }
 
@@ -844,7 +902,7 @@ void render(const Game& g) {
     int monster_count = 0;
     for (const auto& m : g.monsters)
         if (m.alive) ++monster_count;
-    int next_level_xp = xp_for_level(g.hero_level + 1);
+    int next_level_xp = xp_for_level(g.hero.char_class, g.hero_level + 1);
     // Compute effective AC from buffs
     int effective_ac = g.hero.ac;
     int buff_turns = 999;
