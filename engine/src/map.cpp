@@ -147,6 +147,26 @@ std::vector<Room> init_map(Game& g) {
         }
     }
 
+    // Place treasure in rooms (gold piles + occasional gems)
+    for (const auto& r : rooms) {
+        // Skip entrance room (rooms[0]) — no starting treasure
+        if (&r == &rooms[0]) continue;
+
+        // 50% chance this room has a gold pile
+        if (rand_range(g, 0, 1) == 0) {
+            int gx = r.x + rand_range(g, 1, r.w - 2);
+            int gy = r.y + rand_range(g, 1, r.h - 2);
+            g.map[index_for(g, gx, gy)].items.push_back(ItemType::Gold);
+        }
+
+        // 20% chance this room has a gem
+        if (rand_range(g, 0, 4) == 0) {
+            int gx = r.x + rand_range(g, 1, r.w - 2);
+            int gy = r.y + rand_range(g, 1, r.h - 2);
+            g.map[index_for(g, gx, gy)].items.push_back(ItemType::Gem);
+        }
+    }
+
     // Place at most ONE door per room. Scan each side from the center
     // outward and stop after the first successfully placed door.
     for (const auto& r : rooms) {
