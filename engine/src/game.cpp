@@ -189,11 +189,12 @@ bool is_occupied(const Game& g, int x, int y, const Entity* ignore = nullptr) {
     return false;
 }
 
-// Returns true if a tile is carved (passable) — floor or door
+// Returns true if a tile is carved (passable) — floor, door, or stairs
 static bool is_carved(const Game& g, int x, int y) {
     if (!in_bounds(g, x, y)) return false;
     auto t = g.map[index_for(g, x, y)].type;
-    return t == TileType::Floor || t == TileType::DoorClosed || t == TileType::DoorOpen;
+    return t == TileType::Floor || t == TileType::DoorClosed || t == TileType::DoorOpen
+        || t == TileType::StairsDown || t == TileType::StairsUp;
 }
 
 // A wall tile orthogonally adjacent to a carved tile
@@ -629,6 +630,9 @@ void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data
         std::cerr << "Warning: failed to load descriptions.txt\n";
     }
 
+    g.data_dir = data_dir;
+    g.dungeon_level = 1;
+
     g.monsters.clear();
 
     g.hero = std::move(hero);
@@ -715,6 +719,115 @@ void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data
 
     // Initial location description
     g.current_location_id = "start";
+}
+
+// Helper: regenerate dungeon for a new level, preserving hero state
+void regenerate_dungeon(Game& g, int new_dungeon_level) {
+    g.dungeon_level = new_dungeon_level;
+    g.event_log.clear();
+
+    // Regenerate map
+    auto rooms = init_map(g);
+    g.rooms = rooms;
+
+    // Place hero at entrance
+    if (!rooms.empty()) {
+        g.hero.pos = {
+            rooms[0].x + rooms[0].w / 2,
+            rooms[0].y + rooms[0].h / 2
+        };
+        // Mark entrance room explored
+        const auto& r = rooms[0];
+        for (int y = r.y; y < r.y + r.h; ++y)
+            for (int x = r.x; x < r.x + r.w; ++x)
+                g.map[index_for(g, x, y)].explored = true;
+    } else {
+        g.hero.pos = {2, 2};
+    }
+
+    // Clear old monsters and spawn new ones, scaled by dungeon level
+    g.monsters.clear();
+
+    auto random_room_pos = [&](const Room& r) -> Vec2 {
+        int px = r.x + roll_d(g, r.w) - 1;
+        int py = r.y + roll_d(g, r.h) - 1;
+        return {px, py};
+    };
+
+    auto random_monster_room = [&]() -> int {
+        if (rooms.size() <= 1) return 0;
+        return roll_d(g, static_cast<int>(rooms.size()) - 1);
+    };
+
+    auto place_monster = [&](Entity& e, const Room& room) {
+        for (int attempt = 0; attempt < 20; ++attempt) {
+            Vec2 pos = random_room_pos(room);
+            if (!is_occupied(g, pos.x, pos.y)) {
+                e.pos = pos;
+                return;
+            }
+        }
+        e.pos = {room.x + room.w / 2, room.y + room.h / 2};
+    };
+
+    // More monsters on deeper levels
+    int base_count = 4 + roll_d(g, 3);
+    int num_monsters = base_count + g.dungeon_level - 1; // +1 per level
+    if (num_monsters > 12) num_monsters = 12;
+
+    for (int i = 0; i < num_monsters; ++i) {
+        const auto& t = monster_templates[roll_d(g, num_monster_types) - 1];
+
+        Entity e;
+        e.name             = t.name;
+        e.type             = t.type;
+        e.fleeing          = false;
+        e.alive            = true;
+        e.attacks_per_turn = 1;
+
+        // Scale with dungeon level
+        int extra_hp = g.dungeon_level - 1;
+        e.max_hp           = t.hp + extra_hp;
+        e.hp               = t.hp + extra_hp;
+        e.attack_bonus     = t.atk_bonus + (g.dungeon_level - 1) / 2;
+        e.damage_die       = t.damage_die;
+        e.ac               = t.ac - (g.dungeon_level - 1); // descending AC: lower = harder
+        if (e.ac < 0) e.ac = 0;
+        e.morale           = t.morale;
+
+        // Scale gold with dungeon level
+        switch (t.type) {
+            case EntityType::Goblin:
+            case EntityType::Orc:
+                e.gold_pieces = roll_d(g, 6) * 10 * g.dungeon_level;
+                break;
+            case EntityType::Kobold:
+                e.gold_pieces = roll_d(g, 6) * 5 * g.dungeon_level;
+                break;
+            default:
+                e.gold_pieces = 0;
+                break;
+        }
+
+        place_monster(e, rooms[static_cast<std::size_t>(random_monster_room())]);
+        g.monsters.push_back(e);
+    }
+}
+
+void descend_stairs(Game& g) {
+    int next = g.dungeon_level + 1;
+    regenerate_dungeon(g, next);
+    log_event(g, "You descend to dungeon level " + std::to_string(next) + ".");
+}
+
+void ascend_stairs(Game& g) {
+    if (g.dungeon_level <= 1) {
+        log_event(g, "The stairs above are blocked by rubble — you cannot ascend further.");
+        return;
+    }
+    int prev = g.dungeon_level - 1;
+    regenerate_dungeon(g, prev);
+    log_event(g, "You climb up to dungeon level " + std::to_string(prev) + ".");
 }
 
 } // end anonymous namespace
@@ -882,6 +995,8 @@ void render(const Game& g) {
                 char ch = '.';
                 if (t.type == TileType::DoorClosed) ch = '+';
                 else if (t.type == TileType::DoorOpen) ch = '/';
+                else if (t.type == TileType::StairsDown) ch = '>';
+                else if (t.type == TileType::StairsUp) ch = '<';
 
                 // Entities only on visible tiles
                 if (t.visible) {
@@ -949,6 +1064,7 @@ void render(const Game& g) {
         if (effective_ac != g.hero.ac)
             oss << "(" << effective_ac << ":" << buff_turns << ")";
         oss << " Lv." << g.hero_level
+            << " D:" << g.dungeon_level
             << " G:" << g.total_gold
             << " XP:" << g.total_xp << "/" << next_level_xp
             << " M:" << monster_count
@@ -1732,9 +1848,16 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             // If a monster is there, attack that monster
             if (Entity* target = monster_at(g, nx, ny)) {
                 attack(g, g.hero, *target);
-            } else {
-                move_entity(g, g.hero, dx, dy);
-                update_location_description(g);
+            } else if (in_bounds(g, nx, ny)) {
+                TileType tt = g.map[index_for(g, nx, ny)].type;
+                if (tt == TileType::StairsDown) {
+                    descend_stairs(g);
+                } else if (tt == TileType::StairsUp) {
+                    ascend_stairs(g);
+                } else {
+                    move_entity(g, g.hero, dx, dy);
+                    update_location_description(g);
+                }
             }
             return true;
         }

@@ -85,12 +85,13 @@ TEST_CASE("Dungeon generation: init_map") {
         CHECK(rooms.size() >= 1);
     }
 
-    SUBCASE("all room tiles are floor") {
+    SUBCASE("all room tiles are floor or stairs") {
         auto rooms = init_map(g);
         for (const auto& r : rooms) {
             for (int y = r.y; y < r.y + r.h; ++y) {
                 for (int x = r.x; x < r.x + r.w; ++x) {
-                    CHECK(g.map[index_for(g, x, y)].type == TileType::Floor);
+                    auto t = g.map[index_for(g, x, y)].type;
+                    CHECK((t == TileType::Floor || t == TileType::StairsDown || t == TileType::StairsUp));
                 }
             }
         }

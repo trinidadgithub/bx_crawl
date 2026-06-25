@@ -147,6 +147,29 @@ std::vector<Room> init_map(Game& g) {
         }
     }
 
+    // Place stairs: up in entrance room, down in a random non-entrance room
+    {
+        // Stairs up in entrance room (opposite corner from hero spawn)
+        Room& entrance = rooms[0];
+        int ux = entrance.x + entrance.w - 2;
+        int uy = entrance.y + entrance.h - 2;
+        g.map[index_for(g, ux, uy)].type = TileType::StairsUp;
+
+        // Stairs down in a random non-entrance room
+        if (rooms.size() > 1) {
+            int ri = rand_range(g, 1, static_cast<int>(rooms.size()) - 1);
+            Room& stair_room = rooms[ri];
+            int dx = stair_room.x + rand_range(g, 1, stair_room.w - 2);
+            int dy = stair_room.y + rand_range(g, 1, stair_room.h - 2);
+            g.map[index_for(g, dx, dy)].type = TileType::StairsDown;
+        } else {
+            // Fallback: stairs down in entrance if only one room
+            int dx = entrance.x + rand_range(g, 1, entrance.w - 2);
+            int dy = entrance.y + rand_range(g, 1, entrance.h - 2);
+            g.map[index_for(g, dx, dy)].type = TileType::StairsDown;
+        }
+    }
+
     // Place treasure in rooms (gold piles + occasional gems)
     for (const auto& r : rooms) {
         // Skip entrance room (rooms[0]) — no starting treasure

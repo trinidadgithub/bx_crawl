@@ -11,7 +11,9 @@ enum class TileType {
     Floor,
     Wall,
     DoorClosed,
-    DoorOpen
+    DoorOpen,
+    StairsDown,
+    StairsUp
 };
 
 enum class ItemType {
