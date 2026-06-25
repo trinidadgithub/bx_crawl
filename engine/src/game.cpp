@@ -787,18 +787,39 @@ static void cast_ray(Game& g, int x0, int y0, int x1, int y1) {
 void compute_visibility(Game& g) {
     Entity& hero = g.hero;
 
+    // Check torch state before decrement
+    bool torch_was_lit = hero.torch_turns > 0 && hero.light_spell_turns == 0;
+
     // Decrement light sources
     if (hero.light_spell_turns > 0)
         --hero.light_spell_turns;
     else if (hero.torch_turns > 0)
         --hero.torch_turns;
 
+    // Torch status messages
+    if (torch_was_lit && hero.torch_turns == 0)
+        log_event(g, "Your torch sputters out!");
+    else if (torch_was_lit && hero.torch_turns == 10)
+        log_event(g, "Your torch is burning low.");
+    else if (torch_was_lit && hero.torch_turns == 5)
+        log_event(g, "Your torch is almost out!");
+
     // Determine light radius
     int radius = 6;
     if (hero.light_spell_turns > 0)
         radius = 10;
-    else if (hero.torch_turns <= 0)
-        radius = 0;
+    else if (hero.torch_turns <= 0) {
+        // No light source: infravision for demihumans
+        switch (hero.char_class) {
+            case CharacterClass::Dwarf:
+            case CharacterClass::Elf:
+            case CharacterClass::Halfling:
+                radius = 2; // Infravision 60'
+                break;
+            default:
+                radius = 0; // Pitch black
+        }
+    }
 
     // Reset visible flags
     for (auto& t : g.map)
@@ -932,8 +953,11 @@ void render(const Game& g) {
             << " XP:" << g.total_xp << "/" << next_level_xp
             << " M:" << monster_count
             << " K:" << g.hero.knives
-            << " D:" << g.hero.darts
-            << " T:" << g.hero.torch_turns;
+            << " D:" << g.hero.darts;
+        if (g.hero.light_spell_turns > 0)
+            oss << " L*:" << g.hero.light_spell_turns;
+        else
+            oss << " T:" << g.hero.torch_turns;
         put_line(oss.str());
     }
 
