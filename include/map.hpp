@@ -17,7 +17,9 @@ enum class TileType {
 enum class ItemType {
     Torch,
     ScrollArcane,
-    ScrollClerical
+    ScrollClerical,
+    Gold,
+    Gem
 };
 
 struct Tile {
