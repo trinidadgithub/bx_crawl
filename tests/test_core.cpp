@@ -1308,22 +1308,40 @@ TEST_CASE("compute_visibility: no torch = only hero tile visible") {
     CHECK_FALSE(g.map[index_for(g, 5, 6)].visible);
 }
 
-TEST_CASE("compute_visibility: torch decrements each call") {
+TEST_CASE("compute_visibility: torch decrements every 10 calls (once per turn)") {
     Game g = make_minimal_game(10, 10);
     g.hero.pos = {5, 5};
     g.hero.torch_turns = 5;
 
+    // 9 calls: torch still 5 (no turn boundary)
+    for (int i = 0; i < 9; ++i) {
+        compute_visibility(g);
+        CHECK(g.hero.torch_turns == 5);
+    }
+
+    // 10th call: turn boundary → decrement
     compute_visibility(g);
     CHECK(g.hero.torch_turns == 4);
 
+    // Another 9 calls: stays at 4
+    for (int i = 0; i < 9; ++i) {
+        compute_visibility(g);
+        CHECK(g.hero.torch_turns == 4);
+    }
+
+    // 10th call: decrements to 3
     compute_visibility(g);
     CHECK(g.hero.torch_turns == 3);
 
+    // Test that it doesn't go negative
     g.hero.torch_turns = 1;
+    g.tick_clock = 0;
+    for (int i = 0; i < 9; ++i) {
+        compute_visibility(g);
+        CHECK(g.hero.torch_turns == 1);
+    }
     compute_visibility(g);
     CHECK(g.hero.torch_turns == 0);
-
-    // At 0, should stay 0 and not go negative
     compute_visibility(g);
     CHECK(g.hero.torch_turns == 0);
 }
@@ -1334,7 +1352,9 @@ TEST_CASE("compute_visibility: light spell overrides torch") {
     g.hero.torch_turns = 5;
     g.hero.light_spell_turns = 10;
 
-    compute_visibility(g);
+    // After 10 calls (1 turn), light spell should decrement, torch should not
+    for (int i = 0; i < 10; ++i)
+        compute_visibility(g);
 
     // Light spell is active: torch should NOT decrement
     CHECK(g.hero.torch_turns == 5);

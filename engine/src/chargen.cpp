@@ -572,7 +572,7 @@ Entity create_hero(Game& g) {
         std::cout << "\n\n";
     }
 
-    std::cout << "Press Enter to enter the dungeon...";
+    std::cout << "Press Enter to begin your adventure...";
     std::string dummy;
     std::getline(std::cin, dummy);
 

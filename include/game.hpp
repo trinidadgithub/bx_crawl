@@ -8,6 +8,16 @@
 #include "map.hpp"
 #include "description.hpp"
 
+enum class GameState {
+    Town,
+    Tavern,
+    Temple,
+    Shop,
+    Armorer,
+    Camp,
+    Dungeon
+};
+
 struct Game {
     int width{};
     int height{};
@@ -34,8 +44,14 @@ struct Game {
     // Wandering monster timer (checked every ~8 actions)
     int wander_counter{};
 
+    // Turn clock: 10 actions = 1 B/X turn (torch/light decrement on turn boundary)
+    int tick_clock{};
+
     // Dungeon rooms (used for wandering monster placement)
     std::vector<Room> rooms;
+
+    // Town / meta-game state
+    GameState state{GameState::Town};
 };
 
 // Random helper
@@ -57,6 +73,20 @@ bool any_monsters_alive(const Game& g);
 
 // Roll 1d6 per side for initiative. Returns true if monsters act first.
 bool roll_initiative(Game& g);
+
+// ---------------------------
+// Town / meta-game actions
+// ---------------------------
+
+// Enter the dungeon from camp (generates fresh dungeon level 1)
+void enter_dungeon(Game& g);
+
+// Leave dungeon via entrance stairs (return to camp)
+void leave_dungeon(Game& g);
+
+// Save/load
+bool save_game(const Game& g, const std::filesystem::path& path);
+bool load_game(Game& g, const std::filesystem::path& path);
 
 // ---------------------------
 // Player command interface
@@ -91,6 +121,10 @@ struct PlayerCommand {
 // Apply a player command to the game state.
 // Returns false if the game loop should end (e.g. Quit), true otherwise.
 bool apply_player_command(Game& g, const PlayerCommand& cmd);
+
+// Apply a town command (menu selection).
+// Returns false to quit, true otherwise.
+bool apply_town_command(Game& g, const PlayerCommand& cmd);
 
 // Class name helper
 const char* class_name(CharacterClass cc);
