@@ -1,4 +1,5 @@
 #include "game.hpp"
+#include "bx_data.hpp"
 #include "sound.hpp"
 
 #include <iostream>
@@ -238,16 +239,39 @@ static PlayerCommand read_town_command(const Game& g) {
             break;
 
         case GameState::Shop:
-            if (c == '1') return PlayerCommand{PlayerCommandType::Get, 0, 0}; // buy torch
-            if (c == '2') return PlayerCommand{PlayerCommandType::Use, 0, 0}; // rations
+            if (g.town_submenu == 0) {
+                if (c == '1') return PlayerCommand{PlayerCommandType::Get, 0, 0}; // buy torch
+                if (c == '2') return PlayerCommand{PlayerCommandType::Use, 0, 0}; // supplies submenu
+            } else if (g.town_submenu == 4) {
+                if (c >= '1' && c <= '4')
+                    return PlayerCommand{PlayerCommandType::Get, 0, 0, c - '1'};
+                if (c == 't') return PlayerCommand{PlayerCommandType::Help, 0, 0};
+            }
             if (c == 't') return PlayerCommand{PlayerCommandType::Move, 2, 0};
             if (c == 'c') return PlayerCommand{PlayerCommandType::Move, 0, 1};
             break;
 
         case GameState::Armorer:
-            if (c == '1') return PlayerCommand{PlayerCommandType::Get, 0, 0};
-            if (c == '2') return PlayerCommand{PlayerCommandType::Use, 0, 0};
-            if (c == '3') return PlayerCommand{PlayerCommandType::Open, 0, 0};
+            if (g.town_submenu == 0) {
+                if (c == '1') return PlayerCommand{PlayerCommandType::Get, 0, 0};
+                if (c == '2') return PlayerCommand{PlayerCommandType::Get, 0, 0};
+                if (c == '3') return PlayerCommand{PlayerCommandType::Get, 0, 0};
+            } else if (g.town_submenu == 1) {
+                int allowed = 0;
+                for (const auto& w : bx::weapons)
+                    if (is_weapon_allowed(g.hero.char_class, w.id)) ++allowed;
+                if (c >= '1' && c <= '0' + allowed)
+                    return PlayerCommand{PlayerCommandType::Get, 0, 0, c - '1'};
+                if (c == 't') return PlayerCommand{PlayerCommandType::Help, 0, 0};
+            } else if (g.town_submenu == 2) {
+                if (c >= '1' && c <= '4')
+                    return PlayerCommand{PlayerCommandType::Get, 0, 0, c - '1'};
+                if (c == 't') return PlayerCommand{PlayerCommandType::Help, 0, 0};
+            } else if (g.town_submenu == 3) {
+                if (c >= '1' && c <= '3')
+                    return PlayerCommand{PlayerCommandType::Get, 0, 0, c - '1'};
+                if (c == 't') return PlayerCommand{PlayerCommandType::Help, 0, 0};
+            }
             if (c == 't') return PlayerCommand{PlayerCommandType::Move, 2, 0};
             if (c == 'c') return PlayerCommand{PlayerCommandType::Move, 0, 1};
             break;

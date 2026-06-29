@@ -52,6 +52,7 @@ struct Game {
 
     // Town / meta-game state
     GameState state{GameState::Town};
+    int town_submenu{0};
 };
 
 // Random helper
@@ -128,3 +129,6 @@ bool apply_town_command(Game& g, const PlayerCommand& cmd);
 
 // Class name helper
 const char* class_name(CharacterClass cc);
+
+// Equipment helpers (used by both game.cpp and main.cpp)
+bool is_weapon_allowed(CharacterClass cc, const char* weapon_id);

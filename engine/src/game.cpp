@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <chrono>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <cstdint>
@@ -22,6 +23,15 @@
 int roll_d(Game& g, int sides) {
     std::uniform_int_distribution<int> dist(1, sides);
     return dist(g.rng);
+}
+
+// Check if monster spawning is disabled via environment
+static bool monsters_disabled() {
+    static const bool disabled = []{
+        const char* env = std::getenv("BX_NO_MONSTERS");
+        return env && env[0] == '1';
+    }();
+    return disabled;
 }
 
 // ---------------------------
@@ -621,6 +631,13 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
     // Remove Fear: +1 attack for the hero
     if (attacker.type == EntityType::Hero && attacker.courage_turns > 0)
         extra_atk += 1;
+    // Starvation penalty: -1 to hit when hungry (12+ turns), -2 when starving (18+)
+    if (attacker.type == EntityType::Hero) {
+        if (attacker.turns_without_food >= 18)
+            extra_atk -= 2;
+        else if (attacker.turns_without_food >= 12)
+            extra_atk -= 1;
+    }
     // Backstab: hidden Thief gets +4 to hit and double damage
     int backstab_bonus = (attacker.type == EntityType::Hero && attacker.hidden) ? 4 : 0;
     int total  = roll + attacker.attack_bonus + extra_atk + backstab_bonus;
@@ -944,12 +961,14 @@ void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data
         e.pos = {room.x + room.w / 2, room.y + room.h / 2};
     };
 
-    // Spawn 4-6 monsters using bx_data roster
-    int num_monsters = 4 + roll_d(g, 3); // 4..6
-    for (int i = 0; i < num_monsters; ++i) {
-        Entity e = spawn_bx_monster(g, g.dungeon_level);
-        place_monster(e, rooms[static_cast<std::size_t>(random_monster_room())]);
-        g.monsters.push_back(e);
+    // Spawn initial monsters (unless disabled)
+    if (!monsters_disabled()) {
+        int num_monsters = 4 + roll_d(g, 3); // 4..6
+        for (int i = 0; i < num_monsters; ++i) {
+            Entity e = spawn_bx_monster(g, g.dungeon_level);
+            place_monster(e, rooms[static_cast<std::size_t>(random_monster_room())]);
+            g.monsters.push_back(e);
+        }
     }
 
     // Initial location description
@@ -1005,15 +1024,17 @@ void regenerate_dungeon(Game& g, int new_dungeon_level) {
         e.pos = {room.x + room.w / 2, room.y + room.h / 2};
     };
 
-    // More monsters on deeper levels
-    int base_count = 4 + roll_d(g, 3);
-    int num_monsters = base_count + g.dungeon_level - 1; // +1 per level
-    if (num_monsters > 12) num_monsters = 12;
+    // Spawn monsters for this level (unless disabled)
+    if (!monsters_disabled()) {
+        int base_count = 4 + roll_d(g, 3);
+        int num_monsters = base_count + g.dungeon_level - 1; // +1 per level
+        if (num_monsters > 12) num_monsters = 12;
 
-    for (int i = 0; i < num_monsters; ++i) {
-        Entity e = spawn_bx_monster(g, g.dungeon_level);
-        place_monster(e, rooms[static_cast<std::size_t>(random_monster_room())]);
-        g.monsters.push_back(e);
+        for (int i = 0; i < num_monsters; ++i) {
+            Entity e = spawn_bx_monster(g, g.dungeon_level);
+            place_monster(e, rooms[static_cast<std::size_t>(random_monster_room())]);
+            g.monsters.push_back(e);
+        }
     }
 }
 
@@ -1035,6 +1056,104 @@ void ascend_stairs(Game& g) {
 }
 
 } // end anonymous namespace
+
+// ── Equipment helpers ─────────────────────────────────────
+
+// Parse a B/X damage die string like "1d8" → die size (e.g. 8)
+static int parse_die_size(const char* s) {
+    if (!s || !*s) return 2;
+    std::string_view sv(s);
+    auto d = sv.find('d');
+    if (d == std::string_view::npos) return 2;
+    return std::atoi(sv.data() + d + 1);
+}
+
+// Check if a weapon is allowed for a given class using bx_data::class_info.
+bool is_weapon_allowed(CharacterClass cc, const char* weapon_id) {
+    const bx::ClassInfo* ci = nullptr;
+    for (const auto& c : bx::class_info) {
+        CharacterClass check_cc = CharacterClass::None;
+        if (std::string_view(c.id) == "fighter") check_cc = CharacterClass::Fighter;
+        else if (std::string_view(c.id) == "magic-user") check_cc = CharacterClass::MagicUser;
+        else if (std::string_view(c.id) == "thief") check_cc = CharacterClass::Thief;
+        else if (std::string_view(c.id) == "cleric") check_cc = CharacterClass::Cleric;
+        else if (std::string_view(c.id) == "dwarf") check_cc = CharacterClass::Dwarf;
+        else if (std::string_view(c.id) == "elf") check_cc = CharacterClass::Elf;
+        else if (std::string_view(c.id) == "halfling") check_cc = CharacterClass::Halfling;
+        if (check_cc == cc) { ci = &c; break; }
+    }
+    if (!ci) return false;
+    std::string_view allowed(ci->allowed_weapons);
+    if (allowed == "any") return true;
+    // Build a simplified version without hyphens
+    std::string simp;
+    for (const char* p = weapon_id; *p; ++p)
+        if (*p != '-') simp += *p;
+    // Tokenize allowed_weapons by commas and compare case-insensitively
+    std::string token;
+    for (char ch : allowed) {
+        if (ch == ',') {
+            // Trim and compare
+            while (!token.empty() && token.back() == ' ') token.pop_back();
+            while (!token.empty() && token[0] == ' ') token.erase(token.begin());
+            if (token.size() == simp.size()) {
+                bool match = true;
+                for (std::size_t i = 0; i < token.size(); ++i)
+                    if (std::tolower(static_cast<unsigned char>(token[i])) !=
+                        std::tolower(static_cast<unsigned char>(simp[i]))) {
+                        match = false; break;
+                    }
+                if (match) return true;
+            }
+            token.clear();
+        } else {
+            token += ch;
+        }
+    }
+    // Last token
+    while (!token.empty() && token.back() == ' ') token.pop_back();
+    while (!token.empty() && token[0] == ' ') token.erase(token.begin());
+    if (token.size() == simp.size()) {
+        bool match = true;
+        for (std::size_t i = 0; i < token.size(); ++i)
+            if (std::tolower(static_cast<unsigned char>(token[i])) !=
+                std::tolower(static_cast<unsigned char>(simp[i]))) {
+                match = false; break;
+            }
+        if (match) return true;
+    }
+    return false;
+}
+
+static bool can_use_shield(CharacterClass cc) {
+    for (const auto& c : bx::class_info) {
+        CharacterClass check_cc = CharacterClass::None;
+        if (std::string_view(c.id) == "fighter") check_cc = CharacterClass::Fighter;
+        else if (std::string_view(c.id) == "magic-user") check_cc = CharacterClass::MagicUser;
+        else if (std::string_view(c.id) == "thief") check_cc = CharacterClass::Thief;
+        else if (std::string_view(c.id) == "cleric") check_cc = CharacterClass::Cleric;
+        else if (std::string_view(c.id) == "dwarf") check_cc = CharacterClass::Dwarf;
+        else if (std::string_view(c.id) == "elf") check_cc = CharacterClass::Elf;
+        else if (std::string_view(c.id) == "halfling") check_cc = CharacterClass::Halfling;
+        if (check_cc == cc) return c.allowed_shield;
+    }
+    return false;
+}
+
+static bool can_wear_heavy_armor(CharacterClass cc) {
+    for (const auto& c : bx::class_info) {
+        CharacterClass check_cc = CharacterClass::None;
+        if (std::string_view(c.id) == "fighter") check_cc = CharacterClass::Fighter;
+        else if (std::string_view(c.id) == "magic-user") check_cc = CharacterClass::MagicUser;
+        else if (std::string_view(c.id) == "thief") check_cc = CharacterClass::Thief;
+        else if (std::string_view(c.id) == "cleric") check_cc = CharacterClass::Cleric;
+        else if (std::string_view(c.id) == "dwarf") check_cc = CharacterClass::Dwarf;
+        else if (std::string_view(c.id) == "elf") check_cc = CharacterClass::Elf;
+        else if (std::string_view(c.id) == "halfling") check_cc = CharacterClass::Halfling;
+        if (check_cc == cc) return c.allowed_armor_any;
+    }
+    return false;
+}
 
 // Class name helper
 const char* class_name(CharacterClass cc) {
@@ -1126,6 +1245,29 @@ void compute_visibility(Game& g) {
             log_event(g, "Your torch is burning low.");
         else if (torch_was_lit && hero.torch_turns == 5)
             log_event(g, "Your torch is almost out!");
+
+        // ── Hunger clock (once per B/X turn) ──
+        // Every 6 B/X turns, attempt to eat
+        hero.turns_without_food++;
+        if (hero.turns_without_food > 0 && hero.turns_without_food % 6 == 0) {
+            if (hero.rations > 0) {
+                hero.rations--;
+                hero.turns_without_food = 0;
+                log_event(g, "You consume some rations.");
+            } else if (hero.turns_without_food == 6) {
+                log_event(g, "Your stomach rumbles — you need food.");
+            } else if (hero.turns_without_food >= 18 && (hero.turns_without_food / 6) % 3 == 0) {
+                // Damage every 3rd hunger cycle (18, 36, 54, ... B/X turns)
+                int dmg = (hero.turns_without_food >= 24) ? roll_d(g, 4) : 1;
+                hero.hp -= dmg;
+                log_event(g, "You suffer " + std::to_string(dmg) + " damage from starvation!");
+                if (hero.hp <= 0) {
+                    hero.hp = 0;
+                    hero.alive = false;
+                    log_event(g, "You have starved to death.");
+                }
+            }
+        }
     }
 
     // Determine light radius
@@ -1235,22 +1377,68 @@ static void render_town_screen(const Game& g) {
     case GameState::Shop:
         std::cout << "=== The Adventurer's Emporium ===\r\n\r\n";
         std::cout << "\"Fine wares! Torches, rations, rope — we've got it all!\"\r\n\r\n";
-        menu_item("1", "Buy Torch (1 gp — +20 light turns)");
-        menu_item("2", "Buy Rations (out of stock)");
-        std::cout << "\r\n" << status() << "\r\n";
-        menu_item("t", "Return to town");
-        menu_item("c", "Go to camp");
+        if (g.town_submenu == 0) {
+            menu_item("1", "Buy Torch (1 gp — +20 light turns)");
+            menu_item("2", "Buy Supplies (rations, oil, holy water)");
+            std::cout << "\r\n" << status() << "\r\n";
+            menu_item("t", "Return to town");
+            menu_item("c", "Go to camp");
+        } else if (g.town_submenu == 4) {
+            std::cout << "--- Supplies ---\r\n\r\n";
+            menu_item("1", "Standard Rations (1 week) — 5 gp");
+            menu_item("2", "Iron Rations (1 week) — 15 gp");
+            menu_item("3", "Flask of Oil — 2 gp");
+            menu_item("4", "Holy Water — 25 gp");
+            std::cout << "\r\n" << status() << "\r\n";
+            menu_item("t", "Back");
+        }
         break;
 
     case GameState::Armorer:
         std::cout << "=== The Iron Forge Armory ===\r\n\r\n";
         std::cout << "\"Armor and weapons, forged right here!\"\r\n\r\n";
-        menu_item("1", "Buy Weapon");
-        menu_item("2", "Buy Armor");
-        menu_item("3", "Sell Equipment (sell for half price)");
-        std::cout << "\r\n" << status() << "\r\n";
-        menu_item("t", "Return to town");
-        menu_item("c", "Go to camp");
+        if (g.town_submenu == 0) {
+            menu_item("1", "Buy Weapon");
+            menu_item("2", "Buy Armor");
+            menu_item("3", "Sell Equipment (sell for half price)");
+            std::cout << "\r\n" << status() << "\r\n";
+            menu_item("t", "Return to town");
+            menu_item("c", "Go to camp");
+        } else if (g.town_submenu == 1) {
+            std::cout << "--- Weapons for Sale ---\r\n\r\n";
+            int i = 1;
+            for (const auto& w : bx::weapons) {
+                if (is_weapon_allowed(g.hero.char_class, w.id)) {
+                    std::cout << "  [" << i << "] " << w.name
+                              << " (" << w.damage_die << ", " << w.cost_gp << " gp)"
+                              << (w.two_handed ? " [2H]" : "")
+                              << "\r\n";
+                    ++i;
+                }
+            }
+            std::cout << "\r\n" << status() << "\r\n";
+            menu_item("t", "Back");
+        } else if (g.town_submenu == 2) {
+            std::cout << "--- Armor for Sale ---\r\n\r\n";
+            for (int i = 0; i < 4; ++i) {
+                const auto& a = bx::armor_items[i];
+                std::string desc = std::string(a.name) + " (" + std::to_string(a.cost_gp) + " gp)";
+                if (a.ac > 0) desc += " AC " + std::to_string(a.ac);
+                else desc += " +1 AC";
+                std::cout << "  [" << (i + 1) << "] " << desc << "\r\n";
+            }
+            std::cout << "\r\n" << status() << "\r\n";
+            menu_item("t", "Back");
+        } else if (g.town_submenu == 3) {
+            std::cout << "--- Sell Equipment ---\r\n\r\n";
+            menu_item("1", g.hero.weapon_id.empty() ? "No weapon to sell" :
+                        (std::string("Sell weapon (") + g.hero.weapon_id + ")").c_str());
+            menu_item("2", g.hero.armor_id.empty() ? "No armor to sell" :
+                        (std::string("Sell armor (") + g.hero.armor_id + ")").c_str());
+            menu_item("3", g.hero.has_shield ? "Sell shield (5 gp)" : "No shield to sell");
+            std::cout << "\r\n" << status() << "\r\n";
+            menu_item("t", "Back");
+        }
         break;
 
     case GameState::Camp:
@@ -1387,6 +1575,12 @@ void render(const Game& g) {
             oss << " L*:" << g.hero.light_spell_turns;
         else
             oss << " T:" << g.hero.torch_turns;
+        // Hunger indicator
+        if (g.hero.turns_without_food >= 18)
+            oss << " STARVING!";
+        else if (g.hero.turns_without_food >= 12)
+            oss << " Hungry";
+        oss << " R:" << g.hero.rations;
         put_line(oss.str());
     }
 
@@ -1431,7 +1625,7 @@ void monsters_turn(Game& g) {
         int dy   = g.hero.pos.y - m.pos.y;
         int dist = std::abs(dx) + std::abs(dy);
 
-        // Simple “Manhattan distance” 1 = adjacent (orthogonal)
+        // Adjacent: attack
         if (dist == 1) {
             attack(g, m, g.hero);
             if (!g.hero.alive) return;
@@ -1441,6 +1635,37 @@ void monsters_turn(Game& g) {
         int step_x = sign(dx);
         int step_y = sign(dy);
 
+        // ── Patrol / wander behavior ──
+        // If hero is far away (distance > 8), monsters patrol instead of homing in
+        if (dist > 8) {
+            // Save spawn position on first patrol
+            if (m.ai_patrol_x == 0 && m.ai_patrol_y == 0) {
+                m.ai_patrol_x = m.pos.x;
+                m.ai_patrol_y = m.pos.y;
+            }
+            // Wander timer: change direction periodically
+            m.ai_wander_timer++;
+            if (m.ai_wander_timer >= 8) {
+                m.ai_wander_timer = 0;
+                // Random direction
+                static const int dirs[] = {-1, 0, 1, 0, 0, -1, 0, 1, -1, -1, 1, -1, -1, 1, 1, 1};
+                int r = roll_d(g, 8) - 1;
+                int rx = dirs[r * 2];
+                int ry = dirs[r * 2 + 1];
+                int nx = m.pos.x + rx;
+                int ny = m.pos.y + ry;
+                if (!is_blocked(g, nx, ny) && !is_occupied(g, nx, ny, &m)) {
+                    // Tend to stay near patrol point
+                    int new_dist = std::abs(nx - m.ai_patrol_x) + std::abs(ny - m.ai_patrol_y);
+                    if (new_dist <= 5) {
+                        move_entity(g, m, rx, ry);
+                    }
+                }
+            }
+            continue;
+        }
+
+        // ── Chase behavior (hero within 8 tiles) ──
         if (step_x != 0 &&
             !is_blocked(g, m.pos.x + step_x, m.pos.y) &&
             !is_occupied(g, m.pos.x + step_x, m.pos.y, &m)) {
@@ -1484,7 +1709,12 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
             // Ranged uses DEX mod instead of STR mod
             int dex_mod = bx::get_dexterity(attacker.abilities.dex).toHitMissile;
             int str_mod = bx::get_strength(attacker.abilities.str).toHitMelee;
-            int total  = roll + (attacker.attack_bonus - str_mod + dex_mod) + penalty;
+            int starvation_penalty = 0;
+            if (attacker.type == EntityType::Hero) {
+                if (attacker.turns_without_food >= 18) starvation_penalty = -2;
+                else if (attacker.turns_without_food >= 12) starvation_penalty = -1;
+            }
+            int total  = roll + (attacker.attack_bonus - str_mod + dex_mod) + penalty + starvation_penalty;
 
             {
                 std::ostringstream oss;
@@ -2079,6 +2309,7 @@ static bool turn_undead(Game& g, int dx, int dy) {
 // Spawn 1-3 wandering monsters in a random room (not entrance)
 // Returns the number of monsters spawned.
 static int spawn_wandering_monsters(Game& g) {
+    if (monsters_disabled()) return 0;
     if (g.rooms.size() <= 1) return 0;
 
     // Pick a random room that is not the entrance
@@ -2675,7 +2906,7 @@ bool save_game(const Game& g, const std::filesystem::path& path) {
 
     // Magic + version
     out.write("BXSV", 4);
-    int32_t version = 1;
+    int32_t version = 2;
     out.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
     const auto& h = g.hero;
@@ -2735,6 +2966,15 @@ bool save_game(const Game& g, const std::filesystem::path& path) {
         write_int(out, h.max_spell_slots[i]);
     }
 
+    // Version 2+ fields
+    write_int(out, h.rations);
+    write_int(out, h.turns_without_food);
+    write_int(out, h.oil_flasks);
+    write_int(out, h.holy_water);
+    write_int(out, h.ai_patrol_x);
+    write_int(out, h.ai_patrol_y);
+    write_int(out, h.ai_wander_timer);
+
     return true;
 }
 
@@ -2750,7 +2990,7 @@ bool load_game(Game& g, const std::filesystem::path& path) {
 
     int32_t version = 0;
     read_int(in, version);
-    if (version != 1) return false;
+    if (version < 1 || version > 2) return false;
 
     auto& h = g.hero;
 
@@ -2814,6 +3054,25 @@ bool load_game(Game& g, const std::filesystem::path& path) {
         read_int(in, h.max_spell_slots[i]);
     }
 
+    // Version 2+ fields
+    if (version >= 2) {
+        read_int(in, h.rations);
+        read_int(in, h.turns_without_food);
+        read_int(in, h.oil_flasks);
+        read_int(in, h.holy_water);
+        read_int(in, h.ai_patrol_x);
+        read_int(in, h.ai_patrol_y);
+        read_int(in, h.ai_wander_timer);
+    } else {
+        h.rations = 0;
+        h.turns_without_food = 0;
+        h.oil_flasks = 0;
+        h.holy_water = 0;
+        h.ai_patrol_x = 0;
+        h.ai_patrol_y = 0;
+        h.ai_wander_timer = 0;
+    }
+
     // Restore runtime-only fields
     h.type  = EntityType::Hero;
     h.alive = true;
@@ -2859,6 +3118,7 @@ void leave_dungeon(Game& g) {
 bool apply_town_command(Game& g, const PlayerCommand& cmd) {
     auto set_state = [&](GameState s) {
         g.state = s;
+        g.town_submenu = 0;
         g.event_log.clear();
     };
 
@@ -2946,18 +3206,68 @@ bool apply_town_command(Game& g, const PlayerCommand& cmd) {
 
     // ─── Shop ──────────────────────────────────────────────
     case GameState::Shop:
+        // Back from submenu
+        if (cmd.type == PlayerCommandType::Help && g.town_submenu != 0) {
+            g.town_submenu = 0;
+            return true;
+        }
         switch (cmd.type) {
             case PlayerCommandType::Get:
-                if (g.total_gold >= 1) {
-                    g.total_gold -= 1;
-                    g.hero.torch_turns += 20;
-                    log_event(g, "You buy a torch for 1 gp.");
-                } else {
-                    log_event(g, "You can't afford a torch (1 gp).");
+                if (g.town_submenu == 0) {
+                    // Option 1 from main menu: buy torch
+                    if (g.total_gold >= 1) {
+                        g.total_gold -= 1;
+                        g.hero.torch_turns += 20;
+                        log_event(g, "You buy a torch for 1 gp.");
+                    } else {
+                        log_event(g, "You can't afford a torch (1 gp).");
+                    }
+                } else if (g.town_submenu == 4) {
+                    // Submenu item selection
+                    int idx = cmd.spell_index;
+                    if (idx == 0) {
+                        // Standard rations (5 gp)
+                        if (g.total_gold >= 5) {
+                            g.total_gold -= 5;
+                            g.hero.rations += 6;
+                            log_event(g, "You buy standard rations (1 week) for 5 gp.");
+                        } else {
+                            log_event(g, "Not enough gold. Standard rations cost 5 gp.");
+                        }
+                    } else if (idx == 1) {
+                        // Iron rations (15 gp)
+                        if (g.total_gold >= 15) {
+                            g.total_gold -= 15;
+                            g.hero.rations += 12;
+                            log_event(g, "You buy iron rations (1 week) for 15 gp.");
+                        } else {
+                            log_event(g, "Not enough gold. Iron rations cost 15 gp.");
+                        }
+                    } else if (idx == 2) {
+                        // Oil flask (2 gp)
+                        if (g.total_gold >= 2) {
+                            g.total_gold -= 2;
+                            g.hero.oil_flasks += 1;
+                            log_event(g, "You buy a flask of oil for 2 gp.");
+                        } else {
+                            log_event(g, "Not enough gold. Oil costs 2 gp.");
+                        }
+                    } else if (idx == 3) {
+                        // Holy water (25 gp)
+                        if (g.total_gold >= 25) {
+                            g.total_gold -= 25;
+                            g.hero.holy_water += 1;
+                            log_event(g, "You buy a vial of holy water for 25 gp.");
+                        } else {
+                            log_event(g, "Not enough gold. Holy water costs 25 gp.");
+                        }
+                    }
+                    g.town_submenu = 0;
                 }
                 return true;
             case PlayerCommandType::Use:
-                log_event(g, "\"We're out of rations, soldier. Try the general store.\"");
+                // Option 2: go to supplies submenu
+                g.town_submenu = 4;
                 return true;
             default: break;
         }
@@ -2971,9 +3281,122 @@ bool apply_town_command(Game& g, const PlayerCommand& cmd) {
 
     // ─── Armorer ───────────────────────────────────────────
     case GameState::Armorer:
+        // Back from submenu
+        if (cmd.type == PlayerCommandType::Help && g.town_submenu != 0) {
+            g.town_submenu = 0;
+            return true;
+        }
         switch (cmd.type) {
             case PlayerCommandType::Get: {
-                log_event(g, "\"I've got weapons and armor. Come back with the feature!\"");
+                if (g.town_submenu == 0) {
+                    // Option 1: buy weapon -> enters submenu
+                    g.town_submenu = 1;
+                } else if (g.town_submenu == 1) {
+                    // Weapon selection
+                    int idx = cmd.spell_index;
+                    int count = 0;
+                    for (const auto& w : bx::weapons) {
+                        if (is_weapon_allowed(g.hero.char_class, w.id)) {
+                            if (count == idx) {
+                                if (g.total_gold >= w.cost_gp) {
+                                    g.total_gold -= w.cost_gp;
+                                    g.hero.weapon_id = w.id;
+                                    g.hero.damage_die = parse_die_size(w.damage_die);
+                                    // Two-handed: can't use shield
+                                    if (w.two_handed) g.hero.has_shield = false;
+                                    log_event(g, std::string("You buy a ") + w.name + " for " + std::to_string(w.cost_gp) + " gp.");
+                                } else {
+                                    log_event(g, std::string("You can't afford a ") + w.name + " (" + std::to_string(w.cost_gp) + " gp).");
+                                }
+                                break;
+                            }
+                            ++count;
+                        }
+                    }
+                    g.town_submenu = 0;
+                } else if (g.town_submenu == 2) {
+                    // Armor selection
+                    int idx = cmd.spell_index;
+                    if (idx >= 0 && idx < 4) {
+                        const auto& a = bx::armor_items[idx];
+                        if (g.total_gold >= a.cost_gp) {
+                            // Check class restriction
+                            bool allowed = false;
+                            if (std::string_view(a.armor_type) == "light") {
+                                allowed = true; // light armor allowed for all
+                            } else if (std::string_view(a.id) == "shield") {
+                                if (can_use_shield(g.hero.char_class)) allowed = true;
+                            } else {
+                                if (can_wear_heavy_armor(g.hero.char_class)) allowed = true;
+                            }
+                            if (!allowed) {
+                                log_event(g, std::string("Your class cannot wear ") + a.name + ".");
+                            } else if (a.ac > 0 && g.hero.ac <= a.ac) {
+                                log_event(g, std::string("You already have armor as good as or better than ") + a.name + ".");
+                            } else if (std::string_view(a.id) == "shield") {
+                                if (g.hero.weapon_id.empty()) {
+                                    log_event(g, "You need a weapon to use a shield.");
+                                } else {
+                                    // Check if current weapon is two-handed
+                                    bool two_handed = false;
+                                    for (const auto& w : bx::weapons) {
+                                        if (w.id == g.hero.weapon_id && w.two_handed) {
+                                            two_handed = true; break;
+                                        }
+                                    }
+                                    if (two_handed) {
+                                        log_event(g, "You can't use a shield with a two-handed weapon.");
+                                    } else {
+                                        g.total_gold -= a.cost_gp;
+                                        g.hero.has_shield = true;
+                                        log_event(g, std::string("You buy a ") + a.name + " for " + std::to_string(a.cost_gp) + " gp.");
+                                    }
+                                }
+                            } else {
+                                g.total_gold -= a.cost_gp;
+                                g.hero.armor_id = a.id;
+                                g.hero.ac = a.ac;
+                                log_event(g, std::string("You buy ") + a.name + " for " + std::to_string(a.cost_gp) + " gp.");
+                            }
+                        } else {
+                            log_event(g, std::string("You can't afford ") + a.name + " (" + std::to_string(a.cost_gp) + " gp).");
+                        }
+                    }
+                    g.town_submenu = 0;
+                } else if (g.town_submenu == 3) {
+                    // Sell selection
+                    int idx = cmd.spell_index;
+                    if (idx == 0 && !g.hero.weapon_id.empty()) {
+                        for (const auto& w : bx::weapons) {
+                            if (w.id == g.hero.weapon_id) {
+                                int price = w.cost_gp / 2;
+                                g.total_gold += price;
+                                log_event(g, std::string("You sell your ") + w.name + " for " + std::to_string(price) + " gp.");
+                                g.hero.weapon_id.clear();
+                                g.hero.damage_die = 2; // unarmed: 1d2
+                                break;
+                            }
+                        }
+                    } else if (idx == 1 && !g.hero.armor_id.empty()) {
+                        for (const auto& a : bx::armor_items) {
+                            if (a.id == g.hero.armor_id) {
+                                int price = a.cost_gp / 2;
+                                g.total_gold += price;
+                                log_event(g, std::string("You sell your ") + a.name + " for " + std::to_string(price) + " gp.");
+                                g.hero.armor_id.clear();
+                                g.hero.ac = 9; // unarmored
+                                break;
+                            }
+                        }
+                    } else if (idx == 2 && g.hero.has_shield) {
+                        g.total_gold += 5;
+                        g.hero.has_shield = false;
+                        log_event(g, "You sell your shield for 5 gp.");
+                    } else {
+                        log_event(g, "Nothing to sell.");
+                    }
+                    g.town_submenu = 0;
+                }
                 return true;
             }
             default: break;

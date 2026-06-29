@@ -112,4 +112,14 @@ struct Entity {
     std::string weapon_id;
     std::string armor_id;
     bool has_shield{false};
+
+    // Supplies
+    int rations{};
+    int turns_without_food{};
+    int oil_flasks{};
+    int holy_water{};
+
+    // Monster AI state
+    int ai_patrol_x{}, ai_patrol_y{};
+    int ai_wander_timer{};
 };
