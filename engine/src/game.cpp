@@ -1185,6 +1185,33 @@ static void buy_gear_item(Game& g, int gear_index) {
                 + std::to_string(item.cost_gp) + " gp.");
 }
 
+static std::string format_coin_purse(int gp) {
+    std::ostringstream oss;
+    oss << gp << " gp";
+
+    // B/X exchange rates: 1 pp = 5 gp. Prices here are whole gp, so pp+gp
+    // is the useful at-a-glance breakdown for shopping.
+    int pp = gp / 5;
+    int rem_gp = gp % 5;
+    if (pp > 0) {
+        oss << " (" << pp << " pp";
+        if (rem_gp > 0) oss << ", " << rem_gp << " gp";
+        oss << ")";
+    }
+    return oss.str();
+}
+
+static std::string format_price_with_purse(int cost_gp, int purse_gp) {
+    std::ostringstream oss;
+    oss << cost_gp << " gp";
+    if (purse_gp >= cost_gp) {
+        oss << " [afford]";
+    } else {
+        oss << " [need " << (cost_gp - purse_gp) << " gp]";
+    }
+    return oss.str();
+}
+
 // Class name helper
 const char* class_name(CharacterClass cc) {
     switch (cc) {
@@ -1363,7 +1390,7 @@ static void render_town_screen(const Game& g) {
         int next_xp = xp_for_level(g.hero.char_class, g.hero_level + 1);
         oss << g.hero.name << "(" << class_name(g.hero.char_class) << ")"
             << "  HP:" << g.hero.hp << "/" << g.hero.max_hp
-            << "  G:" << g.total_gold
+            << "  Purse:" << format_coin_purse(g.total_gold)
             << "  XP:" << g.total_xp << "/" << next_xp;
         return oss.str();
     };
@@ -1377,7 +1404,7 @@ static void render_town_screen(const Game& g) {
         std::cout << "=== Town Square ===\r\n\r\n";
         menu_item("1", "Tavern — rest, hear rumors");
         menu_item("2", "Temple — healing, donate for XP");
-        menu_item("3", "Shop — buy supplies");
+        menu_item("3", "The Saucy Satchel — buy supplies");
         menu_item("4", "Armorer — weapons & armor");
         menu_item("5", "Camp — rest, save, enter dungeon");
         std::cout << "\r\n" << status() << "\r\n";
@@ -1405,21 +1432,29 @@ static void render_town_screen(const Game& g) {
         break;
 
     case GameState::Shop:
-        std::cout << "=== The Adventurer's Emporium ===\r\n\r\n";
-        std::cout << "\"Fine wares! Torches, rations, rope — we've got it all!\"\r\n\r\n";
+        std::cout << "=== The Saucy Satchel ===\r\n\r\n";
+        std::cout << "\"Everything a bold delver needs, packed tight and priced fair.\"\r\n\r\n";
         if (g.town_submenu == 0) {
-            menu_item("1", "Buy Torch (1 gp — +20 light turns)");
-            menu_item("2", "Buy Supplies (rations, oil, holy water)");
+            menu_item("1", "Browse B/X adventuring gear");
             std::cout << "\r\n" << status() << "\r\n";
             menu_item("t", "Return to town");
             menu_item("c", "Go to camp");
-        } else if (g.town_submenu == 4) {
-            std::cout << "--- Supplies ---\r\n\r\n";
-            menu_item("1", "Standard Rations (1 week) — 5 gp");
-            menu_item("2", "Iron Rations (1 week) — 15 gp");
-            menu_item("3", "Flask of Oil — 2 gp");
-            menu_item("4", "Holy Water — 25 gp");
+        } else if (g.town_submenu == 4 || g.town_submenu == 5) {
+            int base = (g.town_submenu == 4) ? 0 : 10;
+            std::cout << "--- B/X Adventuring Gear "
+                      << (g.town_submenu == 4 ? "(1/2)" : "(2/2)")
+                      << " ---\r\n\r\n";
+            for (int i = 0; i < 10 && base + i < static_cast<int>(bx::gear_items.size()); ++i) {
+                const auto& item = bx::gear_items[static_cast<std::size_t>(base + i)];
+                char key = (i == 9) ? '0' : static_cast<char>('1' + i);
+                std::cout << "  [" << key << "] " << item.name
+                          << " — " << format_price_with_purse(item.cost_gp, g.total_gold)
+                          << "  owned:" << g.hero.gear_counts[static_cast<std::size_t>(base + i)]
+                          << "\r\n";
+            }
             std::cout << "\r\n" << status() << "\r\n";
+            if (g.town_submenu == 4) menu_item("n", "Next page");
+            else menu_item("p", "Previous page");
             menu_item("t", "Back");
         }
         break;
@@ -1440,7 +1475,8 @@ static void render_town_screen(const Game& g) {
             for (const auto& w : bx::weapons) {
                 if (is_weapon_allowed(g.hero.char_class, w.id)) {
                     std::cout << "  [" << i << "] " << w.name
-                              << " (" << w.damage_die << ", " << w.cost_gp << " gp)"
+                              << " (" << w.damage_die << ", "
+                              << format_price_with_purse(w.cost_gp, g.total_gold) << ")"
                               << (w.two_handed ? " [2H]" : "")
                               << "\r\n";
                     ++i;
@@ -1452,7 +1488,8 @@ static void render_town_screen(const Game& g) {
             std::cout << "--- Armor for Sale ---\r\n\r\n";
             for (int i = 0; i < 4; ++i) {
                 const auto& a = bx::armor_items[i];
-                std::string desc = std::string(a.name) + " (" + std::to_string(a.cost_gp) + " gp)";
+                std::string desc = std::string(a.name) + " ("
+                    + format_price_with_purse(a.cost_gp, g.total_gold) + ")";
                 if (a.ac > 0) desc += " AC " + std::to_string(a.ac);
                 else desc += " +1 AC";
                 std::cout << "  [" << (i + 1) << "] " << desc << "\r\n";
@@ -1596,7 +1633,7 @@ void render(const Game& g) {
             oss << "(" << effective_ac << ":" << buff_turns << ")";
         oss << " Lv." << g.hero_level
             << " D:" << g.dungeon_level
-            << " G:" << g.total_gold
+            << " Purse:" << format_coin_purse(g.total_gold)
             << " XP:" << g.total_xp << "/" << next_level_xp
             << " M:" << monster_count
             << " K:" << g.hero.knives
