@@ -1307,6 +1307,8 @@ void compute_visibility(Game& g) {
         // Decrement light sources once per turn
         if (hero.light_spell_turns > 0)
             --hero.light_spell_turns;
+        else if (hero.lantern_turns > 0)
+            --hero.lantern_turns;
         else if (hero.torch_turns > 0)
             --hero.torch_turns;
 
@@ -1346,6 +1348,8 @@ void compute_visibility(Game& g) {
     int radius = 6;
     if (hero.light_spell_turns > 0)
         radius = 10;
+    else if (hero.lantern_turns > 0)
+        radius = 6;
     else if (hero.torch_turns <= 0) {
         // No light source: infravision for demihumans
         switch (hero.char_class) {
@@ -1659,6 +1663,8 @@ void render(const Game& g) {
             << " D:" << g.hero.darts;
         if (g.hero.light_spell_turns > 0)
             oss << " L*:" << g.hero.light_spell_turns;
+        else if (g.hero.lantern_turns > 0)
+            oss << " Ln:" << g.hero.lantern_turns;
         else
             oss << " T:" << g.hero.torch_turns;
         // Hunger indicator
@@ -2782,6 +2788,21 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
         case PlayerCommandType::Use: {
             auto& tile = g.map[index_for(g, g.hero.pos.x, g.hero.pos.y)];
             if (tile.items.empty()) {
+                if (has_gear(g.hero, "lantern")) {
+                    if (g.hero.lantern_turns > 0) {
+                        log_event(g, "Your lantern is already lit.");
+                    } else if (!has_gear(g.hero, "tinder-box")) {
+                        log_event(g, "You need a tinder box to light the lantern.");
+                    } else if (g.hero.oil_flasks <= 0 || !consume_gear(g.hero, "oil-flask")) {
+                        log_event(g, "You need a flask of oil to fuel the lantern.");
+                    } else {
+                        g.hero.oil_flasks--;
+                        g.hero.lantern_turns = 24;
+                        log_event(g, "You light the lantern. It will burn for 24 turns.");
+                    }
+                    tick_wander_counter(g);
+                    return true;
+                }
                 log_event(g, "Nothing to use here.");
                 return true;
             }
@@ -3019,7 +3040,7 @@ bool save_game(const Game& g, const std::filesystem::path& path) {
 
     // Magic + version
     out.write("BXSV", 4);
-    int32_t version = 3;
+    int32_t version = 4;
     out.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
     const auto& h = g.hero;
@@ -3092,6 +3113,9 @@ bool save_game(const Game& g, const std::filesystem::path& path) {
     for (int count : h.gear_counts)
         write_int(out, count);
 
+    // Version 4+ fields
+    write_int(out, h.lantern_turns);
+
     return true;
 }
 
@@ -3107,7 +3131,7 @@ bool load_game(Game& g, const std::filesystem::path& path) {
 
     int32_t version = 0;
     read_int(in, version);
-    if (version < 1 || version > 3) return false;
+    if (version < 1 || version > 4) return false;
 
     auto& h = g.hero;
 
@@ -3195,6 +3219,12 @@ bool load_game(Game& g, const std::filesystem::path& path) {
             read_int(in, count);
     } else {
         h.gear_counts.fill(0);
+    }
+
+    if (version >= 4) {
+        read_int(in, h.lantern_turns);
+    } else {
+        h.lantern_turns = 0;
     }
 
     // Restore runtime-only fields

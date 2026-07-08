@@ -88,6 +88,7 @@ struct Entity {
 
     // Light / torch
     int torch_turns{60};
+    int lantern_turns{0};
     int light_spell_turns{0};
 
     // Ranged ammunition

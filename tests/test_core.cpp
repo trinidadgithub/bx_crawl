@@ -2201,6 +2201,43 @@ TEST_CASE("Shop: buy rations and supplies via apply_town_command") {
     }
 }
 
+TEST_CASE("Lantern requires lantern, oil, and tinder box") {
+    Game g = make_minimal_game(10, 10);
+    g.hero = make_hero(1, 1, 0, 4, 10);
+
+    SUBCASE("no lantern means nothing to use") {
+        apply_player_command(g, {PlayerCommandType::Use, 0, 0});
+        CHECK(g.hero.lantern_turns == 0);
+    }
+
+    SUBCASE("lantern needs tinder box") {
+        g.hero.gear_counts[6] = 1; // lantern
+        g.hero.gear_counts[1] = 1; // oil-flask
+        g.hero.oil_flasks = 1;
+        apply_player_command(g, {PlayerCommandType::Use, 0, 0});
+        CHECK(g.hero.lantern_turns == 0);
+        CHECK(g.hero.oil_flasks == 1);
+    }
+
+    SUBCASE("lantern needs oil") {
+        g.hero.gear_counts[6] = 1;  // lantern
+        g.hero.gear_counts[14] = 1; // tinder-box
+        apply_player_command(g, {PlayerCommandType::Use, 0, 0});
+        CHECK(g.hero.lantern_turns == 0);
+    }
+
+    SUBCASE("oil fuels lantern for 24 turns") {
+        g.hero.gear_counts[6] = 1;  // lantern
+        g.hero.gear_counts[14] = 1; // tinder-box
+        g.hero.gear_counts[1] = 1;  // oil-flask
+        g.hero.oil_flasks = 1;
+        apply_player_command(g, {PlayerCommandType::Use, 0, 0});
+        CHECK(g.hero.lantern_turns == 24);
+        CHECK(g.hero.oil_flasks == 0);
+        CHECK(g.hero.gear_counts[1] == 0);
+    }
+}
+
 TEST_CASE("Hunger: rations consumed and starvation") {
     Game g = make_minimal_game();
     g.hero = make_hero(5, 3, 0, 4, 12);
