@@ -3212,6 +3212,9 @@ void leave_dungeon(Game& g) {
 // ── Town command handler ──────────────────────────────────
 
 bool apply_town_command(Game& g, const PlayerCommand& cmd) {
+    if (cmd.type == PlayerCommandType::Quit)
+        return false;
+
     auto set_state = [&](GameState s) {
         g.state = s;
         g.town_submenu = 0;
