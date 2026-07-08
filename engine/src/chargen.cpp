@@ -316,7 +316,7 @@ Entity create_hero(Game& g) {
         for (int i = 0; i < (int)weapon_choices.size(); ++i) {
             const auto& w = bx::weapons[weapon_choices[i]];
             std::cout << "  " << (i + 1) << ". " << w.name
-                      << " (1d" << w.damage_die[2] << ")"
+                      << " (" << w.damage_die << ")"
                       << " [" << w.cost_gp << " gp]"
                       << (w.two_handed ? " (2H)" : "")
                       << "\n";
