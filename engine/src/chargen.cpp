@@ -13,6 +13,25 @@ static int roll_3d6(Game& g) {
     return roll_d(g, 6) + roll_d(g, 6) + roll_d(g, 6);
 }
 
+static std::string format_purse(int gp) {
+    int pp = gp / 5;
+    int rem_gp = gp % 5;
+    std::string s = std::to_string(gp) + " gp";
+    if (pp > 0) {
+        s += " (" + std::to_string(pp) + " pp";
+        if (rem_gp > 0) s += ", " + std::to_string(rem_gp) + " gp";
+        s += ")";
+    }
+    return s;
+}
+
+static std::string price_status(int cost_gp, int purse_gp) {
+    std::string s = std::to_string(cost_gp) + " gp";
+    if (purse_gp >= cost_gp) s += " afford";
+    else s += " need " + std::to_string(cost_gp - purse_gp) + " gp";
+    return s;
+}
+
 static std::string to_lower(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return std::tolower(c); });
@@ -288,6 +307,9 @@ Entity create_hero(Game& g) {
 
     // --- Equipment selection ---
 
+    int purse_gp = roll_3d6(g) * 10;
+    std::cout << "\nStarting gold: " << format_purse(purse_gp) << "\n";
+
     // Filter allowed weapons by class
     auto weapon_allowed = [chosen](const bx::Weapon& w) -> bool {
         if (chosen == CharacterClass::Fighter || chosen == CharacterClass::Dwarf ||
@@ -317,19 +339,24 @@ Entity create_hero(Game& g) {
             const auto& w = bx::weapons[weapon_choices[i]];
             std::cout << "  " << (i + 1) << ". " << w.name
                       << " (" << w.damage_die << ")"
-                      << " [" << w.cost_gp << " gp]"
+                      << " [" << price_status(w.cost_gp, purse_gp) << "]"
                       << (w.two_handed ? " (2H)" : "")
                       << "\n";
         }
         while (true) {
-            std::cout << "Enter choice (1-" << weapon_choices.size() << "): ";
+            std::cout << "Purse: " << format_purse(purse_gp)
+                      << "\nEnter choice (1-" << weapon_choices.size() << "): ";
             std::string line;
             std::getline(std::cin, line);
             if (line.empty()) continue;
-            char c = line[0];
-            int idx = c - '1';
+            int idx = std::atoi(line.c_str()) - 1;
             if (idx >= 0 && idx < (int)weapon_choices.size()) {
                 const auto& chosen_w = bx::weapons[weapon_choices[idx]];
+                if (purse_gp < chosen_w.cost_gp) {
+                    std::cout << "You can't afford " << chosen_w.name << ".\n";
+                    continue;
+                }
+                purse_gp -= chosen_w.cost_gp;
                 hero.weapon_id = chosen_w.id;
                 // Parse damage die from string like "1d8" → 8
                 int dmg = 4;
@@ -337,7 +364,8 @@ Entity create_hero(Game& g) {
                     dmg = std::atoi(chosen_w.damage_die + 2);
                 hero.damage_die = dmg;
                 hero.damage_bonus = str_mod;
-                std::cout << "Armed with " << chosen_w.name << ".\n";
+                std::cout << "Armed with " << chosen_w.name
+                          << ". Purse: " << format_purse(purse_gp) << "\n";
                 break;
             }
         }
@@ -381,15 +409,15 @@ Entity create_hero(Game& g) {
             const auto& a = armor_items[ai];
             std::cout << "  " << (i + 1) << ". " << a.name
                       << " (AC " << a.ac << ")"
-                      << " [" << a.cost_gp << " gp]\n";
+                      << " [" << price_status(a.cost_gp, purse_gp) << "]\n";
         }
         while (true) {
-            std::cout << "Enter choice (1-" << armor_choices.size() << "): ";
+            std::cout << "Purse: " << format_purse(purse_gp)
+                      << "\nEnter choice (1-" << armor_choices.size() << "): ";
             std::string line;
             std::getline(std::cin, line);
             if (line.empty()) continue;
-            char c = line[0];
-            int idx = c - '1';
+            int idx = std::atoi(line.c_str()) - 1;
             if (idx >= 0 && idx < (int)armor_choices.size()) {
                 if (idx == 0) {
                     hero.armor_id = "none";
@@ -397,24 +425,38 @@ Entity create_hero(Game& g) {
                 } else {
                     int ai = armor_choices[idx] - 1;
                     const auto& chosen_a = armor_items[ai];
+                    if (purse_gp < chosen_a.cost_gp) {
+                        std::cout << "You can't afford " << chosen_a.name << ".\n";
+                        continue;
+                    }
+                    purse_gp -= chosen_a.cost_gp;
                     hero.armor_id = chosen_a.id;
                     hero.ac = chosen_a.ac + dex_mod;
                 }
+                std::cout << "Purse: " << format_purse(purse_gp) << "\n";
                 break;
             }
         }
 
         // Shield?
         if (can_shield) {
-            std::cout << "Use a shield? (y/n): ";
+            std::cout << "Use a shield? [" << price_status(10, purse_gp) << "] (y/n): ";
             std::string shield_line;
             std::getline(std::cin, shield_line);
             if (!shield_line.empty() && (shield_line[0] == 'y' || shield_line[0] == 'Y')) {
-                hero.has_shield = true;
-                hero.ac -= 1; // shield gives -1 AC bonus in B/X descending
+                if (purse_gp >= 10) {
+                    purse_gp -= 10;
+                    hero.has_shield = true;
+                    hero.ac -= 1; // shield gives -1 AC bonus in B/X descending
+                    std::cout << "Shield equipped. Purse: " << format_purse(purse_gp) << "\n";
+                } else {
+                    std::cout << "You can't afford a shield.\n";
+                }
             }
         }
     }
+
+    hero.gold_pieces = purse_gp;
 
     hero.morale           = 0;
     hero.fleeing          = false;

@@ -915,7 +915,8 @@ void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data
 
     g.hero = std::move(hero);
     g.state = GameState::Town;
-    g.total_gold = (roll_d(g, 6) + roll_d(g, 6) + roll_d(g, 6)) * 10; // 3d6 × 10 B/X starting gold
+    g.total_gold = g.hero.gold_pieces;
+    g.hero.gold_pieces = 0;
 
     // Place hero at centre of first room
     if (!rooms.empty()) {

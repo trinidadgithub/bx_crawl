@@ -56,15 +56,7 @@ static PlayerCommand read_player_command(const Game& g) {
         c = std::tolower(c);
 
         if (c == 'x') {
-            std::cout << "Really quit? (y/n) " << std::flush;
-            char reply;
-            if (read(STDIN_FILENO, &reply, 1) != 1) {
-                return PlayerCommand{PlayerCommandType::Quit, 0, 0};
-            }
-            if (reply == 'y' || reply == 'Y') {
-                return PlayerCommand{PlayerCommandType::Quit, 0, 0};
-            }
-            continue;
+            return PlayerCommand{PlayerCommandType::Quit, 0, 0};
         }
         if (c == 'o') {
             return PlayerCommand{PlayerCommandType::Open, 0, 0};
@@ -199,12 +191,7 @@ static PlayerCommand read_town_command(const Game& g) {
         c = std::tolower(c);
 
         if (c == 'x') {
-            std::cout << "Really quit? (y/n) " << std::flush;
-            char reply;
-            if (read(STDIN_FILENO, &reply, 1) != 1) continue;
-            if (reply == 'y' || reply == 'Y')
-                return PlayerCommand{PlayerCommandType::Quit, 0, 0};
-            continue;
+            return PlayerCommand{PlayerCommandType::Quit, 0, 0};
         }
 
         // Map keys to locations / actions
