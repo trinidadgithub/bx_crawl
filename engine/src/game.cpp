@@ -1525,6 +1525,10 @@ static void render_town_screen(const Game& g) {
         break;
     }
 
+    int start = std::max(0, static_cast<int>(g.event_log.size()) - 3);
+    for (int i = start; i < static_cast<int>(g.event_log.size()); ++i)
+        std::cout << "  " << g.event_log[static_cast<std::size_t>(i)] << "\r\n";
+
     std::cout << "\r\n> " << std::flush;
 }
 
@@ -3458,11 +3462,15 @@ bool apply_town_command(Game& g, const PlayerCommand& cmd) {
                 log_event(g, "You rest at camp and recover fully.");
                 return true;
             case PlayerCommandType::Help: {
-                auto save_path = std::filesystem::path(getenv("HOME")) / ".bx_crawl" / "save.dat";
-                if (save_game(g, save_path))
-                    log_event(g, "Game saved.");
+                const char* home = std::getenv("HOME");
+                auto save_path = home && *home
+                    ? std::filesystem::path(home) / ".bx_crawl" / "save.dat"
+                    : std::filesystem::path("bx_crawl_save.dat");
+                if (save_game(g, save_path)) {
+                    log_event(g, "Game saved to " + save_path.string() + ".");
+                }
                 else
-                    log_event(g, "Failed to save game.");
+                    log_event(g, "Failed to save game at " + save_path.string() + ".");
                 return true;
             }
             case PlayerCommandType::Move:
