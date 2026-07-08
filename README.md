@@ -2,15 +2,9 @@
 
 A small Moldvay Basic–inspired dungeon crawler prototype written in C++.
 
-The initial goal is **very** simple:
-
-- One hero (`@`)
-- One goblin (`g`)
-- Tiny ASCII room
-- Bump to attack
-- BX-flavored stats and combat
-
-Over time this will grow into a more complete B/X-style dungeon romp.
+The game now includes character generation, a town layer, procedural dungeons,
+class-restricted equipment, hunger/rations, spells, thief skills, sound effects,
+save/load, and B/X-flavored combat.
 
 ## Building
 
@@ -28,9 +22,75 @@ cmake --build build
 ./build/frontends/text/bx_crawl_text
 ```
 
+Run tests:
+
+```bash
+./build/tests/bx_crawl_tests
+```
+
+## Developer Flags
+
+Launch with no monsters, including wandering monsters:
+
+```bash
+BX_NO_MONSTERS=1 ./build/frontends/text/bx_crawl_text
+```
+
+This is useful for testing town, shop, armorer, hunger, exploration, and save/load
+without combat interruptions.
+
 ## Controls
-- w, a, s, d – move
-- Bump into the goblin to attack
-- q – quit
+- `w`, `a`, `s`, `d` — cardinal movement
+- `q`, `e`, `z`, `c` — diagonal movement
+- Bump into a monster to attack
+- `o` — open door / pick lock if Thief
+- `p` — close door
+- `g` — get items
+- `u` — use/read item on the ground
+- `r` — rest
+- `k` + direction — throw knife
+- `f` + direction — throw dart
+- `m` — cast spell
+- `t` + direction — turn undead as Cleric
+- `i` — hide in shadows as Thief
+- `l` — search / hear noise
+- `h` — help
+- `x` — quit
+
+## Town
+
+The game starts in town after character generation.
+
+- Tavern — paid rest and rumors
+- Temple — healing and gold-for-XP donations
+- Shop — torches, rations, oil flasks, holy water
+- Armorer — buy/sell weapons, armor, and shields using B/X prices
+- Camp — full rest, save game, enter dungeon
+
+Camp is the dungeon staging point. Enter the dungeon from camp, and use the up
+stairs on dungeon level 1 to return to camp.
+
+## Supplies and Hunger
+
+Rations are consumed over dungeon time. If the hero runs out of food, hunger
+penalties begin and eventually cause starvation damage. The HUD shows current
+rations and hunger status.
+
+## Save Data
+
+Camp saves to:
+
+```text
+~/.bx_crawl/save.dat
+```
+
+## Sound and Debug Log
+
+The text frontend enables procedural sound effects when available through
+`aplay` or `paplay`. Debug sound logs are written to:
+
+```text
+/tmp/bx_crawl_debug.log
+```
 
 See [Monsters.md](Monsters.md) for creature types and [Scrolls.md](Scrolls.md) for scroll spells.
