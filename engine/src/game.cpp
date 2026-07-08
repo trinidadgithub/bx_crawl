@@ -1155,6 +1155,36 @@ static bool can_wear_heavy_armor(CharacterClass cc) {
     return false;
 }
 
+static void buy_gear_item(Game& g, int gear_index) {
+    if (gear_index < 0 || gear_index >= static_cast<int>(bx::gear_items.size())) return;
+
+    const auto& item = bx::gear_items[static_cast<std::size_t>(gear_index)];
+    if (g.total_gold < item.cost_gp) {
+        log_event(g, std::string("Not enough gold. ") + item.name + " costs "
+                    + std::to_string(item.cost_gp) + " gp.");
+        return;
+    }
+
+    g.total_gold -= item.cost_gp;
+    g.hero.gear_counts[static_cast<std::size_t>(gear_index)]++;
+
+    std::string_view id(item.id);
+    if (id == "standard-rations") {
+        g.hero.rations += 6;
+    } else if (id == "iron-rations") {
+        g.hero.rations += 12;
+    } else if (id == "oil-flask") {
+        g.hero.oil_flasks++;
+    } else if (id == "holy-water") {
+        g.hero.holy_water++;
+    } else if (id == "torches") {
+        g.hero.torch_turns += 120; // six torches, each worth the current 20-turn torch unit
+    }
+
+    log_event(g, std::string("You buy ") + item.name + " for "
+                + std::to_string(item.cost_gp) + " gp.");
+}
+
 // Class name helper
 const char* class_name(CharacterClass cc) {
     switch (cc) {
@@ -2906,7 +2936,7 @@ bool save_game(const Game& g, const std::filesystem::path& path) {
 
     // Magic + version
     out.write("BXSV", 4);
-    int32_t version = 2;
+    int32_t version = 3;
     out.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
     const auto& h = g.hero;
@@ -2975,6 +3005,10 @@ bool save_game(const Game& g, const std::filesystem::path& path) {
     write_int(out, h.ai_patrol_y);
     write_int(out, h.ai_wander_timer);
 
+    // Version 3+ fields
+    for (int count : h.gear_counts)
+        write_int(out, count);
+
     return true;
 }
 
@@ -2990,7 +3024,7 @@ bool load_game(Game& g, const std::filesystem::path& path) {
 
     int32_t version = 0;
     read_int(in, version);
-    if (version < 1 || version > 2) return false;
+    if (version < 1 || version > 3) return false;
 
     auto& h = g.hero;
 
@@ -3071,6 +3105,13 @@ bool load_game(Game& g, const std::filesystem::path& path) {
         h.ai_patrol_x = 0;
         h.ai_patrol_y = 0;
         h.ai_wander_timer = 0;
+    }
+
+    if (version >= 3) {
+        for (int& count : h.gear_counts)
+            read_int(in, count);
+    } else {
+        h.gear_counts.fill(0);
     }
 
     // Restore runtime-only fields
@@ -3213,61 +3254,20 @@ bool apply_town_command(Game& g, const PlayerCommand& cmd) {
         }
         switch (cmd.type) {
             case PlayerCommandType::Get:
-                if (g.town_submenu == 0) {
-                    // Option 1 from main menu: buy torch
-                    if (g.total_gold >= 1) {
-                        g.total_gold -= 1;
-                        g.hero.torch_turns += 20;
-                        log_event(g, "You buy a torch for 1 gp.");
-                    } else {
-                        log_event(g, "You can't afford a torch (1 gp).");
-                    }
-                } else if (g.town_submenu == 4) {
-                    // Submenu item selection
-                    int idx = cmd.spell_index;
-                    if (idx == 0) {
-                        // Standard rations (5 gp)
-                        if (g.total_gold >= 5) {
-                            g.total_gold -= 5;
-                            g.hero.rations += 6;
-                            log_event(g, "You buy standard rations (1 week) for 5 gp.");
-                        } else {
-                            log_event(g, "Not enough gold. Standard rations cost 5 gp.");
-                        }
-                    } else if (idx == 1) {
-                        // Iron rations (15 gp)
-                        if (g.total_gold >= 15) {
-                            g.total_gold -= 15;
-                            g.hero.rations += 12;
-                            log_event(g, "You buy iron rations (1 week) for 15 gp.");
-                        } else {
-                            log_event(g, "Not enough gold. Iron rations cost 15 gp.");
-                        }
-                    } else if (idx == 2) {
-                        // Oil flask (2 gp)
-                        if (g.total_gold >= 2) {
-                            g.total_gold -= 2;
-                            g.hero.oil_flasks += 1;
-                            log_event(g, "You buy a flask of oil for 2 gp.");
-                        } else {
-                            log_event(g, "Not enough gold. Oil costs 2 gp.");
-                        }
-                    } else if (idx == 3) {
-                        // Holy water (25 gp)
-                        if (g.total_gold >= 25) {
-                            g.total_gold -= 25;
-                            g.hero.holy_water += 1;
-                            log_event(g, "You buy a vial of holy water for 25 gp.");
-                        } else {
-                            log_event(g, "Not enough gold. Holy water costs 25 gp.");
-                        }
-                    }
+                if (g.town_submenu == 4 || g.town_submenu == 5) {
+                    buy_gear_item(g, cmd.spell_index);
                     g.town_submenu = 0;
                 }
                 return true;
             case PlayerCommandType::Use:
-                // Option 2: go to supplies submenu
+                // Browse B/X gear
                 g.town_submenu = 4;
+                return true;
+            case PlayerCommandType::Open:
+                if (g.town_submenu == 4) g.town_submenu = 5;
+                return true;
+            case PlayerCommandType::Close:
+                if (g.town_submenu == 5) g.town_submenu = 4;
                 return true;
             default: break;
         }
@@ -3444,5 +3444,3 @@ bool apply_town_command(Game& g, const PlayerCommand& cmd) {
         return true;
     }
 }
-
-

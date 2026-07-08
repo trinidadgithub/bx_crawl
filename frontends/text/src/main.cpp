@@ -240,11 +240,15 @@ static PlayerCommand read_town_command(const Game& g) {
 
         case GameState::Shop:
             if (g.town_submenu == 0) {
-                if (c == '1') return PlayerCommand{PlayerCommandType::Get, 0, 0}; // buy torch
-                if (c == '2') return PlayerCommand{PlayerCommandType::Use, 0, 0}; // supplies submenu
-            } else if (g.town_submenu == 4) {
-                if (c >= '1' && c <= '4')
-                    return PlayerCommand{PlayerCommandType::Get, 0, 0, c - '1'};
+                if (c == '1') return PlayerCommand{PlayerCommandType::Use, 0, 0}; // browse gear
+            } else if (g.town_submenu == 4 || g.town_submenu == 5) {
+                int base = (g.town_submenu == 4) ? 0 : 10;
+                if (c >= '1' && c <= '9')
+                    return PlayerCommand{PlayerCommandType::Get, 0, 0, base + (c - '1')};
+                if (c == '0')
+                    return PlayerCommand{PlayerCommandType::Get, 0, 0, base + 9};
+                if (c == 'n' && g.town_submenu == 4) return PlayerCommand{PlayerCommandType::Open, 0, 0};
+                if (c == 'p' && g.town_submenu == 5) return PlayerCommand{PlayerCommandType::Close, 0, 0};
                 if (c == 't') return PlayerCommand{PlayerCommandType::Help, 0, 0};
             }
             if (c == 't') return PlayerCommand{PlayerCommandType::Move, 2, 0};

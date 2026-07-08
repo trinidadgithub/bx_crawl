@@ -63,7 +63,7 @@ The game starts in town after character generation.
 
 - Tavern — paid rest and rumors
 - Temple — healing and gold-for-XP donations
-- Shop — torches, rations, oil flasks, holy water
+- The Saucy Satchel — all B/X adventuring gear from `bx_data.hpp`
 - Armorer — buy/sell weapons, armor, and shields using B/X prices
 - Camp — full rest, save game, enter dungeon
 

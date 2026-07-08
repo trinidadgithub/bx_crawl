@@ -2065,38 +2065,57 @@ TEST_CASE("Shop: buy rations and supplies via apply_town_command") {
 
     SUBCASE("buy standard rations (5 gp)") {
         g.town_submenu = 4;
-        apply_town_command(g, {PlayerCommandType::Get, 0, 0, 0}); // standard rations
+        apply_town_command(g, {PlayerCommandType::Get, 0, 0, 9}); // standard rations
         CHECK(g.hero.rations == 6);
+        CHECK(g.hero.gear_counts[9] == 1);
         CHECK(g.total_gold == 95);
     }
 
     SUBCASE("buy iron rations (15 gp)") {
         g.town_submenu = 4;
-        apply_town_command(g, {PlayerCommandType::Get, 0, 0, 1}); // iron rations
+        apply_town_command(g, {PlayerCommandType::Get, 0, 0, 8}); // iron rations
         CHECK(g.hero.rations == 12);
+        CHECK(g.hero.gear_counts[8] == 1);
         CHECK(g.total_gold == 85);
     }
 
     SUBCASE("buy oil flask (2 gp)") {
         g.town_submenu = 4;
-        apply_town_command(g, {PlayerCommandType::Get, 0, 0, 2}); // oil flask
+        apply_town_command(g, {PlayerCommandType::Get, 0, 0, 1}); // oil flask
         CHECK(g.hero.oil_flasks == 1);
+        CHECK(g.hero.gear_counts[1] == 1);
         CHECK(g.total_gold == 98);
     }
 
     SUBCASE("buy holy water (25 gp)") {
         g.town_submenu = 4;
-        apply_town_command(g, {PlayerCommandType::Get, 0, 0, 3}); // holy water
+        apply_town_command(g, {PlayerCommandType::Get, 0, 0, 4}); // holy water
         CHECK(g.hero.holy_water == 1);
+        CHECK(g.hero.gear_counts[4] == 1);
         CHECK(g.total_gold == 75);
+    }
+
+    SUBCASE("buy second-page gear") {
+        g.town_submenu = 5;
+        apply_town_command(g, {PlayerCommandType::Get, 0, 0, 19}); // 10-foot pole
+        CHECK(g.hero.gear_counts[19] == 1);
+        CHECK(g.total_gold == 99);
     }
 
     SUBCASE("cannot afford") {
         g.total_gold = 3;
         g.town_submenu = 4;
-        apply_town_command(g, {PlayerCommandType::Get, 0, 0, 0}); // standard rations (5 gp)
-        CHECK(g.hero.rations == 0);  // nothing bought
+        apply_town_command(g, {PlayerCommandType::Get, 0, 0, 0}); // backpack (5 gp)
+        CHECK(g.hero.gear_counts[0] == 0);  // nothing bought
         CHECK(g.total_gold == 3);    // gold untouched
+    }
+
+    SUBCASE("page navigation") {
+        g.town_submenu = 4;
+        apply_town_command(g, {PlayerCommandType::Open, 0, 0, 0});
+        CHECK(g.town_submenu == 5);
+        apply_town_command(g, {PlayerCommandType::Close, 0, 0, 0});
+        CHECK(g.town_submenu == 4);
     }
 
     SUBCASE("back from submenu via Help command") {

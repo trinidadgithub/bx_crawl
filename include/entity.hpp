@@ -114,6 +114,7 @@ struct Entity {
     bool has_shield{false};
 
     // Supplies
+    std::array<int, 20> gear_counts{};
     int rations{};
     int turns_without_food{};
     int oil_flasks{};
