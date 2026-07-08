@@ -2,6 +2,7 @@
 #include "map.hpp"
 #include "chargen.hpp"
 #include "bx_data.hpp"
+#include "item_effects.hpp"
 #include "sound.hpp"
 
 #include <iostream>
@@ -2596,6 +2597,11 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 }
                 if (tile.type == TileType::DoorClosed && tile.locked) {
                     if (g.hero.char_class == CharacterClass::Thief) {
+                        if (!has_gear(g.hero, "thieves-tools")) {
+                            log_event(g, "You need thieves' tools to pick locks.");
+                            opened = true;
+                            break;
+                        }
                         int roll = roll_d(g, 100);
                         if (roll <= g.hero.skill_pick_locks) {
                             tile.locked = false;
@@ -2848,6 +2854,10 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                         found_anything = true;
                         // Thief can try to disarm
                         if (g.hero.char_class == CharacterClass::Thief) {
+                            if (!has_gear(g.hero, "thieves-tools")) {
+                                log_event(g, "You need thieves' tools to disarm traps.");
+                                continue;
+                            }
                             int remove_roll = roll_d(g, 100);
                             if (remove_roll <= g.hero.skill_find_traps) {
                                 tile.has_trap   = false;

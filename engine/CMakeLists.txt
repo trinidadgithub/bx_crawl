@@ -5,6 +5,7 @@ add_library(bx_engine STATIC
     src/map.cpp
     src/description.cpp
     src/chargen.cpp
+    src/item_effects.cpp
     src/sound.cpp
     src/debug_log.cpp
 )

@@ -1767,6 +1767,45 @@ TEST_CASE("Hide command shows log message") {
     CHECK(found);
 }
 
+TEST_CASE("Thieves' tools are required for thief lock and trap work") {
+    Game g = make_minimal_game(10, 10);
+    g.hero = make_hero(1, 1, 0, 4, 10);
+    g.hero.char_class = CharacterClass::Thief;
+    g.hero.skill_pick_locks = 100;
+    g.hero.skill_find_traps = 100;
+
+    SUBCASE("locked doors require thieves' tools") {
+        auto& tile = g.map[index_for(g, 2, 1)];
+        tile.type = TileType::DoorClosed;
+        tile.locked = true;
+
+        apply_player_command(g, {PlayerCommandType::Open, 0, 0});
+        CHECK(tile.type == TileType::DoorClosed);
+        CHECK(tile.locked);
+
+        g.hero.gear_counts[13] = 1; // thieves-tools
+        apply_player_command(g, {PlayerCommandType::Open, 0, 0});
+        CHECK(tile.type == TileType::DoorOpen);
+        CHECK_FALSE(tile.locked);
+    }
+
+    SUBCASE("trap disarming requires thieves' tools") {
+        auto& tile = g.map[index_for(g, 2, 1)];
+        tile.has_trap = true;
+        tile.trap_type = TrapType::Pit;
+
+        apply_player_command(g, {PlayerCommandType::Search, 0, 0});
+        CHECK(tile.has_trap);
+        CHECK(tile.trap_visible);
+
+        tile.trap_visible = false;
+        g.hero.gear_counts[13] = 1; // thieves-tools
+        apply_player_command(g, {PlayerCommandType::Search, 0, 0});
+        CHECK_FALSE(tile.has_trap);
+        CHECK(tile.trap_type == TrapType::None);
+    }
+}
+
 // ========== B/X Data smoke tests ==========
 #include "bx_data.hpp"
 
