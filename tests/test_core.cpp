@@ -893,6 +893,43 @@ TEST_CASE("Cure Light Wounds spell") {
     }
 }
 
+TEST_CASE("Holy symbol is required for cleric spellcasting and turning") {
+    SUBCASE("cleric spells require holy symbol") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(1, 1, 0, 1, 10);
+        g.hero.char_class = CharacterClass::Cleric;
+        g.hero.hp = 5;
+        g.hero.max_hp = 10;
+        g.hero.spell_slots[1] = 1;
+        g.hero.spells = {"Cure Light Wounds"};
+
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+        CHECK(g.hero.hp == 5);
+        CHECK(g.hero.spell_slots[1] == 1);
+
+        g.hero.gear_counts[3] = 1; // holy-symbol
+        apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+        CHECK(g.hero.hp > 5);
+        CHECK(g.hero.spell_slots[1] == 0);
+    }
+
+    SUBCASE("turn undead requires holy symbol") {
+        Game g = make_minimal_game(10, 10);
+        g.hero = make_hero(1, 1, 20, 1, 10);
+        g.hero.char_class = CharacterClass::Cleric;
+        g.hero_level = 20;
+        g.monsters.push_back(make_monster("Skeleton", EntityType::Skeleton,
+                                          2, 1, 1, 12, 0, 4, 12));
+
+        apply_player_command(g, {PlayerCommandType::Turn, 1, 0, 0});
+        CHECK(g.monsters[0].alive);
+
+        g.hero.gear_counts[3] = 1; // holy-symbol
+        apply_player_command(g, {PlayerCommandType::Turn, 1, 0, 0});
+        CHECK_FALSE(g.monsters[0].alive);
+    }
+}
+
 TEST_CASE("Charm Person spell") {
     Game g = make_minimal_game(10, 10);
     g.hero = make_hero(1, 1, 0, 1, 10);

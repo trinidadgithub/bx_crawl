@@ -1872,6 +1872,14 @@ static int spell_level_by_name(const std::string& name) {
     return 0;
 }
 
+static bool is_cleric_spell_name(const std::string& name) {
+    for (const auto& s : bx::spells) {
+        if (name == s.name && std::string_view(s.class_name) == "Cleric")
+            return true;
+    }
+    return false;
+}
+
 // Resolve a cast of the spell at spell_index (0-based) toward (dx,dy).
 // Returns true if the spell slot was consumed.
 static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
@@ -1881,6 +1889,12 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
         return false;
     }
     const std::string& spell = hero.spells[spell_index];
+
+    if (hero.char_class == CharacterClass::Cleric && is_cleric_spell_name(spell)
+        && !has_gear(hero, "holy-symbol")) {
+        log_event(g, "You need a holy symbol to cast cleric spells.");
+        return false;
+    }
 
     int spell_level = spell_level_by_name(spell);
     if (spell_level < 1 || spell_level > Entity::MaxSpellLevel) {
@@ -2347,6 +2361,10 @@ static bool turn_undead(Game& g, int dx, int dy) {
     }
     if (g.hero.char_class != CharacterClass::Cleric) {
         log_event(g, "Only clerics can turn undead.");
+        return false;
+    }
+    if (!has_gear(g.hero, "holy-symbol")) {
+        log_event(g, "You need a holy symbol to turn undead.");
         return false;
     }
     int nx = g.hero.pos.x + dx;
