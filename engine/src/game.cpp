@@ -2464,6 +2464,12 @@ static void trigger_trap(Game& g, Entity& hero, Tile& tile) {
     const char* msg = "";
     switch (tile.trap_type) {
         case TrapType::Pit:
+            if (consume_gear(hero, "rope")) {
+                log_event(g, "Your rope catches fast, sparing you the fall into the pit.");
+                tile.has_trap = false;
+                tile.trap_type = TrapType::None;
+                return;
+            }
             dmg = roll_d(g, 6);
             msg = "You fall into a pit!";
             break;

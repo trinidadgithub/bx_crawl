@@ -2238,6 +2238,31 @@ TEST_CASE("Lantern requires lantern, oil, and tinder box") {
     }
 }
 
+TEST_CASE("Rope protects against pit trap damage once") {
+    Game g = make_minimal_game(10, 10);
+    g.hero = make_hero(1, 1, 0, 4, 10);
+
+    auto& pit = g.map[index_for(g, 2, 1)];
+    pit.has_trap = true;
+    pit.trap_type = TrapType::Pit;
+
+    SUBCASE("without rope, pit damages hero") {
+        int hp_before = g.hero.hp;
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+        CHECK(g.hero.hp < hp_before);
+        CHECK_FALSE(pit.has_trap);
+    }
+
+    SUBCASE("rope prevents pit damage and is consumed") {
+        g.hero.gear_counts[10] = 1; // rope
+        int hp_before = g.hero.hp;
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+        CHECK(g.hero.hp == hp_before);
+        CHECK(g.hero.gear_counts[10] == 0);
+        CHECK_FALSE(pit.has_trap);
+    }
+}
+
 TEST_CASE("Hunger: rations consumed and starvation") {
     Game g = make_minimal_game();
     g.hero = make_hero(5, 3, 0, 4, 12);
