@@ -890,8 +890,7 @@ void seed_rng(Game& g) {
     g.rng.seed(seed);
 }
 
-void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data_dir,
-                         bool should_seed_rng) {
+void init_runtime_state(Game& g, const std::filesystem::path& data_dir, bool should_seed_rng) {
     sound_init();
     g.width  = 40;
     g.height = 20;
@@ -900,18 +899,28 @@ void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data
         seed_rng(g);
     }
 
-    auto rooms = init_map(g);
-    g.rooms = rooms;
-
     const auto descriptions_path = data_dir / "descriptions.txt";
     if (!g.descriptions.load_from_file(descriptions_path.string())) {
         std::cerr << "Warning: failed to load descriptions.txt\n";
     }
 
     g.data_dir = data_dir;
-    g.dungeon_level = 1;
-
+    g.map.clear();
+    g.rooms.clear();
     g.monsters.clear();
+    g.event_log.clear();
+    g.wander_counter = 0;
+    g.tick_clock = 0;
+    g.town_submenu = 0;
+}
+
+void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data_dir,
+                         bool should_seed_rng) {
+    init_runtime_state(g, data_dir, should_seed_rng);
+
+    auto rooms = init_map(g);
+    g.rooms = rooms;
+    g.dungeon_level = 1;
 
     g.hero = std::move(hero);
     g.state = GameState::Town;
@@ -1245,6 +1254,10 @@ void init_game(Game& g, Entity hero) {
 
 void init_game(Game& g, Entity hero, const std::filesystem::path& data_dir) {
     init_game_with_hero(g, std::move(hero), data_dir, /*should_seed_rng=*/true);
+}
+
+void init_game_runtime(Game& g, const std::filesystem::path& data_dir) {
+    init_runtime_state(g, data_dir, /*should_seed_rng=*/true);
 }
 
 // ---------------------------

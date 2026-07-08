@@ -63,6 +63,7 @@ void init_game(Game& g);
 void init_game(Game& g, const std::filesystem::path& data_dir);
 void init_game(Game& g, Entity hero);
 void init_game(Game& g, Entity hero, const std::filesystem::path& data_dir);
+void init_game_runtime(Game& g, const std::filesystem::path& data_dir = std::filesystem::path{"../data"});
 void render(const Game& g);
 void monsters_turn(Game& g);
 

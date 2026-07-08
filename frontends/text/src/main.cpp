@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <termios.h>
 #include <cstdlib>
+#include <filesystem>
+#include <string>
 
 static termios original_termios;
 static bool termios_saved = false;
@@ -279,7 +281,34 @@ static PlayerCommand read_town_command(const Game& g) {
 
 int main() {
     Game g;
-    init_game(g);
+
+    const char* home = std::getenv("HOME");
+    const std::filesystem::path save_path = home && *home
+        ? std::filesystem::path(home) / ".bx_crawl" / "save.dat"
+        : std::filesystem::path("bx_crawl_save.dat");
+
+    bool loaded = false;
+    if (std::filesystem::exists(save_path)) {
+        std::cout << "Save game found at " << save_path << ".\n";
+        std::cout << "Load saved game? (y/n): " << std::flush;
+        std::string reply;
+        std::getline(std::cin, reply);
+        if (!reply.empty() && (reply[0] == 'y' || reply[0] == 'Y')) {
+            init_game_runtime(g);
+            loaded = load_game(g, save_path);
+            if (loaded) {
+                if (g.state == GameState::Dungeon)
+                    g.state = GameState::Camp;
+                g.event_log.clear();
+                g.event_log.push_back("Loaded saved game from " + save_path.string() + ".");
+            } else {
+                std::cout << "Failed to load save. Starting a new game.\n";
+            }
+        }
+    }
+
+    if (!loaded)
+        init_game(g);
     sound_set_enabled(true);
 
     // Raw mode for instant keypress AFTER character creation
