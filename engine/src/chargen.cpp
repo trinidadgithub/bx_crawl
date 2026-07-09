@@ -99,7 +99,7 @@ static int base_ac(CharacterClass cc) {
 
 static int attack_bonus_base(CharacterClass cc) {
     switch (cc) {
-        case CharacterClass::Fighter:   return 1;
+        case CharacterClass::Fighter:   return 0;
         case CharacterClass::Dwarf:     return 1;
         default:                        return 0;
     }

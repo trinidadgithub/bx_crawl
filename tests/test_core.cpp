@@ -4,6 +4,35 @@
 #include "game.hpp"
 #include "map.hpp"
 
+#include <cstdlib>
+#include <string>
+
+class ScopedEnvVar {
+public:
+    ScopedEnvVar(const char* name, const char* value)
+        : name_(name) {
+        const char* old = std::getenv(name_);
+        if (old) {
+            had_old_ = true;
+            old_value_ = old;
+        }
+        setenv(name_, value, 1);
+    }
+
+    ~ScopedEnvVar() {
+        if (had_old_) {
+            setenv(name_, old_value_.c_str(), 1);
+        } else {
+            unsetenv(name_);
+        }
+    }
+
+private:
+    const char* name_;
+    bool had_old_{false};
+    std::string old_value_;
+};
+
 // Helper to make a minimal Game for tests without running full init_game
 static Game make_minimal_game(int w = 10, int h = 6) {
     Game g;
@@ -229,6 +258,52 @@ static Entity make_monster(const std::string& name, EntityType type,
     return e;
 }
 
+// ── Developer monster launch override tests ──────────────
+
+TEST_CASE("BX_TEST_MONSTER spawns exactly one chosen monster by name") {
+    ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+    ScopedEnvVar test_monster("BX_TEST_MONSTER", "gObLiN");
+
+    Game g;
+    init_game(g, make_hero(1, 1, 0, 1, 10));
+
+    CHECK(g.monsters.size() == 1);
+    CHECK(g.monsters[0].name == "Goblin");
+}
+
+TEST_CASE("BX_TEST_MONSTER accepts partial monster names") {
+    ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+    ScopedEnvVar test_monster("BX_TEST_MONSTER", "crawler");
+
+    Game g;
+    init_game(g, make_hero(1, 1, 0, 1, 10));
+
+    CHECK(g.monsters.size() == 1);
+    CHECK(g.monsters[0].name == "Carrion Crawler");
+}
+
+TEST_CASE("BX_TEST_MONSTER accepts 1-based bx_data monster index") {
+    ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+    ScopedEnvVar test_monster("BX_TEST_MONSTER", "1");
+
+    Game g;
+    init_game(g, make_hero(1, 1, 0, 1, 10));
+
+    CHECK(g.monsters.size() == 1);
+    CHECK(g.monsters[0].name == "Acolyte");
+}
+
+TEST_CASE("BX_TEST_MONSTER takes precedence over BX_NO_MONSTERS") {
+    ScopedEnvVar no_monsters("BX_NO_MONSTERS", "1");
+    ScopedEnvVar test_monster("BX_TEST_MONSTER", "Zombie");
+
+    Game g;
+    init_game(g, make_hero(1, 1, 0, 1, 10));
+
+    CHECK(g.monsters.size() == 1);
+    CHECK(g.monsters[0].name == "Zombie");
+}
+
 // ── Treasure / XP / level-up tests ──────────────────────
 
 TEST_CASE("Treasure and XP awarding") {
@@ -276,6 +351,81 @@ TEST_CASE("Treasure and XP awarding") {
         CHECK(g.hero_level == 2);
         CHECK(g.hero.attack_bonus == old_atk + 1);
         CHECK(g.total_xp >= 2000);
+    }
+}
+
+TEST_CASE("Fighter attack bonus follows B/X level bands") {
+    auto make_fighter_at_level = [](int level, int total_xp, int attack_bonus, int str) {
+        Game g = make_minimal_game();
+        g.hero = make_hero(1, 1, attack_bonus, 1, 10);
+        g.hero.char_class = CharacterClass::Fighter;
+        g.hero.abilities.str = str;
+        g.hero_level = level;
+        g.total_xp = total_xp;
+        g.monsters.push_back(
+            make_monster("Goblin", EntityType::Goblin,
+                         2, 1, 1, 0, 0, 4, 0));
+        return g;
+    };
+
+    SUBCASE("levels 1-3 have no fighter attack progression bonus") {
+        Game g = make_fighter_at_level(/*level=*/1, /*total_xp=*/1990,
+                                       /*attack_bonus=*/0, /*str=*/9);
+
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK(g.hero_level == 2);
+        CHECK(g.hero.attack_bonus == 0);
+    }
+
+    SUBCASE("level 4 enters the +2 fighter attack band") {
+        Game g = make_fighter_at_level(/*level=*/3, /*total_xp=*/7990,
+                                       /*attack_bonus=*/0, /*str=*/9);
+
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK(g.hero_level == 4);
+        CHECK(g.hero.attack_bonus == 2);
+    }
+
+    SUBCASE("level 7 enters the +5 fighter attack band") {
+        Game g = make_fighter_at_level(/*level=*/6, /*total_xp=*/63990,
+                                       /*attack_bonus=*/2, /*str=*/9);
+
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK(g.hero_level == 7);
+        CHECK(g.hero.attack_bonus == 5);
+    }
+
+    SUBCASE("level 10 enters the +7 fighter attack band") {
+        Game g = make_fighter_at_level(/*level=*/9, /*total_xp=*/359990,
+                                       /*attack_bonus=*/5, /*str=*/9);
+
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK(g.hero_level == 10);
+        CHECK(g.hero.attack_bonus == 7);
+    }
+
+    SUBCASE("level 13 enters the +9 fighter attack band") {
+        Game g = make_fighter_at_level(/*level=*/12, /*total_xp=*/719990,
+                                       /*attack_bonus=*/7, /*str=*/9);
+
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK(g.hero_level == 13);
+        CHECK(g.hero.attack_bonus == 9);
+    }
+
+    SUBCASE("fighter attack bands preserve STR modifier") {
+        Game g = make_fighter_at_level(/*level=*/3, /*total_xp=*/7990,
+                                       /*attack_bonus=*/1, /*str=*/13);
+
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK(g.hero_level == 4);
+        CHECK(g.hero.attack_bonus == 3); // +2 fighter band, +1 STR
     }
 }
 

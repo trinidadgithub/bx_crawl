@@ -169,7 +169,7 @@ int main() {
         int hp = roll_hp(8, con_mod, rng);
         gen("Hrothgar", CharacterClass::Fighter, a,
             "sword", "chain-mail", true,
-            hp, 1 + str_mod, 8, str_mod, 14 + dex_mod);
+            hp, str_mod, 8, str_mod, 14 + dex_mod);
     }
 
     //  2. Magic-User  — Merlin

@@ -28,11 +28,8 @@ int roll_d(Game& g, int sides) {
 
 // Check if monster spawning is disabled via environment
 static bool monsters_disabled() {
-    static const bool disabled = []{
-        const char* env = std::getenv("BX_NO_MONSTERS");
-        return env && env[0] == '1';
-    }();
-    return disabled;
+    const char* env = std::getenv("BX_NO_MONSTERS");
+    return env && env[0] == '1';
 }
 
 // ---------------------------
@@ -67,6 +64,15 @@ int class_hd_sides(CharacterClass cc) {
         case CharacterClass::Halfling:  return 6;
         default:                        return 8;
     }
+}
+
+int fighter_attack_bonus_for_level(int level) {
+    if (level <= 3) return 0;
+    if (level <= 6) return 2;
+    if (level <= 9) return 5;
+    if (level <= 12) return 7;
+    if (level <= 15) return 9;
+    return 11;
 }
 
 // Monster XP values (B/X Moldvay)
@@ -151,7 +157,12 @@ void check_level_up(Game& g) {
         g.hero_level++;
         g.hero.max_hp += hp_gain;
         g.hero.hp     += hp_gain;
-        g.hero.attack_bonus++;
+        if (g.hero.char_class == CharacterClass::Fighter) {
+            int str_mod = bx::get_strength(g.hero.abilities.str).toHitMelee;
+            g.hero.attack_bonus = fighter_attack_bonus_for_level(g.hero_level) + str_mod;
+        } else {
+            g.hero.attack_bonus++;
+        }
 
         // Grant new spell slots from bx_data class tables
         auto grant_slots = [&](const auto& table) {
@@ -493,6 +504,57 @@ static int choose_monster_index(Game& g, int dungeon_level) {
     return candidates[roll_d(g, static_cast<int>(candidates.size())) - 1];
 }
 
+static std::string normalized_monster_name(std::string_view s) {
+    std::string out;
+    out.reserve(s.size());
+    for (unsigned char ch : s) {
+        if (std::isalnum(ch)) {
+            out.push_back(static_cast<char>(std::tolower(ch)));
+        }
+    }
+    return out;
+}
+
+// Developer override: BX_TEST_MONSTER=<name-or-1-based-index> spawns exactly one
+// requested monster and disables wandering monsters for focused behavior tests.
+static int test_monster_index() {
+    const char* env = std::getenv("BX_TEST_MONSTER");
+    if (!env || !*env) return -1;
+
+    std::string requested(env);
+    bool numeric = !requested.empty();
+    for (unsigned char ch : requested) {
+        if (!std::isdigit(ch)) {
+            numeric = false;
+            break;
+        }
+    }
+    if (numeric) {
+        int one_based = std::atoi(requested.c_str());
+        if (one_based >= 1 && one_based <= static_cast<int>(bx::monsters.size())) {
+            return one_based - 1;
+        }
+        return -1;
+    }
+
+    std::string needle = normalized_monster_name(requested);
+    if (needle.empty()) return -1;
+
+    for (std::size_t i = 0; i < bx::monsters.size(); ++i) {
+        if (normalized_monster_name(bx::monsters[i].name) == needle) {
+            return static_cast<int>(i);
+        }
+    }
+
+    for (std::size_t i = 0; i < bx::monsters.size(); ++i) {
+        if (normalized_monster_name(bx::monsters[i].name).find(needle) != std::string::npos) {
+            return static_cast<int>(i);
+        }
+    }
+
+    return -1;
+}
+
 // Compute XP value for a monster from bx_data.
 // B/X formula: HD < 1 → 5 XP; HD 1 → 10 XP; HD 1+ → +75 XP per HD (roughly)
 static int compute_xp_value(const char* hit_dice) {
@@ -550,8 +612,10 @@ static bool is_name_disease(const char* name) {
 }
 
 // Spawn a monster from bx_data. Returns the populated Entity.
-static Entity spawn_bx_monster(Game& g, int dungeon_level) {
-    int idx = choose_monster_index(g, dungeon_level);
+static Entity spawn_bx_monster_by_index(Game& g, int idx) {
+    if (idx < 0 || idx >= static_cast<int>(bx::monsters.size())) {
+        idx = choose_monster_index(g, 1);
+    }
     const auto& m = bx::monsters[idx];
 
     Entity e;
@@ -584,6 +648,14 @@ static Entity spawn_bx_monster(Game& g, int dungeon_level) {
     }
 
     return e;
+}
+
+static Entity spawn_bx_monster(Game& g, int dungeon_level) {
+    return spawn_bx_monster_by_index(g, choose_monster_index(g, dungeon_level));
+}
+
+static Entity spawn_test_monster(Game& g) {
+    return spawn_bx_monster_by_index(g, test_monster_index());
 }
 
 // Forward declarations for morale/attack internals
@@ -972,8 +1044,13 @@ void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data
         e.pos = {room.x + room.w / 2, room.y + room.h / 2};
     };
 
-    // Spawn initial monsters (unless disabled)
-    if (!monsters_disabled()) {
+    // Spawn initial monsters (unless disabled). BX_TEST_MONSTER spawns exactly one.
+    int test_idx = test_monster_index();
+    if (test_idx >= 0) {
+        Entity e = spawn_test_monster(g);
+        place_monster(e, rooms[static_cast<std::size_t>(random_monster_room())]);
+        g.monsters.push_back(e);
+    } else if (!monsters_disabled()) {
         int num_monsters = 4 + roll_d(g, 3); // 4..6
         for (int i = 0; i < num_monsters; ++i) {
             Entity e = spawn_bx_monster(g, g.dungeon_level);
@@ -1035,8 +1112,13 @@ void regenerate_dungeon(Game& g, int new_dungeon_level) {
         e.pos = {room.x + room.w / 2, room.y + room.h / 2};
     };
 
-    // Spawn monsters for this level (unless disabled)
-    if (!monsters_disabled()) {
+    // Spawn monsters for this level (unless disabled). BX_TEST_MONSTER spawns exactly one.
+    int test_idx = test_monster_index();
+    if (test_idx >= 0) {
+        Entity e = spawn_test_monster(g);
+        place_monster(e, rooms[static_cast<std::size_t>(random_monster_room())]);
+        g.monsters.push_back(e);
+    } else if (!monsters_disabled()) {
         int base_count = 4 + roll_d(g, 3);
         int num_monsters = base_count + g.dungeon_level - 1; // +1 per level
         if (num_monsters > 12) num_monsters = 12;
@@ -2620,6 +2702,7 @@ static bool turn_undead(Game& g, int dx, int dy) {
 // Returns the number of monsters spawned.
 static int spawn_wandering_monsters(Game& g) {
     if (monsters_disabled()) return 0;
+    if (test_monster_index() >= 0) return 0;
     if (g.rooms.size() <= 1) return 0;
 
     // Pick a random room that is not the entrance

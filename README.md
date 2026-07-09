@@ -39,6 +39,28 @@ BX_NO_MONSTERS=1 ./build/frontends/text/bx_crawl_text
 This is useful for testing town, shop, armorer, hunger, exploration, and save/load
 without combat interruptions.
 
+Launch with exactly one chosen monster in each generated dungeon:
+
+```bash
+BX_TEST_MONSTER=Goblin ./build/frontends/text/bx_crawl_text
+BX_TEST_MONSTER="Carrion Crawler" ./build/frontends/text/bx_crawl_text
+BX_TEST_MONSTER=1 ./build/frontends/text/bx_crawl_text  # 1-based bx_data monster index
+```
+
+`BX_TEST_MONSTER` accepts exact names, partial case-insensitive names, or a
+1-based index into the generated B/X monster table. It also suppresses wandering
+monsters, which is useful for focused monster behavior playtests.
+
+List monsters by approximate challenge level before choosing one:
+
+```bash
+./build/tools/list_monsters --level 1
+./build/tools/list_monsters --level 1 --safe
+./build/tools/list_monsters --all
+```
+
+The listed `Idx` values can be passed directly to `BX_TEST_MONSTER`.
+
 ## Controls
 - `w`, `a`, `s`, `d` — cardinal movement
 - `q`, `e`, `z`, `c` — diagonal movement
