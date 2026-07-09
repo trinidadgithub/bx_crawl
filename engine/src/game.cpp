@@ -2922,34 +2922,41 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
 
             // Search for traps on adjacent tiles
             for (int i = 0; i < 4; ++i) {
-                int nx = g.hero.pos.x + dirs[i * 2];
-                int ny = g.hero.pos.y + dirs[i * 2 + 1];
-                if (!in_bounds(g, nx, ny)) continue;
-                auto& tile = g.map[index_for(g, nx, ny)];
-                if (tile.has_trap && tile.trap_type != TrapType::None) {
-                    bool found = false;
-                    if (g.hero.char_class == CharacterClass::Thief) {
-                        found = (roll_d(g, 100) <= g.hero.skill_find_traps);
-                    } else {
-                        found = (roll_d(g, 6) == 1); // 1-in-6 for non-thieves
-                    }
-                    if (found) {
-                        tile.trap_visible = true;
-                        log_event(g, "You find a trap!");
-                        found_anything = true;
-                        // Thief can try to disarm
-                        if (g.hero.char_class == CharacterClass::Thief) {
-                            if (!has_gear(g.hero, "thieves-tools")) {
-                                log_event(g, "You need thieves' tools to disarm traps.");
-                                continue;
-                            }
-                            int remove_roll = roll_d(g, 100);
-                            if (remove_roll <= g.hero.skill_find_traps) {
-                                tile.has_trap   = false;
-                                tile.trap_type  = TrapType::None;
-                                log_event(g, "You skillfully disarm the trap.");
-                            } else {
-                                log_event(g, "You fail to disarm the trap.");
+                int max_range = has_gear(g.hero, "pole-10ft") ? 2 : 1;
+                for (int range = 1; range <= max_range; ++range) {
+                    int nx = g.hero.pos.x + dirs[i * 2] * range;
+                    int ny = g.hero.pos.y + dirs[i * 2 + 1] * range;
+                    if (!in_bounds(g, nx, ny)) continue;
+                    auto& tile = g.map[index_for(g, nx, ny)];
+                    if (tile.has_trap && tile.trap_type != TrapType::None) {
+                        bool found = false;
+                        if (has_gear(g.hero, "pole-10ft")) {
+                            found = true;
+                        } else if (g.hero.char_class == CharacterClass::Thief) {
+                            found = (roll_d(g, 100) <= g.hero.skill_find_traps);
+                        } else {
+                            found = (roll_d(g, 6) == 1); // 1-in-6 for non-thieves
+                        }
+                        if (found) {
+                            tile.trap_visible = true;
+                            log_event(g, range == 2
+                                ? "Your 10-foot pole reveals a trap ahead!"
+                                : "You find a trap!");
+                            found_anything = true;
+                            // Thief can try to disarm adjacent traps only.
+                            if (range == 1 && g.hero.char_class == CharacterClass::Thief) {
+                                if (!has_gear(g.hero, "thieves-tools")) {
+                                    log_event(g, "You need thieves' tools to disarm traps.");
+                                    continue;
+                                }
+                                int remove_roll = roll_d(g, 100);
+                                if (remove_roll <= g.hero.skill_find_traps) {
+                                    tile.has_trap   = false;
+                                    tile.trap_type  = TrapType::None;
+                                    log_event(g, "You skillfully disarm the trap.");
+                                } else {
+                                    log_event(g, "You fail to disarm the trap.");
+                                }
                             }
                         }
                     }

@@ -1887,6 +1887,26 @@ TEST_CASE("Thieves' tools are required for thief lock and trap work") {
     }
 }
 
+TEST_CASE("10-foot pole probes traps at two-tile range") {
+    Game g = make_minimal_game(10, 10);
+    g.hero = make_hero(1, 1, 0, 4, 10);
+    auto& trap = g.map[index_for(g, 3, 1)];
+    trap.has_trap = true;
+    trap.trap_type = TrapType::Pit;
+
+    SUBCASE("without pole, range two trap is not found") {
+        apply_player_command(g, {PlayerCommandType::Search, 0, 0});
+        CHECK_FALSE(trap.trap_visible);
+    }
+
+    SUBCASE("with pole, range two trap is revealed") {
+        g.hero.gear_counts[19] = 1; // pole-10ft
+        apply_player_command(g, {PlayerCommandType::Search, 0, 0});
+        CHECK(trap.trap_visible);
+        CHECK(trap.has_trap);
+    }
+}
+
 // ========== B/X Data smoke tests ==========
 #include "bx_data.hpp"
 
