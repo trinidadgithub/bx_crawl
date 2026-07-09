@@ -85,6 +85,10 @@ static PlayerCommand read_player_command(const Game& g) {
             return PlayerCommand{PlayerCommandType::Use, 0, 0};
         }
 
+        if (c == 'b') {
+            return PlayerCommand{PlayerCommandType::Inventory, 0, 0};
+        }
+
         if (c == 'h') {
             const char* help =
                 "\x1B[2J\x1B[H"
@@ -101,9 +105,10 @@ static PlayerCommand read_player_command(const Game& g) {
                 "f  Throw dart  (direction)\r\n"
                 "v  Throw holy water (direction)\r\n"
                 "g  Get items from the ground\r\n"
+                "b  Character sheet / equipment\r\n"
                 "i  Hide in shadows (Thief)\r\n"
                 "l  Search (find traps, hear noise)\r\n"
-                "u  Use / read a scroll\r\n"
+                "u  Use (light lantern/torch, spike doors, read scrolls)\r\n"
                 "m  Cast a spell\r\n"
                 "t  Turn undead (direction)\r\n"
                 "x  Quit\r\n"
@@ -112,7 +117,7 @@ static PlayerCommand read_player_command(const Game& g) {
             write(STDOUT_FILENO, help, strlen(help));
             char _;
             read(STDIN_FILENO, &_, 1);
-            continue;
+            return PlayerCommand{PlayerCommandType::None, 0, 0};
         }
 
         // Magic: show known spells, pick one, then direction if needed
@@ -197,8 +202,57 @@ static PlayerCommand read_town_command(const Game& g) {
             return PlayerCommand{PlayerCommandType::Quit, 0, 0};
         }
 
+        if (c == 'b') {
+            return PlayerCommand{PlayerCommandType::Inventory, 0, 0};
+        }
+
+        if (c == 'h') {
+            const char* help =
+                "\x1B[2J\x1B[H"
+                "=== Help ===\r\n"
+                "\r\n"
+                "Movement:  w e   (7 8 9)\r\n"
+                "           a d   (4 5 6)\r\n"
+                "           z c   (1 2 3)\r\n"
+                "\r\n"
+                "o  Open a door\r\n"
+                "p  Close a door\r\n"
+                "r  Rest (heal 1d3/level)\r\n"
+                "k  Throw knife (direction)\r\n"
+                "f  Throw dart  (direction)\r\n"
+                "v  Throw holy water (direction)\r\n"
+                "g  Get items from the ground\r\n"
+                "b  Character sheet / equipment\r\n"
+                "i  Hide in shadows (Thief)\r\n"
+                "l  Search (find traps, hear noise)\r\n"
+                "u  Use (light lantern/torch, spike doors, read scrolls)\r\n"
+                "m  Cast a spell\r\n"
+                "t  Turn undead (direction)\r\n"
+                "x  Quit\r\n"
+                "\r\n"
+                "Press any key to return...\r\n";
+            write(STDOUT_FILENO, help, strlen(help));
+            char _;
+            read(STDIN_FILENO, &_, 1);
+            return PlayerCommand{PlayerCommandType::None, 0, 0};
+        }
+
         // Map keys to locations / actions
         switch (g.state) {
+        case GameState::CharacterSheet:
+            if (g.town_submenu == 0) {
+                if (c == '1' || c == '2')
+                    return PlayerCommand{PlayerCommandType::Get, 0, 0, c - '1'};
+            } else if (g.town_submenu == 6) {
+                if (c >= '1' && c <= '9')
+                    return PlayerCommand{PlayerCommandType::Get, 0, 0, c - '1'};
+            } else if (g.town_submenu == 7) {
+                if (c >= '0' && c <= '4')
+                    return PlayerCommand{PlayerCommandType::Get, 0, 0, c - '1'};
+            }
+            if (c == 't') return PlayerCommand{PlayerCommandType::Help, 0, 0};
+            break;
+
         case GameState::Town:
             if (c == '1') return PlayerCommand{PlayerCommandType::Move,   0, -1}; // tavern
             if (c == '2') return PlayerCommand{PlayerCommandType::Move,  -1,  0}; // temple
@@ -281,35 +335,100 @@ static PlayerCommand read_town_command(const Game& g) {
 }
 
 int main() {
+    // Resolve data_dir relative to the binary so it works from any CWD
+    std::filesystem::path bx_data_dir = "../data";
+    {
+        std::error_code ec;
+        auto bin_path = std::filesystem::read_symlink("/proc/self/exe", ec);
+        if (!ec) {
+            // binary at build/frontends/text/bx_crawl_text → data/ is ../../../data
+            auto d = bin_path.parent_path().parent_path().parent_path().parent_path() / "data";
+            if (std::filesystem::exists(d / "pregenerated_saves", ec))
+                bx_data_dir = std::filesystem::weakly_canonical(d, ec);
+        }
+        if (ec || !std::filesystem::exists(bx_data_dir / "pregenerated_saves", ec)) {
+            // fallback: just use the old default
+            bx_data_dir = "../data";
+        }
+    }
+
     Game g;
 
-    const char* home = std::getenv("HOME");
-    const std::filesystem::path save_path = home && *home
-        ? std::filesystem::path(home) / ".bx_crawl" / "save.dat"
-        : std::filesystem::path("bx_crawl_save.dat");
-
+    // Check BX_LOAD_SAVE env var for auto-load (testing / speed)
     bool loaded = false;
-    if (std::filesystem::exists(save_path)) {
-        std::cout << "Save game found at " << save_path << ".\n";
-        std::cout << "Load saved game? (y/n): " << std::flush;
-        std::string reply;
-        std::getline(std::cin, reply);
-        if (!reply.empty() && (reply[0] == 'y' || reply[0] == 'Y')) {
-            init_game_runtime(g);
-            loaded = load_game(g, save_path);
+    const char* quick_load = std::getenv("BX_LOAD_SAVE");
+    if (quick_load && quick_load[0]) {
+        auto path = find_save(quick_load, bx_data_dir);
+        if (!path.empty()) {
+            init_game_runtime(g, bx_data_dir);
+            loaded = load_game(g, path);
             if (loaded) {
                 if (g.state == GameState::Dungeon)
                     g.state = GameState::Camp;
                 g.event_log.clear();
-                g.event_log.push_back("Loaded saved game from " + save_path.string() + ".");
-            } else {
-                std::cout << "Failed to load save. Starting a new game.\n";
+                g.event_log.push_back("Loaded " + std::string(quick_load) + ".");
+            }
+        }
+    }
+
+    if (!loaded) {
+        // List all available saves (user + pregenerated)
+        auto saves = enumerate_all_saves(bx_data_dir);
+        if (!saves.empty()) {
+            std::cout << "=== Saved Characters ===\r\n\r\n";
+            for (std::size_t i = 0; i < saves.size(); ++i) {
+                bool is_pregen = saves[i].string().find("pregenerated") != std::string::npos;
+                std::cout << "  [" << (i + 1) << "] " << strip_save_extension(saves[i]);
+                if (is_pregen) std::cout << " (template)";
+                std::cout << "\r\n";
+            }
+            std::cout << "\r\nEnter number to load, or 0 for a new game:\r\n> " << std::flush;
+            std::string reply;
+            std::getline(std::cin, reply);
+            int choice = 0;
+            if (!reply.empty()) choice = std::atoi(reply.c_str());
+            if (choice >= 1 && choice <= static_cast<int>(saves.size())) {
+                init_game_runtime(g, bx_data_dir);
+                loaded = load_game(g, saves[static_cast<std::size_t>(choice - 1)]);
+                if (loaded) {
+                    if (g.state == GameState::Dungeon)
+                        g.state = GameState::Camp;
+                    g.event_log.clear();
+                    g.event_log.push_back("Loaded " + strip_save_extension(saves[static_cast<std::size_t>(choice - 1)]) + ".");
+                } else {
+                    std::cout << "Failed to load save. Starting a new game.\n";
+                }
+            }
+        }
+    }
+
+    // Legacy fallback: old ~/.bx_crawl/save.dat (single-file format)
+    if (!loaded) {
+        const char* home = std::getenv("HOME");
+        auto old_path = home && *home
+            ? std::filesystem::path(home) / ".bx_crawl" / "save.dat"
+            : std::filesystem::path("bx_crawl_save.dat");
+        if (std::filesystem::exists(old_path)) {
+            std::cout << "Old save found at " << old_path << ". Load it? (y/n): " << std::flush;
+            std::string reply;
+            std::getline(std::cin, reply);
+            if (!reply.empty() && (reply[0] == 'y' || reply[0] == 'Y')) {
+                init_game_runtime(g, bx_data_dir);
+                loaded = load_game(g, old_path);
+                if (loaded) {
+                    if (g.state == GameState::Dungeon)
+                        g.state = GameState::Camp;
+                    g.event_log.clear();
+                    g.event_log.push_back("Loaded legacy save. Re-save at camp to migrate to per-character format.");
+                } else {
+                    std::cout << "Failed to load legacy save.\n";
+                }
             }
         }
     }
 
     if (!loaded)
-        init_game(g);
+        init_game(g, bx_data_dir);
     sound_set_enabled(true);
 
     // Raw mode for instant keypress AFTER character creation
@@ -330,7 +449,15 @@ int main() {
             compute_visibility(g);
             render(g);
 
-            bool monsters_first = roll_initiative(g);
+            PlayerCommand cmd = read_player_command(g);
+            if (cmd.type == PlayerCommandType::Inventory || cmd.type == PlayerCommandType::Quit) {
+                keep_playing = apply_player_command(g, cmd);
+                if (!keep_playing) break;
+                continue;
+            }
+
+            bool monsters_present = any_monsters_alive(g);
+            bool monsters_first = monsters_present && roll_initiative(g);
 
             if (monsters_first) {
                 monsters_turn(g);
@@ -342,10 +469,7 @@ int main() {
                 }
             }
 
-            {
-                PlayerCommand cmd = read_player_command(g);
-                keep_playing = apply_player_command(g, cmd);
-            }
+            keep_playing = apply_player_command(g, cmd);
 
             if (!keep_playing) break;
 
@@ -358,14 +482,10 @@ int main() {
                 break;
             }
 
-            if (!any_monsters_alive(g)) {
-                render(g);
-                std::cout << "All monsters defeated!\r\n";
-                std::cout << "Game over.\r\n";
-                break;
-            }
+            if (!any_monsters_alive(g))
+                announce_dungeon_at_peace(g);
 
-            if (!monsters_first) {
+            if (monsters_present && !monsters_first) {
                 monsters_turn(g);
                 if (!g.hero.alive) {
                     render(g);

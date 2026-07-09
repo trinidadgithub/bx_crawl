@@ -275,6 +275,7 @@ struct Weapon {
     const char* id;
     const char* name;
     int cost_gp;
+    int weight_cn;
     const char* damage_die;
     bool two_handed;
     bool cleric_allowed;
@@ -282,66 +283,68 @@ struct Weapon {
 };
 
 inline constexpr std::array<Weapon, 16> weapons{{
-    { "battle-axe", "Battle Axe", 7, "1d8", true, false, false },
-    { "hand-axe", "Hand Axe", 4, "1d6", false, false, false },
-    { "crossbow", "Crossbow", 30, "1d6", true, false, false },
-    { "long-bow", "Long Bow", 40, "1d6", true, false, false },
-    { "short-bow", "Short Bow", 25, "1d6", true, false, false },
-    { "dagger", "Dagger", 3, "1d4", false, true, true },
-    { "silver-dagger", "Silver Dagger", 30, "1d4", false, true, false },
-    { "short-sword", "Short Sword", 7, "1d6", false, false, false },
-    { "sword", "Sword", 10, "1d8", false, false, false },
-    { "two-handed-sword", "Two-handed Sword", 15, "1d10", true, false, false },
-    { "mace", "Mace", 5, "1d6", false, true, false },
-    { "club", "Club", 3, "1d4", false, true, false },
-    { "pole-arm", "Pole Arm", 7, "1d8", true, false, false },
-    { "sling", "Sling", 2, "1d4", false, true, false },
-    { "spear", "Spear", 3, "1d6", false, true, true },
-    { "war-hammer", "War Hammer", 5, "1d6", false, true, false },
+    { "battle-axe", "Battle Axe", 7, 50, "1d8", true, false, false },
+    { "hand-axe", "Hand Axe", 4, 30, "1d6", false, false, false },
+    { "crossbow", "Crossbow", 30, 50, "1d6", true, false, false },
+    { "long-bow", "Long Bow", 40, 30, "1d6", true, false, false },
+    { "short-bow", "Short Bow", 25, 30, "1d6", true, false, false },
+    { "dagger", "Dagger", 3, 10, "1d4", false, true, true },
+    { "silver-dagger", "Silver Dagger", 30, 10, "1d4", false, true, false },
+    { "short-sword", "Short Sword", 7, 30, "1d6", false, false, false },
+    { "sword", "Sword", 10, 60, "1d8", false, false, false },
+    { "two-handed-sword", "Two-handed Sword", 15, 150, "1d10", true, false, false },
+    { "mace", "Mace", 5, 30, "1d6", false, true, false },
+    { "club", "Club", 3, 50, "1d4", false, true, false },
+    { "pole-arm", "Pole Arm", 7, 150, "1d8", true, false, false },
+    { "sling", "Sling", 2, 20, "1d4", false, true, false },
+    { "spear", "Spear", 3, 30, "1d6", false, true, true },
+    { "war-hammer", "War Hammer", 5, 30, "1d6", false, true, false },
 }};
 
 struct ArmorItem {
     const char* id;
     const char* name;
     int cost_gp;
+    int weight_cn;
     int ac;
     const char* armor_type;
 };
 
 inline constexpr std::array<ArmorItem, 4> armor_items{{
-    { "leather-armor", "Leather Armor", 20, 7, "light" },
-    { "chain-mail", "Chain Mail Armor", 40, 5, "heavy" },
-    { "plate-mail", "Plate Mail Armor", 60, 3, "heavy" },
-    { "shield", "Shield", 10, -1, "" },
+    { "leather-armor", "Leather Armor", 20, 200, 7, "light" },
+    { "chain-mail", "Chain Mail Armor", 40, 400, 5, "heavy" },
+    { "plate-mail", "Plate Mail Armor", 60, 500, 3, "heavy" },
+    { "shield", "Shield", 10, 100, -1, "" },
 }};
 
 struct GearItem {
     const char* id;
     const char* name;
     int cost_gp;
+    int weight_cn;
 };
 
 inline constexpr std::array<GearItem, 20> gear_items{{
-    { "backpack", "Backpack", 5 },
-    { "oil-flask", "Flask of Oil", 2 },
-    { "hammer", "Hammer (small)", 2 },
-    { "holy-symbol", "Holy Symbol", 25 },
-    { "holy-water", "Holy Water", 25 },
-    { "iron-spikes", "Iron Spikes (12)", 1 },
-    { "lantern", "Lantern", 10 },
-    { "mirror", "Mirror (steel)", 5 },
-    { "iron-rations", "Iron Rations (1 week)", 15 },
-    { "standard-rations", "Standard Rations (1 week)", 5 },
-    { "rope", "Rope (50')", 1 },
-    { "sack-small", "Small Sack", 1 },
-    { "sack-large", "Large Sack", 2 },
-    { "thieves-tools", "Thieves' Tools", 25 },
-    { "tinder-box", "Tinder Box", 3 },
-    { "torches", "Torches (6)", 1 },
-    { "waterskin", "Water/Wine Skin", 1 },
-    { "wine", "Wine (1 quart)", 1 },
-    { "wolfsbane", "Wolfsbane (1 bunch)", 10 },
-    { "pole-10ft", "Wooden Pole (10')", 1 },
+    { "backpack", "Backpack", 5, 20 },
+    { "oil-flask", "Flask of Oil", 2, 10 },
+    { "hammer", "Hammer (small)", 2, 10 },
+    { "holy-symbol", "Holy Symbol", 25, 1 },
+    { "holy-water", "Holy Water", 25, 1 },
+    { "iron-spikes", "Iron Spikes (12)", 1, 5 },
+    { "lantern", "Lantern", 10, 30 },
+    { "mirror", "Mirror (steel)", 5, 5 },
+    { "iron-rations", "Iron Rations (1 week)", 15, 70 },
+    { "standard-rations", "Standard Rations (1 week)", 5, 200 },
+    { "rope", "Rope (50')", 1, 50 },
+    { "sack-small", "Small Sack", 1, 1 },
+    { "sack-large", "Large Sack", 2, 5 },
+    { "thieves-tools", "Thieves' Tools", 25, 10 },
+    { "tinder-box", "Tinder Box", 3, 5 },
+    { "torches", "Torches (6)", 1, 60 },
+    { "waterskin", "Water/Wine Skin", 1, 30 },
+    { "wine", "Wine (1 quart)", 1, 30 },
+    { "wolfsbane", "Wolfsbane (1 bunch)", 10, 1 },
+    { "pole-10ft", "Wooden Pole (10')", 1, 100 },
 }};
 
 // ========== Monsters ==========

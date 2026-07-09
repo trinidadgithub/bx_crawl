@@ -110,6 +110,8 @@ struct Entity {
     bool has_disease{false};
 
     // Equipment (weapon + armor IDs from bx_data.hpp)
+    std::array<int, 16> weapon_counts{};
+    std::array<int, 4> armor_counts{};
     std::string weapon_id;
     std::string armor_id;
     bool has_shield{false};

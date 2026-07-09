@@ -358,6 +358,7 @@ Entity create_hero(Game& g) {
                 }
                 purse_gp -= chosen_w.cost_gp;
                 hero.weapon_id = chosen_w.id;
+                hero.weapon_counts[static_cast<std::size_t>(weapon_choices[idx])]++;
                 // Parse damage die from string like "1d8" → 8
                 int dmg = 4;
                 if (chosen_w.damage_die[0] == '1' && chosen_w.damage_die[1] == 'd')
@@ -431,6 +432,7 @@ Entity create_hero(Game& g) {
                     }
                     purse_gp -= chosen_a.cost_gp;
                     hero.armor_id = chosen_a.id;
+                    hero.armor_counts[static_cast<std::size_t>(ai)]++;
                     hero.ac = chosen_a.ac + dex_mod;
                 }
                 std::cout << "Purse: " << format_purse(purse_gp) << "\n";
@@ -447,6 +449,7 @@ Entity create_hero(Game& g) {
                 if (purse_gp >= 10) {
                     purse_gp -= 10;
                     hero.has_shield = true;
+                    hero.armor_counts[3]++;
                     hero.ac -= 1; // shield gives -1 AC bonus in B/X descending
                     std::cout << "Shield equipped. Purse: " << format_purse(purse_gp) << "\n";
                 } else {

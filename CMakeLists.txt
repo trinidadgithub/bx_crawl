@@ -38,6 +38,9 @@ else()
     message(STATUS "Skipping POSIX text frontend on non-UNIX platform")
 endif()
 
+# Tools (pregenerated save generator, etc.)
+add_subdirectory(tools)
+
 # Tests
 enable_testing()
 add_subdirectory(tests)

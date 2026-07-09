@@ -1424,35 +1424,36 @@ TEST_CASE("compute_visibility: no torch = only hero tile visible") {
     CHECK_FALSE(g.map[index_for(g, 5, 6)].visible);
 }
 
-TEST_CASE("compute_visibility: torch decrements every 10 calls (once per turn)") {
+TEST_CASE("compute_visibility: torch decrements once per exploration turn") {
     Game g = make_minimal_game(10, 10);
     g.hero.pos = {5, 5};
     g.hero.torch_turns = 5;
+    const int ticks = ticks_per_exploration_turn(g);
 
-    // 9 calls: torch still 5 (no turn boundary)
-    for (int i = 0; i < 9; ++i) {
+    // Calls before the turn boundary: torch still 5.
+    for (int i = 0; i < ticks - 1; ++i) {
         compute_visibility(g);
         CHECK(g.hero.torch_turns == 5);
     }
 
-    // 10th call: turn boundary → decrement
+    // Turn boundary: decrement.
     compute_visibility(g);
     CHECK(g.hero.torch_turns == 4);
 
-    // Another 9 calls: stays at 4
-    for (int i = 0; i < 9; ++i) {
+    // Calls before the next boundary: stays at 4.
+    for (int i = 0; i < ticks - 1; ++i) {
         compute_visibility(g);
         CHECK(g.hero.torch_turns == 4);
     }
 
-    // 10th call: decrements to 3
+    // Next turn boundary: decrements to 3.
     compute_visibility(g);
     CHECK(g.hero.torch_turns == 3);
 
     // Test that it doesn't go negative
     g.hero.torch_turns = 1;
     g.tick_clock = 0;
-    for (int i = 0; i < 9; ++i) {
+    for (int i = 0; i < ticks - 1; ++i) {
         compute_visibility(g);
         CHECK(g.hero.torch_turns == 1);
     }
@@ -1468,8 +1469,8 @@ TEST_CASE("compute_visibility: light spell overrides torch") {
     g.hero.torch_turns = 5;
     g.hero.light_spell_turns = 10;
 
-    // After 10 calls (1 turn), light spell should decrement, torch should not
-    for (int i = 0; i < 10; ++i)
+    // After 1 exploration turn, light spell should decrement, torch should not.
+    for (int i = 0; i < ticks_per_exploration_turn(g); ++i)
         compute_visibility(g);
 
     // Light spell is active: torch should NOT decrement
@@ -1942,6 +1943,32 @@ TEST_CASE("10-foot pole probes traps at two-tile range") {
     }
 }
 
+TEST_CASE("10-foot pole auto-probes on move") {
+    Game g = make_minimal_game(10, 10);
+    g.hero = make_hero(5, 5, 0, 4, 10);
+    g.hero.hp = 3;
+    g.hero.max_hp = 3;
+    auto& trap = g.map[index_for(g, 6, 5)]; // tile to the east
+    trap.has_trap = true;
+    trap.trap_type = TrapType::Dart;
+
+    SUBCASE("without pole, moving onto trap triggers it") {
+        CHECK(g.hero.hp == 3);
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+        CHECK(g.hero.hp < 3);
+        CHECK_FALSE(trap.has_trap); // trap consumed
+    }
+
+    SUBCASE("with pole, moving onto trap reveals it safely") {
+        g.hero.gear_counts[19] = 1; // pole-10ft
+        CHECK(g.hero.hp == 3);
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+        CHECK(g.hero.hp == 3); // unharmed
+        CHECK(trap.trap_visible);
+        CHECK(trap.has_trap); // trap still present
+    }
+}
+
 // ========== B/X Data smoke tests ==========
 #include "bx_data.hpp"
 
@@ -2149,8 +2176,9 @@ TEST_CASE("Armorer: buy weapon via apply_town_command") {
         apply_town_command(g, {PlayerCommandType::Get, 0, 0, 8});
         CHECK(g.hero.weapon_id == "sword");
         CHECK(g.hero.damage_die == 8);
+        CHECK(g.hero.weapon_counts[8] == 1);
         CHECK(g.total_gold == 90);
-        CHECK(g.town_submenu == 0);
+        CHECK(g.town_submenu == 1);
     }
 
     SUBCASE("cannot afford a weapon") {
@@ -2160,6 +2188,277 @@ TEST_CASE("Armorer: buy weapon via apply_town_command") {
         CHECK(g.hero.weapon_id.empty());  // still no weapon
         CHECK(g.total_gold == 5);         // gold unchanged
     }
+}
+
+TEST_CASE("Character sheet equips owned weapons and armor") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(5, 3, 0, 4, 9);
+    g.hero.char_class = CharacterClass::Fighter;
+    g.hero.weapon_counts[8] = 1; // sword
+    g.hero.weapon_counts[9] = 1; // two-handed sword
+    g.hero.armor_counts[0] = 1;  // leather armor
+    g.hero.armor_counts[3] = 1;  // shield
+    g.hero.weapon_id = "sword";
+    g.hero.has_shield = true;
+    g.state = GameState::Town;
+
+    apply_town_command(g, {PlayerCommandType::Inventory, 0, 0, 0});
+    CHECK(g.state == GameState::CharacterSheet);
+    CHECK(g.previous_state == GameState::Town);
+
+    apply_town_command(g, {PlayerCommandType::Get, 0, 0, 0});
+    CHECK(g.town_submenu == 6);
+    apply_town_command(g, {PlayerCommandType::Get, 0, 0, 1});
+    CHECK(g.hero.weapon_id == "two-handed-sword");
+    CHECK(g.hero.damage_die == 10);
+    CHECK_FALSE(g.hero.has_shield);
+
+    apply_town_command(g, {PlayerCommandType::Help, 0, 0, 0});
+    CHECK(g.town_submenu == 0);
+    apply_town_command(g, {PlayerCommandType::Get, 0, 0, 1});
+    CHECK(g.town_submenu == 7);
+    apply_town_command(g, {PlayerCommandType::Get, 0, 0, 0});
+    CHECK(g.hero.armor_id == "leather-armor");
+    CHECK(g.hero.ac == 7);
+
+    apply_town_command(g, {PlayerCommandType::Help, 0, 0, 0});
+    apply_town_command(g, {PlayerCommandType::Help, 0, 0, 0});
+    CHECK(g.state == GameState::Town);
+}
+
+TEST_CASE("B/X encumbrance uses coin weight movement tiers") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(5, 3, 0, 4, 9);
+
+    g.total_gold = 400;
+    CHECK(carried_weight_cn(g) == 400);
+    CHECK(exploration_move_feet(g) == 120);
+    CHECK(encounter_move_feet(g) == 40);
+    CHECK(ticks_per_exploration_turn(g) == 12);
+
+    g.total_gold = 401;
+    CHECK(exploration_move_feet(g) == 90);
+    CHECK(encounter_move_feet(g) == 30);
+    CHECK(ticks_per_exploration_turn(g) == 9);
+
+    g.total_gold = 601;
+    CHECK(exploration_move_feet(g) == 60);
+    CHECK(encounter_move_feet(g) == 20);
+    CHECK(ticks_per_exploration_turn(g) == 6);
+
+    g.total_gold = 801;
+    CHECK(exploration_move_feet(g) == 30);
+    CHECK(encounter_move_feet(g) == 10);
+    CHECK(ticks_per_exploration_turn(g) == 3);
+}
+
+TEST_CASE("Encumbrance includes owned equipment and gear") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(5, 3, 0, 4, 9);
+    g.total_gold = 100;
+    g.hero.weapon_counts[8] = 1; // sword, 60 cn
+    g.hero.armor_counts[0] = 1;  // leather armor, 200 cn
+    g.hero.gear_counts[10] = 1;  // rope, 50 cn
+
+    CHECK(carried_weight_cn(g) == 410);
+    CHECK(exploration_move_feet(g) == 90);
+}
+
+TEST_CASE("Save/load preserves owned weapons and armor") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(5, 3, 0, 4, 9);
+    g.hero.char_class = CharacterClass::Fighter;
+    g.hero.weapon_counts[8] = 2;
+    g.hero.armor_counts[0] = 1;
+    g.hero.armor_counts[3] = 1;
+    g.hero.weapon_id = "sword";
+    g.hero.armor_id = "leather-armor";
+    g.hero.has_shield = true;
+    g.total_gold = 42;
+
+    const auto path = std::filesystem::path{"/tmp/opencode/bx_crawl_save_test.dat"};
+    CHECK(save_game(g, path));
+
+    Game loaded;
+    CHECK(load_game(loaded, path));
+    CHECK(loaded.hero.weapon_counts[8] == 2);
+    CHECK(loaded.hero.armor_counts[0] == 1);
+    CHECK(loaded.hero.armor_counts[3] == 1);
+    CHECK(loaded.hero.weapon_id == "sword");
+    CHECK(loaded.hero.armor_id == "leather-armor");
+    CHECK(loaded.hero.has_shield);
+    CHECK(loaded.total_gold == 42);
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("Save helpers: per-character save paths and enumerate") {
+    const char* old_home = std::getenv("HOME");
+    setenv("HOME", "/tmp/opencode", 1);
+
+    CHECK(saves_directory() == std::filesystem::path("/tmp/opencode/.bx_crawl/saves"));
+
+    auto path = save_path_for_hero("Volk");
+    CHECK(path.filename() == "Volk.dat");
+    CHECK(path.parent_path() == saves_directory());
+
+    // Clean up any test saves
+    std::filesystem::remove_all(saves_directory());
+    CHECK(enumerate_saves().empty());
+
+    // Create a save and verify it appears in the list
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 4, 9);
+    g.hero.name = "Volk";
+    g.hero.char_class = CharacterClass::Fighter;
+    g.total_gold = 100;
+
+    CHECK(save_game(g, save_path_for_hero("Volk")));
+    auto saves = enumerate_saves();
+    CHECK(saves.size() == 1);
+    CHECK(strip_save_extension(saves[0]) == "Volk");
+
+    // Load it back
+    Game loaded;
+    CHECK(load_game(loaded, saves[0]));
+    CHECK(loaded.hero.name == "Volk");
+    CHECK(loaded.hero.char_class == CharacterClass::Fighter);
+    CHECK(loaded.total_gold == 100);
+
+    std::filesystem::remove_all(saves_directory());
+
+    // Restore HOME
+    if (old_home) setenv("HOME", old_home, 1);
+    else unsetenv("HOME");
+}
+
+TEST_CASE("find_save checks pregenerated directory as fallback") {
+    const char* old_home = std::getenv("HOME");
+    setenv("HOME", "/tmp/opencode", 1);
+    std::filesystem::remove_all(saves_directory());
+
+    // Create a pregenerated save in data/pregenerated_saves/
+    auto data_dir = std::filesystem::path{"../data"};
+    auto pregen_dir = pregenerated_saves_directory(data_dir);
+    std::filesystem::create_directories(pregen_dir);
+
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 4, 9);
+    g.hero.name = "Fighter";
+    g.total_gold = 50;
+    CHECK(save_game(g, pregen_dir / "Fighter.dat"));
+
+    // find_save should find it in pregenerated dir (not in user saves)
+    auto found = find_save("Fighter", data_dir);
+    CHECK_FALSE(found.empty());
+    CHECK(strip_save_extension(found) == "Fighter");
+
+    // enumerate_all_saves should include it
+    auto all = enumerate_all_saves(data_dir);
+    bool found_pregen = false;
+    for (const auto& p : all)
+        if (strip_save_extension(p) == "Fighter") found_pregen = true;
+    CHECK(found_pregen);
+
+    // Clean up
+    std::filesystem::remove_all(pregen_dir);
+    std::filesystem::remove_all(saves_directory());
+    if (old_home) setenv("HOME", old_home, 1);
+    else unsetenv("HOME");
+}
+
+TEST_CASE("Help command (h key) is safe from every town screen") {
+    auto test_help = [](GameState st, int submenu = 0) {
+        Game g = make_minimal_game();
+        g.hero = make_hero(1, 1, 0, 4, 9);
+        g.state = st;
+        g.town_submenu = submenu;
+        GameState before = g.state;
+        int before_sub = g.town_submenu;
+        bool result = apply_town_command(g, {PlayerCommandType::Help, 0, 0, 0});
+        // Help should never quit, never crash, and manage state safely
+        CHECK(result == true);
+        if (st == GameState::CharacterSheet) {
+            if (before_sub != 0)
+                CHECK(g.town_submenu == 0);
+            else
+                CHECK(g.state != before); // returns to previous_state
+        } else if (st == GameState::Shop || st == GameState::Armorer) {
+            if (before_sub != 0)
+                CHECK(g.town_submenu == 0);
+            else
+                CHECK(g.state == before);
+        } else {
+            CHECK(g.state == before);
+        }
+    };
+
+    test_help(GameState::Town);
+    test_help(GameState::Tavern);
+    test_help(GameState::Temple);
+    test_help(GameState::Shop, 0);
+    test_help(GameState::Shop, 4);
+    test_help(GameState::Armorer, 0);
+    test_help(GameState::Armorer, 1);
+    test_help(GameState::CharacterSheet, 0);
+    test_help(GameState::CharacterSheet, 6);
+}
+
+TEST_CASE("Force door uses STR openDoors modifier") {
+    Game g = make_minimal_game(10, 6);
+    g.hero = make_hero(1, 1, 0, 4, 9);
+
+    // Place a locked door to the east
+    g.map[index_for(g, 2, 1)].type = TileType::DoorClosed;
+    g.map[index_for(g, 2, 1)].locked = true;
+
+    // STR 9 gives openDoors 0 → 2-in-6 chance
+    g.hero.abilities.str = 9;
+    g.rng.seed(42u);
+    int force_count = 0;
+    int trials = 1000;
+    for (int i = 0; i < trials; ++i) {
+        g.map[index_for(g, 2, 1)].type = TileType::DoorClosed;
+        g.map[index_for(g, 2, 1)].locked = true;
+        g.rng.seed(static_cast<unsigned long>(i * 7 + 999));
+        g.tick_clock = 0;
+
+        apply_player_command(g, {PlayerCommandType::Open, 0, 0, 0});
+        if (!g.map[index_for(g, 2, 1)].locked && g.map[index_for(g, 2, 1)].type == TileType::DoorOpen)
+            ++force_count;
+    }
+    // STR 9: 2-in-6 ≈ 33%, should be between 25-42%
+    CHECK(force_count > 250);
+    CHECK(force_count < 420);
+
+    // STR 18 gives openDoors 3 → 5-in-6 (83%)
+    g.hero.abilities.str = 18;
+    force_count = 0;
+    for (int i = 0; i < trials; ++i) {
+        g.map[index_for(g, 2, 1)].type = TileType::DoorClosed;
+        g.map[index_for(g, 2, 1)].locked = true;
+        g.rng.seed(static_cast<unsigned long>(i * 13 + 777));
+        g.tick_clock = 0;
+
+        apply_player_command(g, {PlayerCommandType::Open, 0, 0, 0});
+        if (!g.map[index_for(g, 2, 1)].locked && g.map[index_for(g, 2, 1)].type == TileType::DoorOpen)
+            ++force_count;
+    }
+    // STR 18: 5-in-6 ≈ 83%
+    CHECK(force_count > 750);
+    CHECK(force_count < 900);
+}
+
+TEST_CASE("Dungeon peace announcement is one-time and not game over state") {
+    Game g = make_minimal_game();
+    CHECK_FALSE(any_monsters_alive(g));
+
+    announce_dungeon_at_peace(g);
+    CHECK(g.dungeon_peace_announced);
+    CHECK(g.event_log.size() == 2);
+
+    announce_dungeon_at_peace(g);
+    CHECK(g.event_log.size() == 2);
 }
 
 TEST_CASE("Armorer: buy armor via apply_town_command") {
@@ -2178,7 +2477,9 @@ TEST_CASE("Armorer: buy armor via apply_town_command") {
         apply_town_command(g, {PlayerCommandType::Get, 0, 0, 0}); // buy leather (index 0)
         CHECK(g.hero.armor_id == "leather-armor");
         CHECK(g.hero.ac == 7);
+        CHECK(g.hero.armor_counts[0] == 1);
         CHECK(g.total_gold == 80);
+        CHECK(g.town_submenu == 2);
     }
 
     SUBCASE("Magic-User cannot wear chain mail") {
@@ -2194,6 +2495,7 @@ TEST_CASE("Armorer: buy armor via apply_town_command") {
         g.town_submenu = 2;
         apply_town_command(g, {PlayerCommandType::Get, 0, 0, 3}); // shield (index 3)
         CHECK(g.hero.has_shield);
+        CHECK(g.hero.armor_counts[3] == 1);
         CHECK(g.total_gold == 90);
     }
 }
@@ -2241,7 +2543,7 @@ TEST_CASE("Shop: buy rations and supplies via apply_town_command") {
     SUBCASE("buy standard rations (5 gp)") {
         g.town_submenu = 4;
         apply_town_command(g, {PlayerCommandType::Get, 0, 0, 9}); // standard rations
-        CHECK(g.hero.rations == 6);
+        CHECK(g.hero.rations == 21);
         CHECK(g.hero.gear_counts[9] == 1);
         CHECK(g.total_gold == 95);
     }
@@ -2249,7 +2551,7 @@ TEST_CASE("Shop: buy rations and supplies via apply_town_command") {
     SUBCASE("buy iron rations (15 gp)") {
         g.town_submenu = 4;
         apply_town_command(g, {PlayerCommandType::Get, 0, 0, 8}); // iron rations
-        CHECK(g.hero.rations == 12);
+        CHECK(g.hero.rations == 42);
         CHECK(g.hero.gear_counts[8] == 1);
         CHECK(g.total_gold == 85);
     }
@@ -2337,6 +2639,44 @@ TEST_CASE("Lantern requires lantern, oil, and tinder box") {
     }
 }
 
+TEST_CASE("Light torch from inventory with Use key") {
+    Game g = make_minimal_game(10, 10);
+    g.hero = make_hero(1, 1, 0, 4, 10);
+    g.hero.torch_turns = 0;
+
+    SUBCASE("torch needs tinder box") {
+        g.hero.gear_counts[15] = 1; // torches
+        apply_player_command(g, {PlayerCommandType::Use, 0, 0});
+        CHECK(g.hero.torch_turns == 0);
+        CHECK(g.hero.gear_counts[15] == 1);
+    }
+
+    SUBCASE("light one torch for 20 turns") {
+        g.hero.gear_counts[15] = 1; // torches
+        g.hero.gear_counts[14] = 1; // tinder-box
+        apply_player_command(g, {PlayerCommandType::Use, 0, 0});
+        CHECK(g.hero.torch_turns == 20);
+        CHECK(g.hero.gear_counts[15] == 0);
+    }
+
+    SUBCASE("lights multiple torches sequentially") {
+        g.hero.gear_counts[15] = 3;
+        g.hero.gear_counts[14] = 1; // tinder-box
+        apply_player_command(g, {PlayerCommandType::Use, 0, 0});
+        CHECK(g.hero.torch_turns == 20);
+        CHECK(g.hero.gear_counts[15] == 2);
+    }
+
+    SUBCASE("won't light while torch is already lit") {
+        g.hero.torch_turns = 5;
+        g.hero.gear_counts[15] = 1;
+        g.hero.gear_counts[14] = 1; // tinder-box
+        apply_player_command(g, {PlayerCommandType::Use, 0, 0});
+        CHECK(g.hero.torch_turns == 5); // unchanged
+        CHECK(g.hero.gear_counts[15] == 1); // unconsumed
+    }
+}
+
 TEST_CASE("Rope protects against pit trap damage once") {
     Game g = make_minimal_game(10, 10);
     g.hero = make_hero(1, 1, 0, 4, 10);
@@ -2370,23 +2710,17 @@ TEST_CASE("Hunger: rations consumed and starvation") {
     SUBCASE("rations are consumed on schedule") {
         // Simulate B/X turns (compute_visibility increments hunger)
         // turns_without_food starts at 0, increments each turn tick
-        // Every 6 ticks, if rations > 0, consume 1 and reset clock
-        g.hero.turns_without_food = 5;
-        g.tick_clock = 9; // next tick is turn boundary
-
-        // We can't easily call compute_visibility directly since it needs a full map,
-        // so let's manually tick the hunger logic
-        // Actually compute_visibility is tied to the game map
-        // Let's just test the entity fields directly
+        // Every 48 ticks, if rations > 0, consume 1 and reset clock
+        g.hero.turns_without_food = 47;
 
         // Starting state
         CHECK(g.hero.rations == 2);
-        CHECK(g.hero.turns_without_food == 5);
+        CHECK(g.hero.turns_without_food == 47);
 
         // If we simulate the hunger logic:
-        // tick → turns_without_food becomes 6, rations consumed
+        // tick → turns_without_food becomes 48, rations consumed
         g.hero.turns_without_food++;
-        if (g.hero.turns_without_food > 0 && g.hero.turns_without_food % 6 == 0) {
+        if (g.hero.turns_without_food > 0 && g.hero.turns_without_food % 48 == 0) {
             if (g.hero.rations > 0) {
                 g.hero.rations--;
                 g.hero.turns_without_food = 0;
@@ -2398,16 +2732,13 @@ TEST_CASE("Hunger: rations consumed and starvation") {
 
     SUBCASE("starvation without rations") {
         g.hero.rations = 0;
-        g.hero.turns_without_food = 5;
+        g.hero.turns_without_food = 47;
 
-        // Simulate 42 B/X turns without food
-        for (int i = 0; i < 42; ++i) {
-            g.hero.turns_without_food++;
-        }
+        // Simulate one more tick → turns_without_food reaches 48 (rumble)
+        g.hero.turns_without_food++;
 
-        // Hungry messages appear at 6, 12; damage at 18, 36
         CHECK(g.hero.rations == 0);
-        CHECK(g.hero.turns_without_food == 47);
+        CHECK(g.hero.turns_without_food == 48);
     }
 }
 

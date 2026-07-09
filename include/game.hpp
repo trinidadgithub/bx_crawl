@@ -15,7 +15,8 @@ enum class GameState {
     Shop,
     Armorer,
     Camp,
-    Dungeon
+    Dungeon,
+    CharacterSheet
 };
 
 struct Game {
@@ -49,9 +50,11 @@ struct Game {
 
     // Dungeon rooms (used for wandering monster placement)
     std::vector<Room> rooms;
+    bool dungeon_peace_announced{false};
 
     // Town / meta-game state
     GameState state{GameState::Town};
+    GameState previous_state{GameState::Town};
     int town_submenu{0};
 };
 
@@ -72,9 +75,25 @@ void compute_visibility(Game& g);
 
 // Utility: are there any monsters still alive?
 bool any_monsters_alive(const Game& g);
+void announce_dungeon_at_peace(Game& g);
 
 // Roll 1d6 per side for initiative. Returns true if monsters act first.
 bool roll_initiative(Game& g);
+
+// B/X detailed encumbrance, measured in coins (10 cn ~= 1 lb).
+int carried_weight_cn(const Game& g);
+int exploration_move_feet(const Game& g);
+int encounter_move_feet(const Game& g);
+int ticks_per_exploration_turn(const Game& g);
+
+// Save directory helpers
+std::filesystem::path saves_directory();
+std::filesystem::path save_path_for_hero(const std::string& name);
+std::vector<std::filesystem::path> enumerate_saves();
+std::string strip_save_extension(std::filesystem::path p);
+std::filesystem::path pregenerated_saves_directory(const std::filesystem::path& data_dir);
+std::vector<std::filesystem::path> enumerate_all_saves(const std::filesystem::path& data_dir = std::filesystem::path{"../data"});
+std::filesystem::path find_save(const std::string& name, const std::filesystem::path& data_dir = std::filesystem::path{"../data"});
 
 // ---------------------------
 // Town / meta-game actions
@@ -107,6 +126,7 @@ enum class PlayerCommandType {
     ThrowHolyWater,
     Cast,
     Turn,
+    Inventory,
     Help,
     Get,
     Use,
