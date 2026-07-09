@@ -104,6 +104,7 @@ enum class PlayerCommandType {
     Rest,
     ThrowKnife,
     ThrowDart,
+    ThrowHolyWater,
     Cast,
     Turn,
     Help,

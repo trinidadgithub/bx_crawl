@@ -758,6 +758,41 @@ TEST_CASE("range penalty applies at distance 2+") {
     CHECK(g.hero.knives == 2);
 }
 
+TEST_CASE("holy water damages undead when thrown") {
+    Game g = make_minimal_game(10, 10);
+    g.hero = make_hero(1, 1, 20, 4, 10);
+    g.hero.holy_water = 1;
+    g.hero.gear_counts[4] = 1; // holy-water
+
+    SUBCASE("undead take 1d8 damage") {
+        g.monsters.push_back(make_monster("Skeleton", EntityType::Skeleton,
+                                          2, 1, 1, 12, 0, 4, 12));
+        apply_player_command(g, {PlayerCommandType::ThrowHolyWater, 1, 0, 0});
+        CHECK_FALSE(g.monsters[0].alive);
+        CHECK(g.hero.holy_water == 0);
+        CHECK(g.hero.gear_counts[4] == 0);
+    }
+
+    SUBCASE("non-undead are unaffected") {
+        g.monsters.push_back(make_monster("Goblin", EntityType::Goblin,
+                                          2, 1, 5, 12, 0, 4, 12));
+        apply_player_command(g, {PlayerCommandType::ThrowHolyWater, 1, 0, 0});
+        CHECK(g.monsters[0].alive);
+        CHECK(g.monsters[0].hp == 5);
+        CHECK(g.hero.holy_water == 0);
+        CHECK(g.hero.gear_counts[4] == 0);
+    }
+
+    SUBCASE("requires holy water") {
+        g.hero.holy_water = 0;
+        g.hero.gear_counts[4] = 0;
+        g.monsters.push_back(make_monster("Skeleton", EntityType::Skeleton,
+                                          2, 1, 1, 12, 0, 4, 12));
+        apply_player_command(g, {PlayerCommandType::ThrowHolyWater, 1, 0, 0});
+        CHECK(g.monsters[0].alive);
+    }
+}
+
 // ── Spell tests ──────────────────────────────────────────
 
 TEST_CASE("Magic Missile spell") {

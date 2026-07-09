@@ -1870,6 +1870,49 @@ static bool is_undead(const Entity& e) {
     return e.type == EntityType::Skeleton || e.type == EntityType::Zombie;
 }
 
+static bool throw_holy_water(Game& g, int dx, int dy) {
+    if (dx == 0 && dy == 0) {
+        log_event(g, "Throw holy water needs a direction!");
+        return false;
+    }
+    if (g.hero.holy_water <= 0 || !consume_gear(g.hero, "holy-water")) {
+        log_event(g, "No holy water left!");
+        return false;
+    }
+    g.hero.holy_water--;
+    sound_throw();
+
+    int dist = 1;
+    int nx = g.hero.pos.x + dx;
+    int ny = g.hero.pos.y + dy;
+    while (in_bounds(g, nx, ny) && dist <= 4) {
+        if (is_blocked(g, nx, ny)) break;
+        if (Entity* target = monster_at(g, nx, ny)) {
+            if (!is_undead(*target)) {
+                log_event(g, "The holy water splashes harmlessly.");
+                return true;
+            }
+            int dmg = roll_d(g, 8);
+            target->hp -= dmg;
+            log_event(g, "Holy water burns " + target->name + " for "
+                        + std::to_string(dmg) + " damage!");
+            if (target->hp <= 0) {
+                target->hp = 0;
+                target->alive = false;
+                log_event(g, target->name + " is destroyed!");
+                award_treasure(g, *target);
+                check_level_up(g);
+            }
+            return true;
+        }
+        nx += dx;
+        ny += dy;
+        ++dist;
+    }
+    log_event(g, "The holy water flask shatters in the darkness.");
+    return true;
+}
+
 // Look up spell level from bx_data.hpp by name. Returns 0 if not found.
 static int spell_level_by_name(const std::string& name) {
     for (const auto& s : bx::spells) {
@@ -2739,6 +2782,11 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
         }
         case PlayerCommandType::ThrowDart: {
             ranged_attack(g, g.hero, cmd.dx, cmd.dy, 3, "dart", g.hero.darts);
+            tick_wander_counter(g);
+            return true;
+        }
+        case PlayerCommandType::ThrowHolyWater: {
+            throw_holy_water(g, cmd.dx, cmd.dy);
             tick_wander_counter(g);
             return true;
         }

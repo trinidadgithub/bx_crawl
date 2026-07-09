@@ -99,6 +99,7 @@ static PlayerCommand read_player_command(const Game& g) {
                 "r  Rest (heal 1d3/level)\r\n"
                 "k  Throw knife (direction)\r\n"
                 "f  Throw dart  (direction)\r\n"
+                "v  Throw holy water (direction)\r\n"
                 "g  Get items from the ground\r\n"
                 "i  Hide in shadows (Thief)\r\n"
                 "l  Search (find traps, hear noise)\r\n"
@@ -151,13 +152,13 @@ static PlayerCommand read_player_command(const Game& g) {
         }
 
         // Throw weapon: read a second key for direction
-        if (c == 'k' || c == 'f') {
+        if (c == 'k' || c == 'f' || c == 'v') {
             int dx = 0, dy = 0;
             if (!read_direction(dx, dy))
                 return PlayerCommand{PlayerCommandType::Wait, 0, 0};
-            auto cmd_type = (c == 'k')
-                ? PlayerCommandType::ThrowKnife
-                : PlayerCommandType::ThrowDart;
+            auto cmd_type = PlayerCommandType::ThrowHolyWater;
+            if (c == 'k') cmd_type = PlayerCommandType::ThrowKnife;
+            else if (c == 'f') cmd_type = PlayerCommandType::ThrowDart;
             return PlayerCommand{cmd_type, dx, dy, 0};
         }
 
