@@ -35,6 +35,7 @@ struct Tile {
     TileType type = TileType::Floor;
     bool held{false};   // magically held (Hold Portal)
     bool locked{false}; // locked (non-magical, can be picked by Thief)
+    bool spiked{false}; // held open/closed by iron spikes
     bool has_trap{false};
     bool trap_visible{false}; // revealed by Search
     TrapType trap_type{TrapType::None};

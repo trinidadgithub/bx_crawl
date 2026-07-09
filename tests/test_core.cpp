@@ -1027,6 +1027,50 @@ TEST_CASE("Hold Portal spell") {
     }
 }
 
+TEST_CASE("Iron spikes and hammer can spike doors") {
+    Game g = make_minimal_game(10, 10);
+    g.hero = make_hero(1, 1, 0, 4, 10);
+
+    SUBCASE("spike closed door shut") {
+        auto& door = g.map[index_for(g, 2, 1)];
+        door.type = TileType::DoorClosed;
+        g.hero.gear_counts[2] = 1; // hammer
+        g.hero.gear_counts[5] = 1; // iron-spikes
+
+        apply_player_command(g, {PlayerCommandType::Use, 0, 0});
+        CHECK(door.spiked);
+        CHECK(g.hero.gear_counts[5] == 0);
+
+        apply_player_command(g, {PlayerCommandType::Open, 0, 0});
+        CHECK(door.type == TileType::DoorClosed);
+    }
+
+    SUBCASE("spike open door open") {
+        auto& door = g.map[index_for(g, 2, 1)];
+        door.type = TileType::DoorOpen;
+        g.hero.gear_counts[2] = 1; // hammer
+        g.hero.gear_counts[5] = 1; // iron-spikes
+
+        apply_player_command(g, {PlayerCommandType::Use, 0, 0});
+        CHECK(door.spiked);
+
+        apply_player_command(g, {PlayerCommandType::Close, 0, 0});
+        CHECK(door.type == TileType::DoorOpen);
+    }
+
+    SUBCASE("spiking requires hammer and spikes") {
+        auto& door = g.map[index_for(g, 2, 1)];
+        door.type = TileType::DoorClosed;
+
+        apply_player_command(g, {PlayerCommandType::Use, 0, 0});
+        CHECK_FALSE(door.spiked);
+
+        g.hero.gear_counts[2] = 1; // hammer only
+        apply_player_command(g, {PlayerCommandType::Use, 0, 0});
+        CHECK_FALSE(door.spiked);
+    }
+}
+
 TEST_CASE("Protection from Evil spell") {
     Game g = make_minimal_game();
     g.hero = make_hero(1, 1, 0, 1, 10);

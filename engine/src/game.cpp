@@ -2620,6 +2620,11 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 int ny = g.hero.pos.y + dirs[i * 2 + 1];
                 if (!in_bounds(g, nx, ny)) continue;
                 auto& tile = g.map[index_for(g, nx, ny)];
+                if (tile.type == TileType::DoorClosed && tile.spiked) {
+                    log_event(g, "The door is spiked shut.");
+                    opened = true;
+                    break;
+                }
                 if (tile.type == TileType::DoorClosed && tile.held) {
                     log_event(g, "The door is magically held — it won't budge!");
                     opened = true;
@@ -2674,6 +2679,11 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 int ny = g.hero.pos.y + dirs[i * 2 + 1];
                 if (!in_bounds(g, nx, ny)) continue;
                 auto& tile = g.map[index_for(g, nx, ny)];
+                if (tile.type == TileType::DoorOpen && tile.spiked) {
+                    log_event(g, "The door is spiked open.");
+                    closed = true;
+                    break;
+                }
                 if (tile.type == TileType::DoorOpen) {
                     tile.type = TileType::DoorClosed;
                     sound_door_close();
@@ -2794,6 +2804,36 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
         case PlayerCommandType::Use: {
             auto& tile = g.map[index_for(g, g.hero.pos.x, g.hero.pos.y)];
             if (tile.items.empty()) {
+                static const int dirs[] = {-1, 0, 1, 0, 0, -1, 0, 1};
+                for (int i = 0; i < 4; ++i) {
+                    int nx = g.hero.pos.x + dirs[i * 2];
+                    int ny = g.hero.pos.y + dirs[i * 2 + 1];
+                    if (!in_bounds(g, nx, ny)) continue;
+                    auto& door = g.map[index_for(g, nx, ny)];
+                    if (door.type != TileType::DoorClosed && door.type != TileType::DoorOpen)
+                        continue;
+                    if (door.spiked) {
+                        log_event(g, "That door is already spiked.");
+                        tick_wander_counter(g);
+                        return true;
+                    }
+                    if (!has_gear(g.hero, "hammer")) {
+                        log_event(g, "You need a hammer to set iron spikes.");
+                        tick_wander_counter(g);
+                        return true;
+                    }
+                    if (!consume_gear(g.hero, "iron-spikes")) {
+                        log_event(g, "You need iron spikes to spike a door.");
+                        tick_wander_counter(g);
+                        return true;
+                    }
+                    door.spiked = true;
+                    log_event(g, door.type == TileType::DoorClosed
+                        ? "You spike the door shut."
+                        : "You spike the door open.");
+                    tick_wander_counter(g);
+                    return true;
+                }
                 if (has_gear(g.hero, "lantern")) {
                     if (g.hero.lantern_turns > 0) {
                         log_event(g, "Your lantern is already lit.");
