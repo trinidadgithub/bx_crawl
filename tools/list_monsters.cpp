@@ -87,7 +87,7 @@ void usage(const char* argv0) {
               << "Lists B/X monsters for focused BX_TEST_MONSTER playtesting.\n"
               << "Indexes are 1-based and can be passed to BX_TEST_MONSTER.\n"
               << "\n"
-              << "  --level N  show monsters around character/dungeon level N\n"
+              << "  --level N  show only monsters at exact challenge level N\n"
               << "  --safe     hide monsters with severe special attack flags\n"
               << "  --all      show all valid monsters\n";
 }
@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
         int challenge_level = challenge_level_for(monster);
         auto flags = flags_for(monster);
         if (safe_only && !flags.empty()) continue;
-        if (!show_all && challenge_level > level + 1) continue;
+        if (!show_all && challenge_level != level) continue;
 
         std::cout << std::right << std::setw(3) << (i + 1) << "  "
                   << std::setw(3) << challenge_level << "  "

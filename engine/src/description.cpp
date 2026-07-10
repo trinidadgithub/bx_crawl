@@ -24,6 +24,20 @@ bool DescriptionStore::load_from_file(const std::string& path) {
         return false;
     }
 
+    std::string current_key;
+    std::string current_val;
+    bool in_value = false;
+
+    auto flush = [&]() {
+        if (!current_key.empty()) {
+            trim_in_place(current_val);
+            map_[current_key] = current_val;
+        }
+        current_key.clear();
+        current_val.clear();
+        in_value = false;
+    };
+
     std::string line;
     while (std::getline(in, line)) {
         // Strip comments
@@ -32,26 +46,43 @@ bool DescriptionStore::load_from_file(const std::string& path) {
             line.erase(hash_pos);
         }
 
-        // Trim
-        trim_in_place(line);
-        if (line.empty()) continue;
-
-        auto eq_pos = line.find('=');
-        if (eq_pos == std::string::npos) {
-            // Malformed line; skip for now
+        // Trim leading/trailing whitespace for key detection
+        std::string trimmed = line;
+        trim_in_place(trimmed);
+        if (trimmed.empty()) {
+            flush();
             continue;
         }
 
-        std::string key = line.substr(0, eq_pos);
-        std::string val = line.substr(eq_pos + 1);
-
-        trim_in_place(key);
-        trim_in_place(val);
-
-        if (!key.empty()) {
-            map_[key] = val;
+        auto eq_pos = line.find('=');
+        if (eq_pos != std::string::npos) {
+            // Check if text before '=' looks like a key (alphanumeric, hyphens, underscores)
+            std::string before_eq = line.substr(0, eq_pos);
+            trim_in_place(before_eq);
+            bool looks_like_key = !before_eq.empty()
+                && std::isalpha(static_cast<unsigned char>(before_eq.front()))
+                && std::all_of(before_eq.begin(), before_eq.end(), [](char c) {
+                    return std::isalnum(static_cast<unsigned char>(c))
+                        || c == '-' || c == '_';
+                });
+            if (looks_like_key) {
+                // New key=value line
+                flush();
+                current_key = before_eq;
+                current_val = line.substr(eq_pos + 1);
+                in_value = true;
+            } else if (in_value) {
+                // Continuation line with '=' in the value text
+                if (!current_val.empty()) current_val += ' ';
+                current_val += trimmed;
+            }
+        } else if (in_value) {
+            // Continuation line — append to current value
+            if (!current_val.empty()) current_val += ' ';
+            current_val += trimmed;
         }
     }
+    flush();
 
     return true;
 }
@@ -62,5 +93,44 @@ std::string DescriptionStore::get(const std::string& id) const {
         return it->second;
     }
     return std::string{"(No description for '" + id + "')"};
+}
+
+bool DescriptionStore::has(const std::string& id) const {
+    return map_.find(id) != map_.end();
+}
+
+std::string monster_name_to_key(const std::string& name) {
+    std::string key;
+    for (std::size_t i = 0; i < name.size(); ++i) {
+        char c = name[i];
+        if (c == ',') {
+            key += '-';
+            continue;
+        }
+        if (std::isspace(static_cast<unsigned char>(c))) {
+            if (!key.empty() && key.back() != '-')
+                key += '-';
+            continue;
+        }
+        if (c == '\'' || c == '(' || c == ')' || c == '"') {
+            continue;
+        }
+        key += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    // Remove trailing dash
+    while (!key.empty() && key.back() == '-')
+        key.pop_back();
+    return key;
+}
+
+std::string monster_description(const DescriptionStore& store, const std::string& name) {
+    // Try normalized key first: "Dragon, Red" -> "dragon-red"
+    auto key = monster_name_to_key(name);
+    if (store.has(key))
+        return store.get(key);
+    // Fall back to raw name
+    if (store.has(name))
+        return store.get(name);
+    return std::string{"(No description for " + name + ")"};
 }
 

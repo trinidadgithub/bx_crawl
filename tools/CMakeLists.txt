@@ -29,3 +29,35 @@ target_link_libraries(list_monsters PRIVATE
 set_target_properties(list_monsters PROPERTIES
     CXX_EXTENSIONS OFF
 )
+
+add_executable(show_monster
+    show_monster.cpp
+)
+
+target_include_directories(show_monster PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(show_monster PRIVATE
+    bx_engine
+)
+
+set_target_properties(show_monster PROPERTIES
+    CXX_EXTENSIONS OFF
+)
+
+add_executable(edit_monster
+    edit_monster.cpp
+)
+
+target_include_directories(edit_monster PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(edit_monster PRIVATE
+    bx_engine
+)
+
+set_target_properties(edit_monster PROPERTIES
+    CXX_EXTENSIONS OFF
+)

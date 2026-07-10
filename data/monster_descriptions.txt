@@ -1,0 +1,566 @@
+# Monster descriptions for B/X Crawl
+# Key format: monster_name_to_key() normalizes "Dragon, Red" -> "dragon-red"
+# Multi-line values supported (continuation lines have no '=' sign)
+
+acolyte = Acolytes are 1st level NPC clerics on a pilgrimage to or from a
+holy (or unholy) shrine, or perhaps merely seeking adventure. All of the clerics in the party will be of the
+same alignment, but the entire party has an equal chance to be Lawful,
+Neutral, or Chaotic. The acolytes do not know any spells. If there are 4 or
+more encountered they will be led by either a 2nd, 3rd, 4th, or 5th level
+cleric (roll 1d10: 1-4 = 2nd level leader, 5-7 = 3rd level, 8-9 = 4th
+level, 10 = 5th level). The DM may choose any clerical spells for the
+leader, or they may be rolled at random.
+
+ape-white = White apes have lost their color due to many years of living in
+caves. They are nocturnal, sleeping in the day and looking for fruits and
+vegetables at night. If creatures approach their lair, the apes will
+threaten them. If their threats are ignored, they will attack. They may
+throw one stone per round for 1d6 damage. White apes are not intelligent
+and sometimes are kept as pets by Neanderthals.
+
+bandit = Bandits are NPC thieves who have joined together to rob others.
+They will act as normal humans in order to surprise their intended victims.
+Treasure Type A is only found when bandits are encountered in their
+wilderness lair. Bandits may have an NPC leader of any class, of a higher
+experience level than the bandits.
+
+bat-giant = Giant bats are carnivorous (meat-eaters) and may attack a
+party if extremely hungry. More dangerous still are giant vampire bats:
+5% of all giant bat encounters are vampire bats. Their bite does no
+extra damage but the victim must save vs. Paralysis or fall unconscious
+for 1-10 rounds, allowing the bat to drain blood (1-4 hp/round). Any
+victim who dies from blood loss must save vs. Spells or become undead
+24 hours later.
+
+bat-normal = Normal bats will not attack men but may confuse them by
+flying around their heads. At least ten bats are needed to confuse one
+character. Confused characters suffer -2 on attack rolls and saving
+throws and cannot cast spells. Normal bats must check morale each
+round unless controlled or summoned.
+
+bear-black = Bears are well known to all adventurers. If a bear (of any
+type) hits with both paws on the same victim in one round of combat, the
+bear has hugged its victim and will cause 2-16 (2d8) additional points of
+damage in the same round as the attack. Black bears have black fur and
+stand about 6' tall. They are omnivorous, but prefer roots and berries. A
+black bear will not usually attack unless cornered and unable to escape.
+Adult black bears fight to the death to protect their young. They have been
+known to raid camps seeking food, especially fresh fish and sweets.
+
+bear-cave = Bears are well known to all adventurers. If a bear (of any
+type) hits with both paws on the same victim in one round of combat, the
+bear has hugged its victim and will cause 2-16 (2d8) additional points of
+damage in the same round as the attack. Cave bears are a type of giant
+grizzly bear that live in caves and lost world areas. They stand about 15'
+tall and are the most ferocious of all bears. Though omnivorous, they
+prefer meat and enjoy human flesh. Cave bears have bad eyesight but a good
+sense of smell. If hungry, they will follow a trail of blood until they have
+eaten.
+
+bear-grizzly = Bears are well known to all adventurers. If a bear (of any
+type) hits with both paws on the same victim in one round of combat, the
+bear has hugged its victim and will cause 2-16 (2d8) additional points of
+damage in the same round as the attack. Grizzly bears have silver-tipped
+brown or reddish brown fur and stand about 9' tall. They are fond of meat
+and are much more likely to attack than black bears. Grizzlies are found in
+most climates, but are most common in mountains and forests.
+
+bear-polar = Bears are well known to all adventurers. If a bear (of any
+type) hits with both paws on the same victim in one round of combat, the
+bear has hugged its victim and will cause 2-16 (2d8) additional points of
+damage in the same round as the attack. Polar bears have white fur and
+stand about 11' tall. They live in cold regions and usually eat fish, but
+are as likely to attack as grizzly bears. These huge bears are good
+swimmers, and their wide feet allow them to run across snow without
+sinking.
+
+beetle-fire = Fire beetles are 2 1/2' long creatures often found below
+ground. They are nocturnal, but may be active underground at any time.
+A fire beetle has two glowing glands above its eyes and one near the back
+of its abdomen. These glands give off light in a 10' radius and continue to
+glow for 1-6 days after they are removed.
+
+beetle-giant = Giant beetles are large, armoured insects with powerful
+mandibles.
+
+beetle-oil = Oil beetles are 3' long giant beetles that sometimes burrow
+underground. When attacked, they squirt an oily fluid at one attacker. If
+the oil hits, it raises painful blisters, causing a penalty on attack rolls
+until cure light wounds is used or 24 hours pass. Oil beetles can also
+attack with their mandibles.
+
+beetle-tiger = Tiger beetles are 4' long giant beetles with striped
+carapaces that look like tiger skin. They are carnivorous and usually prey
+on robber flies, but have been known to attack and eat humans, crushing
+them with powerful mandibles.
+
+berserker = Berserkers are fighters who go mad in battle. Once battle
+starts they always fight to the death, sometimes attacking their own
+comrades in blind rage. When fighting humans or human-like creatures
+they add +2 to their attack rolls due to ferocity. They never retreat,
+surrender, or take prisoners.
+
+boar = Wild boars generally prefer forested areas but can be found nearly
+everywhere. They are omnivorous and have extremely nasty tempers when
+disturbed.
+
+bugbear = Bugbears are giant hairy goblins. Despite their size and
+awkward walk, they move very quietly and attack without warning
+whenever they can. They surprise opponents easily. When using
+weapons, they add +1 to all damage rolls due to their strength.
+
+carrion-crawler = Carrion crawlers resemble 10' long slugs with 8 tentacles
+around their mouths. Each tentacle attack causes paralysis (save vs.
+Paralysis or be paralysed for 2d6 turns). They dwell in caverns and
+dungeons, feeding on carrion.
+
+cat-great = The Great Cats are normally cautious and avoid fights unless
+forced by extreme hunger or trapped with no escape. Though they may be
+relaxed or playful, they are subject to sudden violent changes of temper.
+They sometimes develop a taste for one prey, even humans or human-like
+creatures. They rarely go deep into caves, are very inquisitive, and always
+chase fleeing prey.
+
+cat-mountain-lion = Mountain lions are tawny-furred Great Cats that live
+mostly in mountainous regions but also inhabit forests and deserts. They
+will wander farther into dungeons than any other species of Great Cat.
+
+cat-wild = Wild cats are small feral cats that hunt in groups. They are
+quick and agile.
+
+cave-locust = Cave locusts are 2-3' long, stone gray giant grasshoppers
+that live underground. Their color may make them look like stone statues
+until closely approached. They are herbivorous and eat fungus such as
+yellow mold and shriekers, and are not harmed by yellow mold or most
+poisons. They are very nervous and usually flee, jumping up to 60'; their
+poor sense of direction may send them into a party. When frightened they
+shriek, possibly attracting wandering monsters. If cornered, they spit a
+foul brown goo that can make victims helpless from the smell.
+
+centipede-giant = Giant centipedes are insects with 1' long bodies and
+many legs. They like damp, dark places. Their bite does no damage, but the
+victim must save vs. Poison or become violently ill for 10 days. Characters
+who fail move at half speed and cannot perform other physical actions.
+
+doppleganger = These man-sized, shape-changing creatures are
+intelligent and evil. A doppleganger can shape itself into the form
+of any human-like creature (up to 7' tall) it sees. Its favorite trick
+is to kill the original person and take their place, attacking the
+party by surprise. Sleep and charm spells do not affect them and
+they save as high-level fighters due to their magical nature. When
+killed, a doppleganger reverts to its original form.
+
+dragon-black = Dragons are a very old race of huge winged lizards. They
+are hatched from eggs, eat meat, love treasure, have Breath Weapons, and
+will do everything possible to save their own lives, including surrender.
+Black dragons are found in swamps and marshes and breathe acid in a line.
+
+dragon-blue = Dragons are a very old race of huge winged lizards. They
+are proud, treasure-loving meat eaters with Breath Weapons, and even the
+hungriest dragon may pause to listen to flattery. Blue dragons are found in
+deserts and plains and breathe lightning in a line.
+
+dragon-gold = Gold dragons always talk and use spells. They can change
+shape and often appear as a human or animal. They may breathe either fire
+in a cone or chlorine gas in a cloud, though still only three Breath Weapon
+uses per day. Lawful dragons may help a truly worthy party.
+
+dragon-green = Dragons are a very old race of huge winged lizards. They
+are hatched from eggs, eat meat, love treasure, have Breath Weapons, and
+will do everything possible to save their own lives, including surrender.
+Green dragons are found in jungles and forests and breathe chlorine gas in
+a cloud.
+
+dragon-red = Dragons are a very old race of huge winged lizards. They are
+proud, treasure-loving meat eaters with Breath Weapons, and even the
+hungriest dragon may pause to listen to flattery. Red dragons are found in
+mountains and hills and breathe fire in a cone.
+
+dragon-white = Dragons are a very old race of huge winged lizards. They
+are hatched from eggs, eat meat, love treasure, have Breath Weapons, and
+will do everything possible to save their own lives, including surrender.
+White dragons are found in cold regions and breathe cold in a cone.
+
+driver-ant = Driver ants are giant black ants about 6' long. They are
+omnivorous and, when hungry, devour anything edible in their path. Once
+engaged in combat they fight to the death, even trying to cross flames to
+reach opponents. The nest-lair is always guarded, and legends say driver
+ants mine gold; some lairs contain gold nuggets.
+
+dwarf = Dwarves may appear as NPC clan groups, war bands, or mining
+expeditions. For every 20 dwarves there will be a leader of higher level
+who may have magical items. As long as their leader is fighting with them
+and alive, dwarven morale is higher. Dwarves hate goblins and usually
+attack them on sight.
+
+elf = Elves are slender, graceful demihumans. They can fight as
+fighters and cast spells as magic-users. They have infravision 60'
+and are resistant to paralysis. They are Neutral.
+
+ferret-giant = Giant ferrets look like 3' long weasels. They hunt giant rats
+underground and are sometimes trained for this purpose. Unfortunately,
+their tempers are highly unpredictable, and they have been known to attack
+their trainers and other humans.
+
+gargoyle = Gargoyles are grotesque, winged stone monsters that
+appear to be statues when motionless. They attack with two claws,
+a bite, and a horn. They are not affected by sleep or charm spells.
+Only magical weapons can hit them.
+
+gelatinous-cube = Gelatinous cubes are 10' cubes of transparent
+jelly that wander dungeons, absorbing organic matter. They are
+almost invisible, surprising opponents easily. Their touch causes
+paralysis (save vs. Paralysis, lasting 2-8 turns unless removed by
+cure light wounds). They may be harmed by fire and weapons
+but not by cold or lightning.
+
+ghoul = Ghouls are hideous, beast-like undead humans who attack
+anything living. Any successful hit by a ghoul will paralyze any
+creature of ogre-size or smaller (except elves) unless the victim
+saves vs. Paralysis. Paralysis lasts 2-8 turns unless removed by a
+cure light wounds spell. Ghouls are immune to sleep and charm.
+
+giant-ferret = see Ferret, Giant
+
+gnoll = Gnolls are beings of low intelligence that appear to be human-like
+hyenas. They may use any weapons. They are strong, but dislike work and
+prefer to bully and steal for a living. For every 20 gnolls encountered,
+one is a stronger leader. Gnolls are rumored to be the result of a magical
+combination of a gnome and a troll by an evil magic-user.
+
+gnome = Gnomes are a human-like race related to dwarves. They are smaller
+than dwarves and have long noses and full beards. They have infravision to
+90' and usually live in lowland burrows. Gnomes are excellent metalsmiths
+and miners, love gold and gems, and are fond of machinery. They like most
+dwarves but war with goblins and kobolds, usually attacking kobolds on
+sight. Gnome groups and lairs have leaders whose presence raises morale.
+
+goblin = Goblins are a small, incredibly ugly human-like race. Their
+skin is a pale earthy color, such as chalky tan or livid gray. Their
+eyes are red and glow in the dark like rat's eyes. Goblins live
+underground and have well-developed infravision to 90'. In full
+daylight they suffer a penalty on attack rolls. Goblins hate dwarves
+and will attack them on sight. There is a chance that some goblins
+will be riding dire wolves.
+
+green-slime = Green slime looks like green, oozing slime. It can
+only be harmed by fire or cold. It dissolves wood and metal (in 6
+rounds) but cannot dissolve stone. It clings to walls and ceilings
+and drops on surprised characters. Once on flesh it sticks and
+turns the flesh into more green slime. It cannot be scraped off
+but must be burnt off or treated with cure disease.
+
+halfling = Halflings can appear as NPCs. They live in small villages of
+30-300 inhabitants. Each village has a leader and a village guard of militia.
+Treasure type B is only found if halflings are encountered in the
+wilderness.
+
+hobgoblin = Hobgoblins are bigger and meaner relatives of goblins.
+They live underground but often hunt above ground and have no
+penalties in full daylight. A hobgoblin king and bodyguards live
+in the lair; morale is higher while the king is alive.
+
+killer-bee = Killer bees are 1' long giant bees with a vicious temper. They
+almost always attack on sight and automatically attack anyone within 30'
+of their underground hive. When a killer bee stings, it dies, but the
+victim must save vs. Poison or die. The stinger continues working into the
+victim, doing automatic damage each round unless removed. A special honey
+in the hive acts as a half-strength potion of healing.
+
+kobold = Kobolds are small, evil dog-like men who live underground.
+They have scaly rust-brown skin and no hair. They have well-developed
+infravision to 90' and prefer to attack by ambush. A kobold chieftain
+and bodyguards live in the lair; morale is higher while the chieftain
+is alive. Kobolds hate gnomes and will attack them on sight.
+
+lizard-gecko = Giant geckos are 3-4' long lizards found in warm
+climates and dungeons. They are harmless unless provoked. They can
+climb walls and ceilings.
+
+lizard-giant-gecko = Giant geckos are large climbing lizards
+commonly found in dungeons.
+
+medium = Mediums are NPC 1st level magic-users. There is a 50% chance
+that mediums will be accompanied by their master, a 3rd level magic-user.
+Each medium has one 1st level spell chosen by the DM or determined
+randomly; the master has two 1st level spells and one 2nd level spell.
+
+normal-human = A normal human is a human who does not seek dangerous
+adventure and does not have a class. Normal humans have 1 to 4 hit points,
+depending on age, health, and profession. Examples include peasants,
+children, beggars, villagers, townspeople, slaves, fishermen, scholars, and
+workers.
+
+orc = Orcs are ugly human-like creatures who look like a combination of
+animal and man. They are nocturnal and prefer to live underground. In
+daylight they suffer a penalty on attack rolls. They have bad tempers,
+dislike other living things, and often kill for amusement. Orc leaders gain
+their positions by defeating others; if a leader is killed, morale drops. Orc
+tribes may include ogres, and different tribes are not usually friendly.
+
+pixie = Pixies are small (1-2' tall) human-like creatures with
+insect-like wings, distantly related to elves. They are invisible
+unless they want to be seen. Unlike the invisibility spell, pixies
+can attack and remain invisible, and always gain surprise when
+doing so. Their wings can only support them for 3 turns before
+they must rest.
+
+rat-giant = Giant rats are 3' long or more and have gray or black fur. They
+are often found in dark dungeon corners and in areas where undead monsters
+lurk. Rats eat almost anything and some carry disease; anyone bitten has a
+chance of infection, which may kill in 1-6 days or leave the victim sick in
+bed for a month. Rats usually avoid humans unless summoned or defending
+their lair, are good swimmers, and fear fire.
+
+rock-baboon = Rock baboons are larger versions of normal baboons and are
+more intelligent. They eat anything but prefer meat. They do not make tools
+or weapons but will pick up bones or branches to use as clubs. Rock baboons
+form packs led by a dominant male, are ferocious and vicious-tempered, and
+communicate warnings and needs with simple screams.
+
+shadow = Shadows are incorporeal ghost-like intelligent creatures.
+They look like real shadows and can alter their shape slightly.
+They are hard to see and surprise on a 1-5 on 1d6. They can only
+be hit by magical weapons. If a shadow scores a hit, it drains 1
+point of Strength in addition to doing damage, lasting for 8 turns. Any
+creature reduced to 0 Strength becomes a shadow. Shadows are not undead
+and cannot be Turned by clerics. They are not affected by sleep or charm
+spells.
+
+skeleton = Skeletons are animated undead creatures often found
+near graveyards, dungeons, or other deserted places. They are used
+as guards by the high level magic-user or cleric who animated
+them. They are not affected by sleep or charm spells, nor any form
+of mind reading. Skeletons will always fight until killed.
+
+snake-cobra = A spitting cobra is a 3' long grayish-white snake that can
+squirt venom up to 6 feet, aiming for the victim's eyes. A hit requires a
+save vs. Poison or the victim is blinded. Like most small poisonous snakes,
+it will not attack human-sized or larger opponents unless startled or
+threatened. It can either spit or bite in one round, but usually spits.
+
+snake-pit-viper = A pit viper is a 5' long greenish-gray poisonous snake
+with small pits in its head. These pits act as heat sensors with a range of
+60'. The combination of pits and infravision makes it very hard to fight a
+pit viper; it is so quick that it always gains initiative. Any victim bitten
+must save vs. Poison or die.
+
+spider-crab = Crab spiders are 5' long giant spiders. They are meat-eaters
+and attack by clinging to walls or ceilings and dropping onto victims. They
+have chameleon-like powers and can change color to blend into their
+surroundings, surprising on a 1-4 on 1d6. After the first attack they can
+be seen normally. Their poison is weak, giving victims a bonus on the save.
+
+spider-giant = Giant spiders are 8-10' long spiders that dwell in
+dark places. Their bite requires a save vs. Poison or paralysis sets
+in for 1d4 turns. They spin webs to trap prey.
+
+spider-phase = Phase spiders are 6' long magical spiders that can
+phase between dimensions. They can appear and disappear at will,
+making them extremely dangerous. Their bite requires a save vs.
+Poison or the victim dies.
+
+sprite = Sprites are small winged people about 1 foot tall, related
+to pixies and elves. While shy, they are very curious and have a
+strange sense of humor. Five sprites acting together can cast one
+curse spell as a magical practical joke. Sprites will never cause
+death on purpose. They carry tiny weapons tipped with sleep
+poison, can detect alignment, and become invisible at will.
+
+stirge = A stirge is a birdlike creature with a long nose, looking
+rather like a very small feathered anteater. When a stirge attacks,
+it tries to thrust its beak into the victim's body to suck out blood.
+A successful hit means it has attached itself; it will automatically
+suck blood each round until either it or its victim is dead. A flying
+stirge gains a bonus on its first attack roll due to its speed.
+
+troglodyte = Troglodytes are intelligent human-like reptiles with
+a short tail, long legs, and a spiny comb on their head and arms.
+They hate most other creatures and try to kill anyone they meet.
+They have a chameleon-like ability to change color and hide by
+rock walls. They secrete an oily stench that nauseates humans and
+demi-humans unless they save vs. Poison, causing a penalty on
+attack rolls while in combat with troglodytes.
+
+wight = A wight is an undead spirit living in the body of a dead human or
+demi-human. It can only be hit by silvered or magical weapons. Wights are
+greatly feared because they drain life energy when striking a victim. Each
+hit drains one level of experience or hit die; anyone totally drained by a
+wight becomes a wight in 1-4 days under the control of the wight who
+drained them.
+
+wolf = Wolves are meat-eaters and hunt in packs. Though they prefer the
+wilderness, they are occasionally found in caves. Captured wolf cubs can be
+trained like dogs if the DM permits, but this is difficult. Small groups or
+packs reduced below half their original number have lower morale.
+
+wraith = Wraiths are incorporeal undead that drain life energy.
+They cannot be hit by normal weapons. Their touch drains one level
+of experience. They are immune to sleep, charm, and poison.
+
+zombie = Zombies are undead humans or demi-humans animated by some evil
+cleric or magic-user. As undead, they may be Turned by a cleric but are not
+affected by sleep or charm spells or any form of mind reading. They are
+often placed to guard treasures, since they make no noise until they attack.
+Zombies always attack on sight, can be destroyed by normal weapons, and are
+slow fighters that always strike last.
+
+giant-shrew = Giant shrews look like brown-furred rats with long snouts.
+They can burrow, climb, or jump up to 5'. They are insectivores that hunt
+insects, their main food. Their eyes are so weak they are almost blind, and
+they use high squeaks and echoes like bats to see underground. A silence
+15' radius spell blinds and confuses them. They defend chosen hunting
+territories ferociously, always gain initiative on the first attack, and may
+frighten weaker creatures into fleeing.
+
+giant-tick = Giant ticks are 2-3' long blood-sucking parasites
+that carry debilitating diseases. They attach to victims and
+drain blood. Anyone bitten must save vs. Poison or contract a
+wasting disease. They can be removed with fire or torn off.
+
+gray-ooze = This seeping horror looks like wet stone and is difficult to
+see. It secretes acid that damages bare skin and can dissolve and destroy
+magic armor in one turn. After the first hit, the ooze sticks to its victim,
+automatically destroying normal armor and continuing to burn flesh. Gray
+ooze cannot be harmed by cold or fire, but can be harmed by weapons and
+lightning.
+
+harpy = A harpy has the lower body of a giant eagle and the upper
+body and head of a hideous-looking woman. By their singing,
+harpies lure creatures to them to be killed and devoured. Any
+creature hearing the song must save vs. Spells or be charmed.
+Harpies are resistant to magic and have a bonus on all saves.
+
+living-statue-crystal = A living statue is an enchanted animated creature
+made by a powerful wizard. It appears to be a perfectly normal statue until
+it moves. Living statues may be of any size or material and are not
+affected by sleep spells. Living crystal statues are life forms made of
+crystals instead of flesh; they can look like statues of anything, but often
+appear human.
+
+living-statue-jade = Jade living statues are magical constructs
+immune to sleep and charm. Their touch petrifies (save or die).
+
+living-statue-steel = Steel living statues are enchanted
+guardians immune to sleep and charm. Only magical weapons can
+hit them.
+
+lizard-giant-horned = Giant horned lizards are 8-10' long
+armoured reptiles. They attack with a horn and bite.
+
+lizard-horned = Horned lizards are 4-5' armoured reptiles with
+a horn and bite.
+
+lycanthrope-werebear = Werebears are very intelligent lycanthropes
+that shift between human, bear, and hybrid forms. They usually
+prefer to live alone or with bears but may be friendly if peacefully
+approached. In combat, if both paws hit the same target, they may
+hug for additional damage. They may summon bears. Only silver
+or magical weapons can hit them.
+
+lycanthrope-wereboar = Wereboars are semi-intelligent lycanthropes
+with bad tempers. In human form they often act as berserkers,
+gaining a bonus to attack and fighting to the death. They summon
+normal boars to help in battle. Only silver or magical weapons can
+hit them.
+
+lycanthrope-wererat = Wererats are intelligent lycanthropes of
+urban areas that can speak Common in either form. They prefer
+a man-sized rat form. They are sneaky and often set ambushes,
+surprising opponents easily. They summon giant rats to aid them.
+Only silver or magical weapons can hit them.
+
+lycanthrope-weretiger = Weretigers are lycanthropes related to
+Great Cats. They are curious but dangerous when threatened.
+They are good swimmers and quiet trackers, surprising opponents
+easily. They may summon Great Cats. Only silver or magical
+weapons can hit them.
+
+lycanthrope-werewolf = Werewolves are lycanthropes that are
+semi-intelligent and usually hunt in packs. Any group of 5 or
+more has a leader. They summon normal wolves to form large
+packs. Only silver or magical weapons can hit them.
+
+medusa = A medusa looks like a human female with live snakes growing from
+her head instead of hair. The sight of a medusa turns a creature to stone
+unless the victim saves vs. Turn to Stone. Her snake bite is poisonous. A
+medusa often wears a hooded robe as a disguise. A medusa can be viewed
+safely in a mirror, but if she sees her own reflection she may petrify
+herself. Attacking without looking is difficult, and a medusa has a bonus
+on saves vs. Spells due to her magical nature.
+
+minotaur = Minotaurs are semi-intelligent bull-headed humanoids
+that eat humans. They will always attack anything its size or
+smaller and pursue as long as prey is in sight. Minotaurs gain +2
+to damage with weapons due to strength. They usually live in
+tunnels or mazes and never get lost.
+
+mule = A mule is a crossbreed between a horse and a donkey. Mules are
+stubborn, and if bothered or excited they may either bite or kick. If the DM
+permits it, mules can be taken into dungeons. A mule can carry a normal
+load of 2000 coins, or 4000 coins at most with reduced movement. Mules
+cannot be trained to attack but will fight in self-defense.
+
+mummy = Mummies are rotting, linen-wrapped undead that guard ancient
+tombs and temples. Their touch causes a rotting disease (save vs.
+Disease) that prevents all magical healing; only a cure disease
+spell can remove it. They are immune to normal weapons and take
+half damage from magical weapons. Fire deals double damage.
+
+noble = Noble is a general term for the lord of a castle and any relatives.
+In the Basic rules, a noble is always a 3rd level fighter, though the DM may
+choose any class and level. A noble always has a squire and may be
+accompanied by retainers or hirelings, usually 1st level fighters.
+
+ochre-jelly = An ochre jelly is an ochre-colored giant amoeba. It
+can only be harmed by fire or cold. Attacks with weapons or
+lightning make it split into many smaller jellies. It destroys wood,
+leather, and cloth in 1 round but cannot eat through metal or
+stone. It can seep through small cracks.
+
+ogre = Ogres are huge fearsome human-like creatures, usually 8 to
+10 feet tall. They wear animal skins for clothes and often live in
+caves. When encountered outside their lair they will be carrying
+gold. Ogres hate Neanderthals and will attack them on sight.
+
+owl-bear = An owl bear is a huge bear-like creature with the head of a
+giant owl. It stands 8' tall and weighs 1500 pounds. Owl bears have nasty
+tempers and are usually hungry, preferring meat. If both paws hit the same
+opponent in one round, the owl bear hugs for extra damage. They are common
+underground and in dense forests.
+
+rust-monster = A rust monster has a body like a giant armadillo
+with a long tail and two long front feelers. If a character hits one,
+or if it hits with its antennae, any metal armour or weapons
+touching it instantly rust and become unusable. Magical items
+lose one plus each time they are struck.
+
+shrieker = Shriekers look like giant mushrooms. They live in underground
+caverns and move slowly. They react to light within 60' and movement within
+30' by emitting a piercing shriek for 1-3 rounds. Each round of shrieking
+has a chance to attract a wandering monster, which arrives later.
+
+spider-tarantella = A tarantella is a huge hairy magical spider that looks
+like a 7' long tarantula. Its bite does not kill; a failed save vs. Poison
+causes painful spasms resembling a frantic dance. Anyone watching must save
+vs. Spells or dance too. Dancing victims suffer attack penalties, attackers
+gain bonuses against them, and exhausted dancers become helpless.
+
+thoul = A thoul is a magical combination of a ghoul, a hobgoblin, and a
+troll. Except when very close, thouls look exactly like hobgoblins and are
+sometimes part of a hobgoblin king's bodyguard. Their touch paralyses like
+a ghoul's, and while alive they regenerate damage each round.
+
+trader = Traders are first level fighters who make their living trading
+goods. They are similar to merchants but much braver and better fighters.
+They usually carry swords and hand axes, wear furs treated as leather
+armor, and carry shields. In the wilderness they lead pack mules carrying
+trade goods such as spices, furs, or carved decorative items.
+
+veteran = Veterans are low-level fighters, usually returning from or going
+to war. Each veteran's level and alignment may be determined as for an NPC
+party. A party of veterans may have mixed levels and alignments, or all
+members may share the same level.
+
+shrew-giant = see Giant Shrew
+tick-giant = see Giant Tick
