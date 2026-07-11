@@ -61,3 +61,19 @@ target_link_libraries(edit_monster PRIVATE
 set_target_properties(edit_monster PROPERTIES
     CXX_EXTENSIONS OFF
 )
+
+add_executable(show_treasure_table
+    show_treasure_table.cpp
+)
+
+target_include_directories(show_treasure_table PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(show_treasure_table PRIVATE
+    bx_project_options
+)
+
+set_target_properties(show_treasure_table PROPERTIES
+    CXX_EXTENSIONS OFF
+)

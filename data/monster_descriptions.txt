@@ -94,11 +94,13 @@ carapaces that look like tiger skin. They are carnivorous and usually prey
 on robber flies, but have been known to attack and eat humans, crushing
 them with powerful mandibles.
 
-berserker = Berserkers are fighters who go mad in battle. Once battle
-starts they always fight to the death, sometimes attacking their own
-comrades in blind rage. When fighting humans or human-like creatures
-they add +2 to their attack rolls due to ferocity. They never retreat,
-surrender, or take prisoners.
+berserker = Berserkers are simply fighters who go mad in battle. Their
+reactions are determined normally, but once a battle starts they will always
+fight to the death — sometimes attacking their comrades in their blind rage.
+When fighting humans or human-like creatures, such as kobolds, goblins or
+orcs, they add +2 to their "to hit" rolls due to this ferocity. They never
+retreat, surrender, or take prisoners. Treasure Type B is only found in the
+wilderness.
 
 boar = Wild boars generally prefer forested areas but can be found nearly
 everywhere. They are omnivorous and have extremely nasty tempers when
@@ -109,10 +111,14 @@ awkward walk, they move very quietly and attack without warning
 whenever they can. They surprise opponents easily. When using
 weapons, they add +1 to all damage rolls due to their strength.
 
-carrion-crawler = Carrion crawlers resemble 10' long slugs with 8 tentacles
-around their mouths. Each tentacle attack causes paralysis (save vs.
-Paralysis or be paralysed for 2d6 turns). They dwell in caverns and
-dungeons, feeding on carrion.
+carrion-crawler = This scavenger is worm-shaped, 9' long and 3' high with
+many legs. It can move equally well on a floor, wall, or ceiling like a
+spider. Its mouth is surrounded by 8 tentacles, each 2' long, which can
+paralyze on a successful hit unless a saving throw vs. Paralysis is made.
+Once paralyzed, a victim will be eaten (unless the carrion crawler is being
+attacked). The paralysis can be removed by a cure light wounds spell, but
+any spell so used will have no other effect. Without a spell, the paralysis
+will wear off in 2-8 turns.
 
 cat-great = The Great Cats are normally cautious and avoid fights unless
 forced by extreme hunger or trapped with no escape. Though they may be
@@ -121,21 +127,83 @@ They sometimes develop a taste for one prey, even humans or human-like
 creatures. They rarely go deep into caves, are very inquisitive, and always
 chase fleeing prey.
 
-cat-mountain-lion = Mountain lions are tawny-furred Great Cats that live
+cat-mountain-lion = The Great Cats are normally cautious and avoid fights
+unless forced by extreme hunger or trapped with no escape. Though they may
+be relaxed or playful, they are subject to sudden violent changes of temper.
+They sometimes develop a taste for one prey, even humans or human-like
+creatures. They rarely go deep into caves, are very inquisitive, and always
+chase fleeing prey. Mountain lions are tawny-furred Great Cats that live
 mostly in mountainous regions but also inhabit forests and deserts. They
 will wander farther into dungeons than any other species of Great Cat.
 
-cat-wild = Wild cats are small feral cats that hunt in groups. They are
-quick and agile.
+cat-panther = The Great Cats are normally cautious and avoid fights unless
+forced by extreme hunger or trapped with no escape. Though they may be
+relaxed or playful, they are subject to sudden violent changes of temper.
+They sometimes develop a taste for one prey, even humans or human-like
+creatures. They rarely go deep into caves, are very inquisitive, and always
+chase fleeing prey. Panthers are found on plains, forests, and open
+shrublands. They are extremely quick and can outrun most prey over short
+distances.
 
-cave-locust = Cave locusts are 2-3' long, stone gray giant grasshoppers
-that live underground. Their color may make them look like stone statues
-until closely approached. They are herbivorous and eat fungus such as
-yellow mold and shriekers, and are not harmed by yellow mold or most
-poisons. They are very nervous and usually flee, jumping up to 60'; their
-poor sense of direction may send them into a party. When frightened they
-shriek, possibly attracting wandering monsters. If cornered, they spit a
-foul brown goo that can make victims helpless from the smell.
+cat-lion = The Great Cats are normally cautious and avoid fights unless
+forced by extreme hunger or trapped with no escape. Though they may be
+relaxed or playful, they are subject to sudden violent changes of temper.
+They sometimes develop a taste for one prey, even humans or human-like
+creatures. They rarely go deep into caves, are very inquisitive, and always
+chase fleeing prey. Lions generally live in warm climates, and thrive in
+savannah and brush lands near deserts. They usually hunt in groups known
+as prides.
+
+cat-tiger = The Great Cats are normally cautious and avoid fights unless
+forced by extreme hunger or trapped with no escape. Though they may be
+relaxed or playful, they are subject to sudden violent changes of temper.
+They sometimes develop a taste for one prey, even humans or human-like
+creatures. They rarely go deep into caves, are very inquisitive, and always
+chase fleeing prey. Tigers are the largest of the commonly found Great
+Cats. They prefer cooler climates and wooded lands where their striped
+bodies offer camouflage when hunting. They surprise prey on a 1-4 on 1d6
+when in woods.
+
+cat-sabre-tooth-tiger = The Great Cats are normally cautious and avoid
+fights unless forced by extreme hunger or trapped with no escape. Though
+they may be relaxed or playful, they are subject to sudden violent changes
+of temper. They sometimes develop a taste for one prey, even humans or
+human-like creatures. They rarely go deep into caves, are very inquisitive,
+and always chase fleeing prey. Sabre-tooth tigers are the largest and most
+ferocious of the Great Cats. They have oversized fangs, from which they
+get their name. Fortunately, sabre-tooth tigers are mostly extinct, except
+in lost world areas.
+
+cat-wild = Wild cats are stealthy forest predators that stalk prey before
+springing from concealment. They prefer rabbits, deer, and other small
+game, but hungry specimens may attack lone travelers. They avoid large
+groups whenever possible. This category includes medium-sized cats such as
+bobcats, lynxes, ocelots, caracals, servals, jungle cats, fishing cats,
+leopard cats, margays, pampas cats, Pallas's cats, African wildcats,
+European wildcats, and sand cats. A wild cat gains a +2 bonus to surprise
+rolls when hiding in woods, brush, or rocky terrain.
+
+cave-locust = Cave locusts are 2-3' long, stone gray, giant grasshoppers
+that live underground. Because of their color they may not be noticed or
+may be mistaken for a statue until closely approached. They are herbivorous
+(eating plants) and also eat fungus such as yellow mold and shriekers.
+Because of this they cannot be harmed by yellow mold. They are also not
+harmed by most poisons. They are very nervous and will flee most of the
+time rather than fight. They flee by jumping up to 60' away. Unfortunately
+their sense of direction is not too good, and they frequently accidentally
+jump into a party. If they jump towards the party (50% chance) a character
+is determined randomly and a "to hit" roll is made. If the locust hits a
+character, that character takes 1-4 points of damage from being battered by
+the insect. The locust will then fly away. When frightened or attacked cave
+locusts make a loud shrieking noise to warn their fellows. This shriek has
+a 20% chance per round of attracting wandering monsters to investigate. If
+cornered, a cave locust will spit a brown gooey substance up to 10'. To hit
+a character the locust needs to make an attack against Armor Class 9. A
+character hit by cave locust spittle must save vs. Poison or be unable to
+do anything for 1 turn due to the awful smell. After this time he or she
+will be used to the smell, but any character approaching within 5' of him or
+her must also save or be violently ill. This effect will last until the
+spittle is washed off.
 
 centipede-giant = Giant centipedes are insects with 1' long bodies and
 many legs. They like damp, dark places. Their bite does no damage, but the

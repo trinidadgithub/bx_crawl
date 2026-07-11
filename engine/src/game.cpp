@@ -466,7 +466,7 @@ static int choose_monster_index(Game& g, int dungeon_level) {
 
     // Collect candidate indices
     std::vector<int> candidates;
-    for (int i = 0; i < 101; ++i) {
+    for (std::size_t i = 0; i < bx::monsters.size(); ++i) {
         const auto& m = bx::monsters[i];
         // Skip NPC parties and duplicate entries
         if (std::string_view(m.name).find("NPC Party") != std::string_view::npos) continue;
@@ -492,13 +492,13 @@ static int choose_monster_index(Game& g, int dungeon_level) {
         }
 
         if (hd >= lo && hd <= hi) {
-            candidates.push_back(i);
+            candidates.push_back(static_cast<int>(i));
         }
     }
 
     if (candidates.empty()) {
         // Fallback: any monster
-        return roll_d(g, 101) - 1;
+        return roll_d(g, static_cast<int>(bx::monsters.size())) - 1;
     }
 
     return candidates[roll_d(g, static_cast<int>(candidates.size())) - 1];
@@ -694,10 +694,110 @@ static bool make_save(Game& g, CharacterClass cc, int category) {
     return roll >= target;
 }
 
+struct BearAttackProfile {
+    int claw_die{};
+    int bite_die{};
+};
+
+static bool bear_attack_profile(std::string_view name, BearAttackProfile& profile) {
+    if (name.rfind("Bear,", 0) != 0) return false;
+
+    if (name.find("Black") != std::string_view::npos) {
+        profile = {3, 6};
+    } else if (name.find("Cave") != std::string_view::npos) {
+        profile = {8, 12};
+    } else if (name.find("Grizzly") != std::string_view::npos) {
+        profile = {4, 8};
+    } else if (name.find("Polar") != std::string_view::npos) {
+        profile = {6, 10};
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+static bool resolve_bear_attack(Game& g, Entity& attacker, Entity& defender,
+                                int bonus_to_hit) {
+    BearAttackProfile profile{};
+    if (attacker.type == EntityType::Hero || defender.type != EntityType::Hero
+        || !bear_attack_profile(attacker.name, profile)) {
+        return false;
+    }
+
+    int target = defender.ac;
+    if (defender.shield_turns > 0)         target += 4;
+    if (defender.protection_turns > 0)     target += 1;
+    if (defender.resist_cold_turns > 0)    target += 1;
+
+    bool claw_hits[2] = {false, false};
+
+    auto resolve_one = [&](const char* attack_name, int damage_die, int claw_index) {
+        if (!attacker.alive || !defender.alive) return;
+
+        int roll = roll_d(g, 20);
+        int total = roll + attacker.attack_bonus + bonus_to_hit;
+        {
+            std::ostringstream oss;
+            oss << attacker.name << " " << attack_name << " attacks " << defender.name
+                << " (d20 = " << roll << ", total " << total
+                << " vs AC " << target << ")";
+            log_event(g, oss.str());
+        }
+
+        if (total < target) {
+            log_event(g, "Miss!");
+            return;
+        }
+
+        int dmg = std::max(1, roll_d(g, damage_die));
+        defender.hp -= dmg;
+        if (claw_index >= 0) claw_hits[claw_index] = true;
+
+        {
+            std::ostringstream oss;
+            oss << "Hit! " << defender.name << " takes " << dmg << " damage.";
+            log_event(g, oss.str());
+        }
+
+        if (defender.hp <= 0) {
+            defender.hp = 0;
+            defender.alive = false;
+            sound_player_death();
+            log_event(g, defender.name + " is slain!");
+        }
+    };
+
+    resolve_one("claw", profile.claw_die, 0);
+    resolve_one("claw", profile.claw_die, 1);
+    resolve_one("bite", profile.bite_die, -1);
+
+    if (defender.alive && claw_hits[0] && claw_hits[1]) {
+        int hug_dmg = roll_d(g, 8) + roll_d(g, 8);
+        defender.hp -= hug_dmg;
+        {
+            std::ostringstream oss;
+            oss << attacker.name << " hugs " << defender.name
+                << " for " << hug_dmg << " additional damage!";
+            log_event(g, oss.str());
+        }
+        if (defender.hp <= 0) {
+            defender.hp = 0;
+            defender.alive = false;
+            sound_player_death();
+            log_event(g, defender.name + " is slain!");
+        }
+    }
+
+    return true;
+}
+
 // Core attack implementation with optional morale triggering
 void attack_internal(Game& g, Entity& attacker, Entity& defender,
                      int bonus_to_hit, bool trigger_morale) {
     if (!attacker.alive || !defender.alive) return;
+
+    if (resolve_bear_attack(g, attacker, defender, bonus_to_hit)) return;
 
     int roll   = roll_d(g, 20);
     int extra_atk = bonus_to_hit;

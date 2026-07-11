@@ -57,26 +57,24 @@ int challenge_level_for(const bx::Monster& monster) {
 }
 
 int compute_xp_value(const char* hit_dice) {
-    int hd = 1;
-    std::string s(hit_dice);
-    auto star = s.find('*');
-    if (star != std::string::npos) s.erase(star);
-    auto paren = s.find('(');
-    if (paren != std::string::npos) s.erase(paren);
-    auto plus = s.find('+');
-    if (plus == std::string::npos) plus = s.find('-');
-    if (plus != std::string::npos) {
-        hd = std::atoi(s.c_str());
-    } else if (s.find("point") != std::string::npos) {
-        hd = 0;
-    } else if (s.find("1/2") != std::string::npos) {
-        hd = 0;
-    } else {
-        hd = std::atoi(s.c_str());
+    auto hd = parse_hit_dice(hit_dice);
+    if (hd.fractional || hd.hd <= 0) return 5;
+
+    const int tier = hd.bonus > 0 ? hd.hd + 1 : hd.hd;
+    switch (tier) {
+    case 1: return 10;
+    case 2: return 20;
+    case 3: return 35;
+    case 4: return 75;
+    case 5: return 175;
+    case 6: return 275;
+    case 7: return 450;
+    case 8: return 650;
+    case 9: return 900;
+    case 10: return 900;
+    case 11: return 1100;
+    default: return 1100 + (tier - 11) * 250;
     }
-    if (hd <= 0) return 5;
-    if (hd == 1) return 10;
-    return 10 + (hd - 1) * 75;
 }
 
 // Average HP for a B/X monster: uses d8 per HD
@@ -89,7 +87,8 @@ int average_hp(const char* hit_dice) {
 }
 
 void show_stat_block(const bx::Monster& monster, int index,
-                     const DescriptionStore& desc) {
+                     const DescriptionStore& desc,
+                     const DescriptionStore& sources) {
     auto hd = parse_hit_dice(monster.hit_dice);
 
     // Title
@@ -114,7 +113,7 @@ void show_stat_block(const bx::Monster& monster, int index,
         if (hd.fractional)
             hp << "1-4 hp";
         else
-            hp << "avg " << average_hp(monster.hit_dice) << " hp";
+            hp << average_hp(monster.hit_dice) << " hp (average)";
         print_field("HP:", hp.str().c_str());
     }
 
@@ -169,6 +168,12 @@ void show_stat_block(const bx::Monster& monster, int index,
         std::cout << "  Special:      " << flags << "\n";
     }
 
+    std::string source = monster_description(sources, monster.name);
+    if (source.find("No description") == std::string::npos) {
+        std::cout << "\nSource:\n"
+                  << "  " << source << "\n";
+    }
+
     // Description
     std::string desc_text = monster_description(desc, monster.name);
     if (desc_text.find("No description") == std::string::npos) {
@@ -220,12 +225,17 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Load monster descriptions
+    // Load monster descriptions and source references
     DescriptionStore desc;
+    DescriptionStore sources;
     std::filesystem::path data_dir = std::filesystem::path{"data"};
     auto desc_path = data_dir / "monster_descriptions.txt";
     if (std::filesystem::exists(desc_path)) {
         desc.load_from_file(desc_path.string());
+    }
+    auto source_path = data_dir / "monster_sources.txt";
+    if (std::filesystem::exists(source_path)) {
+        sources.load_from_file(source_path.string());
     }
 
     std::string query(argv[1]);
@@ -248,7 +258,7 @@ int main(int argc, char** argv) {
             std::cerr << "No valid monster at index " << (idx + 1) << ".\n";
             return 1;
         }
-        show_stat_block(m, idx, desc);
+        show_stat_block(m, idx, desc, sources);
         return 0;
     }
 
@@ -277,6 +287,6 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    show_stat_block(bx::monsters[static_cast<std::size_t>(matches_found[0])], matches_found[0], desc);
+    show_stat_block(bx::monsters[static_cast<std::size_t>(matches_found[0])], matches_found[0], desc, sources);
     return 0;
 }

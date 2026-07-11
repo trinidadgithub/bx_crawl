@@ -115,4 +115,6 @@ The text frontend enables procedural sound effects when available through
 /tmp/bx_crawl_debug.log
 ```
 
-See [Monsters.md](Monsters.md) for creature types and [Scrolls.md](Scrolls.md) for scroll spells.
+See [ROADMAP.md](ROADMAP.md) for current development priorities,
+[Monsters.md](Monsters.md) for legacy creature notes, and [Scrolls.md](Scrolls.md)
+for scroll spells.

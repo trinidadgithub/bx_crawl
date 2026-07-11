@@ -621,6 +621,70 @@ TEST_CASE("Monster AI: approach, attack, blocking") {
     }
 }
 
+TEST_CASE("Bear hug special attack") {
+    SUBCASE("no claw hits means no hug damage") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/1,
+                           /*ac=*/100);
+        g.monsters.push_back(
+            make_monster("Bear, Black", EntityType::Monster,
+                         2, 1, 18, 6, 0, 3, 7));
+
+        monsters_turn(g);
+
+        CHECK(g.hero.hp == 20);
+        bool saw_hug = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("hugs") != std::string::npos) saw_hug = true;
+        }
+        CHECK_FALSE(saw_hug);
+    }
+
+    SUBCASE("one claw hit does not trigger hug") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/1,
+                           /*ac=*/15);
+        g.monsters.push_back(
+            make_monster("Bear, Black", EntityType::Monster,
+                         2, 1, 18, 6, 0, 3, 7));
+
+        monsters_turn(g);
+
+        // Seed 12345: first claw d20=19 hits for 3 damage; second claw d20=7 misses;
+        // bite d20=4 misses. No hug.
+        CHECK(g.hero.hp == 17);
+        bool saw_hug = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("hugs") != std::string::npos) saw_hug = true;
+        }
+        CHECK_FALSE(saw_hug);
+    }
+
+    SUBCASE("two claw hits trigger 2d8 hug damage") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.monsters.push_back(
+            make_monster("Bear, Black", EntityType::Monster,
+                         2, 1, 18, 6, 100, 3, 7));
+
+        monsters_turn(g);
+
+        // Seed 12345: claw damages 3 and 1, bite damage 1, hug damage 2+7.
+        CHECK(g.hero.hp == 6);
+        bool saw_hug = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("hugs Hero for 9 additional damage") != std::string::npos) {
+                saw_hug = true;
+            }
+        }
+        CHECK(saw_hug);
+    }
+}
+
 // ── Test 4: Movement + entity blocking ──────────────────
 
 TEST_CASE("Movement and entity blocking") {
