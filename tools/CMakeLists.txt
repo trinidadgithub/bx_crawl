@@ -93,3 +93,19 @@ target_link_libraries(sim_surprise PRIVATE
 set_target_properties(sim_surprise PROPERTIES
     CXX_EXTENSIONS OFF
 )
+
+add_executable(show_map_features
+    show_map_features.cpp
+)
+
+target_include_directories(show_map_features PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(show_map_features PRIVATE
+    bx_engine
+)
+
+set_target_properties(show_map_features PROPERTIES
+    CXX_EXTENSIONS OFF
+)

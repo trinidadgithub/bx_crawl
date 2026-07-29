@@ -20,6 +20,7 @@ bool is_blocked(const Game& g, int x, int y) {
     const Tile& t = g.map[index_for(g, x, y)];
     if (t.type == TileType::Wall) return true;
     if (t.type == TileType::DoorClosed) return true;
+    if (t.type == TileType::SecretDoorClosed) return true;
     return false;
 }
 
@@ -232,6 +233,17 @@ std::vector<Room> init_map(Game& g) {
     for (auto& t : g.map) {
         if (t.type == TileType::DoorClosed && rand_range(g, 0, 9) < 3) {
             t.locked = true;
+        }
+    }
+
+    // Secret doors are normal door positions hidden as wall until searched for.
+    for (auto& t : g.map) {
+        if (t.type == TileType::DoorClosed && rand_range(g, 0, 5) == 0) {
+            t.type = TileType::SecretDoorClosed;
+            t.locked = false;
+            t.held = false;
+            t.spiked = false;
+            t.secret_revealed = false;
         }
     }
 
