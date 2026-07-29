@@ -67,6 +67,12 @@ Simulate default B/X surprise odds without launching the game:
 ./build/tools/sim_surprise Goblin --trials 1000 --seed 12345
 ```
 
+Inspect generated dungeon features, including secret doors:
+
+```bash
+./build/tools/show_map_features --seed 2 --draw
+```
+
 ## Controls
 - `w`, `a`, `s`, `d` — cardinal movement
 - `q`, `e`, `z`, `c` — diagonal movement
