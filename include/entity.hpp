@@ -126,4 +126,6 @@ struct Entity {
     // Monster AI state
     int ai_patrol_x{}, ai_patrol_y{};
     int ai_wander_timer{};
+    bool surprise_checked{false};
+    bool surprised{false};
 };

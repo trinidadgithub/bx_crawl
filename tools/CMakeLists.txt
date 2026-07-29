@@ -77,3 +77,19 @@ target_link_libraries(show_treasure_table PRIVATE
 set_target_properties(show_treasure_table PROPERTIES
     CXX_EXTENSIONS OFF
 )
+
+add_executable(sim_surprise
+    sim_surprise.cpp
+)
+
+target_include_directories(sim_surprise PRIVATE
+    ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(sim_surprise PRIVATE
+    bx_engine
+)
+
+set_target_properties(sim_surprise PROPERTIES
+    CXX_EXTENSIONS OFF
+)

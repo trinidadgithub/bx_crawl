@@ -218,6 +218,47 @@ TEST_CASE("Initiative: 1d6 per side, re-roll ties") {
     }
 }
 
+// ── Surprise tests ───────────────────────────────────────
+
+static unsigned find_surprise_seed(bool hero_surprised, bool monster_surprised) {
+    for (unsigned seed = 1; seed < 10000; ++seed) {
+        Game g = make_minimal_game();
+        g.rng.seed(seed);
+        SurpriseResult result = roll_surprise(g);
+        if (result.hero_surprised == hero_surprised
+            && result.monsters_surprised == monster_surprised) {
+            return seed;
+        }
+    }
+    return 1;
+}
+
+TEST_CASE("Surprise: B/X 1-2 on 1d6 per side") {
+    SUBCASE("exact rolls determine hero surprise") {
+        SurpriseResult result = resolve_surprise(/*hero_roll=*/1, /*monster_roll=*/3);
+        CHECK(result.hero_surprised);
+        CHECK_FALSE(result.monsters_surprised);
+    }
+
+    SUBCASE("exact rolls determine monster surprise") {
+        SurpriseResult result = resolve_surprise(/*hero_roll=*/4, /*monster_roll=*/2);
+        CHECK_FALSE(result.hero_surprised);
+        CHECK(result.monsters_surprised);
+    }
+
+    SUBCASE("both sides can be surprised") {
+        SurpriseResult result = resolve_surprise(/*hero_roll=*/2, /*monster_roll=*/1);
+        CHECK(result.hero_surprised);
+        CHECK(result.monsters_surprised);
+    }
+
+    SUBCASE("neither side is surprised") {
+        SurpriseResult result = resolve_surprise(/*hero_roll=*/3, /*monster_roll=*/6);
+        CHECK_FALSE(result.hero_surprised);
+        CHECK_FALSE(result.monsters_surprised);
+    }
+}
+
 // ── Test helpers ─────────────────────────────────────────
 
 static Entity make_hero(int x, int y, int atk_bonus, int dmg_die, int ac) {
@@ -255,7 +296,89 @@ static Entity make_monster(const std::string& name, EntityType type,
     e.morale           = morale;
     e.fleeing          = false;
     e.attacks_per_turn = 1;
+    e.surprise_checked = true;
     return e;
+}
+
+TEST_CASE("Surprise lifecycle: first contact only") {
+    SUBCASE("hero surprised loses the bump-attack action") {
+        Game g = make_minimal_game();
+        g.rng.seed(find_surprise_seed(/*hero_surprised=*/true,
+                                      /*monster_surprised=*/false));
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.monsters.push_back(make_monster("Goblin", EntityType::Monster,
+                                          2, 1, 5, 6, 0, 6, 7));
+        g.monsters[0].surprise_checked = false;
+
+        PlayerCommand cmd;
+        cmd.type = PlayerCommandType::Move;
+        cmd.dx = 1;
+        apply_player_command(g, cmd);
+
+        CHECK(g.monsters[0].hp == 5);
+        CHECK(g.monsters[0].surprise_checked);
+        bool saw_surprise = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("catches you off guard") != std::string::npos) saw_surprise = true;
+        }
+        CHECK(saw_surprise);
+    }
+
+    SUBCASE("monster surprised loses its first adjacent monster action") {
+        Game g = make_minimal_game();
+        g.rng.seed(find_surprise_seed(/*hero_surprised=*/false,
+                                      /*monster_surprised=*/true));
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.monsters.push_back(make_monster("Goblin", EntityType::Monster,
+                                          2, 1, 5, 6, 0, 6, 7));
+        g.monsters[0].surprise_checked = false;
+
+        PlayerCommand cmd;
+        cmd.type = PlayerCommandType::Move;
+        cmd.dx = 1;
+        apply_player_command(g, cmd);
+        CHECK(g.monsters[0].hp == 4);
+        CHECK(g.monsters[0].surprised);
+
+        monsters_turn(g);
+
+        CHECK(g.hero.hp == 20);
+        CHECK_FALSE(g.monsters[0].surprised);
+        bool saw_lost_moment = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("loses a moment") != std::string::npos) saw_lost_moment = true;
+        }
+        CHECK(saw_lost_moment);
+    }
+
+    SUBCASE("surprise is not rolled again after first contact") {
+        Game g = make_minimal_game();
+        g.rng.seed(find_surprise_seed(/*hero_surprised=*/true,
+                                      /*monster_surprised=*/false));
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.monsters.push_back(make_monster("Goblin", EntityType::Monster,
+                                          2, 1, 5, 6, 0, 6, 7));
+        g.monsters[0].surprise_checked = false;
+
+        PlayerCommand cmd;
+        cmd.type = PlayerCommandType::Move;
+        cmd.dx = 1;
+        apply_player_command(g, cmd);
+        apply_player_command(g, cmd);
+
+        CHECK(g.monsters[0].hp < 5);
+        int surprise_logs = 0;
+        for (const auto& e : g.event_log) {
+            if (e.find("catches you off guard") != std::string::npos) ++surprise_logs;
+        }
+        CHECK(surprise_logs == 1);
+    }
 }
 
 // ── Developer monster launch override tests ──────────────
