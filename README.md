@@ -81,7 +81,7 @@ Simulate default B/X surprise odds without launching the game:
 - `m` — cast spell
 - `t` + direction — turn undead as Cleric
 - `i` — hide in shadows as Thief
-- `l` — search / hear noise
+- `l` — search for traps/secret doors / hear noise
 - `h` — help
 - `x` — quit
 

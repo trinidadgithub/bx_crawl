@@ -268,14 +268,23 @@ bool is_occupied(const Game& g, int x, int y, const Entity* ignore = nullptr) {
 static bool is_carved(const Game& g, int x, int y) {
     if (!in_bounds(g, x, y)) return false;
     auto t = g.map[index_for(g, x, y)].type;
-    return t == TileType::Floor || t == TileType::DoorClosed || t == TileType::DoorOpen
+    return t == TileType::Floor || t == TileType::DoorClosed
+        || t == TileType::SecretDoorClosed || t == TileType::DoorOpen
         || t == TileType::StairsDown || t == TileType::StairsUp;
+}
+
+static bool is_hidden_secret_door(const Tile& t) {
+    return t.type == TileType::SecretDoorClosed && !t.secret_revealed;
+}
+
+static bool is_wall_like(const Tile& t) {
+    return t.type == TileType::Wall || is_hidden_secret_door(t);
 }
 
 // A wall tile orthogonally adjacent to a carved tile
 static bool is_border_wall(const Game& g, int x, int y) {
     if (!in_bounds(g, x, y)) return false;
-    if (g.map[index_for(g, x, y)].type != TileType::Wall) return false;
+    if (!is_wall_like(g.map[index_for(g, x, y)])) return false;
     return is_carved(g, x, y - 1) || is_carved(g, x, y + 1)
         || is_carved(g, x - 1, y) || is_carved(g, x + 1, y);
 }
@@ -283,7 +292,7 @@ static bool is_border_wall(const Game& g, int x, int y) {
 // A wall tile diagonally adjacent to a carved tile
 static bool has_diagonal_carved(const Game& g, int x, int y) {
     if (!in_bounds(g, x, y)) return false;
-    if (g.map[index_for(g, x, y)].type != TileType::Wall) return false;
+    if (!is_wall_like(g.map[index_for(g, x, y)])) return false;
     return is_carved(g, x - 1, y - 1) || is_carved(g, x + 1, y - 1)
         || is_carved(g, x - 1, y + 1) || is_carved(g, x + 1, y + 1);
 }
@@ -294,7 +303,7 @@ static bool has_diagonal_carved(const Game& g, int x, int y) {
 // This limits display to a single layer around carved areas.
 static bool is_visible_wall(const Game& g, int x, int y) {
     if (!in_bounds(g, x, y)) return false;
-    if (g.map[index_for(g, x, y)].type != TileType::Wall) return false;
+    if (!is_wall_like(g.map[index_for(g, x, y)])) return false;
     if (is_border_wall(g, x, y)) return true;
     if (!has_diagonal_carved(g, x, y)) return false;
     return is_border_wall(g, x - 1, y) || is_border_wall(g, x + 1, y)
@@ -1957,7 +1966,7 @@ void render(const Game& g) {
             if (!t.visible)
                 std::cout << "\x1B[90m";
 
-            if (t.type == TileType::Wall) {
+            if (t.type == TileType::Wall || is_hidden_secret_door(t)) {
                 if (is_visible_wall(g, x, y))
                     std::cout << wall_glyph(g, x, y);
                 else
@@ -1965,6 +1974,7 @@ void render(const Game& g) {
             } else {
                 char ch = '.';
                 if (t.type == TileType::DoorClosed) ch = '+';
+                else if (t.type == TileType::SecretDoorClosed) ch = '+';
                 else if (t.type == TileType::DoorOpen) ch = '/';
                 else if (t.type == TileType::StairsDown) ch = '>';
                 else if (t.type == TileType::StairsUp) ch = '<';
@@ -3066,17 +3076,19 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 int ny = g.hero.pos.y + dirs[i * 2 + 1];
                 if (!in_bounds(g, nx, ny)) continue;
                 auto& tile = g.map[index_for(g, nx, ny)];
-                if (tile.type == TileType::DoorClosed && tile.spiked) {
+                bool closed_door = tile.type == TileType::DoorClosed
+                    || (tile.type == TileType::SecretDoorClosed && tile.secret_revealed);
+                if (closed_door && tile.spiked) {
                     log_event(g, "The door is spiked shut.");
                     opened = true;
                     break;
                 }
-                if (tile.type == TileType::DoorClosed && tile.held) {
+                if (closed_door && tile.held) {
                     log_event(g, "The door is magically held — it won't budge!");
                     opened = true;
                     break;
                 }
-                if (tile.type == TileType::DoorClosed && tile.locked) {
+                if (closed_door && tile.locked) {
                     if (g.hero.char_class == CharacterClass::Thief) {
                         if (!has_gear(g.hero, "thieves-tools")) {
                             log_event(g, "You need thieves' tools to pick locks.");
@@ -3113,7 +3125,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                         }
                     }
                 }
-                if (tile.type == TileType::DoorClosed) {
+                if (closed_door) {
                     tile.type = TileType::DoorOpen;
                     sound_door_open();
                     opened = true;
@@ -3444,6 +3456,31 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                             }
                         }
                     }
+                }
+            }
+
+            // Search for adjacent secret doors. B/X baseline is 1-in-6;
+            // elves get 1-2 on 1d6. Thieves use their find traps skill.
+            for (int i = 0; i < 4; ++i) {
+                int nx = g.hero.pos.x + dirs[i * 2];
+                int ny = g.hero.pos.y + dirs[i * 2 + 1];
+                if (!in_bounds(g, nx, ny)) continue;
+                auto& tile = g.map[index_for(g, nx, ny)];
+                if (tile.type != TileType::SecretDoorClosed || tile.secret_revealed) continue;
+
+                bool found = false;
+                if (g.hero.char_class == CharacterClass::Thief) {
+                    found = (roll_d(g, 100) <= g.hero.skill_find_traps);
+                } else if (g.hero.char_class == CharacterClass::Elf) {
+                    found = (roll_d(g, 6) <= 2);
+                } else {
+                    found = (roll_d(g, 6) == 1);
+                }
+
+                if (found) {
+                    tile.secret_revealed = true;
+                    found_anything = true;
+                    log_event(g, "You find a secret door!");
                 }
             }
 

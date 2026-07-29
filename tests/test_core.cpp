@@ -300,6 +300,88 @@ static Entity make_monster(const std::string& name, EntityType type,
     return e;
 }
 
+static unsigned find_d6_seed(int wanted_roll) {
+    for (unsigned seed = 1; seed < 10000; ++seed) {
+        Game g = make_minimal_game();
+        g.rng.seed(seed);
+        if (roll_d(g, 6) == wanted_roll) return seed;
+    }
+    return 1;
+}
+
+TEST_CASE("Secret doors: search, reveal, and open") {
+    SUBCASE("an unrevealed secret door blocks movement and opening") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        auto& tile = g.map[index_for(g, 2, 1)];
+        tile.type = TileType::SecretDoorClosed;
+
+        PlayerCommand move;
+        move.type = PlayerCommandType::Move;
+        move.dx = 1;
+        apply_player_command(g, move);
+
+        CHECK(g.hero.pos.x == 1);
+        CHECK(g.hero.pos.y == 1);
+        CHECK(is_blocked(g, 2, 1));
+
+        PlayerCommand open;
+        open.type = PlayerCommandType::Open;
+        apply_player_command(g, open);
+
+        CHECK(tile.type == TileType::SecretDoorClosed);
+        CHECK_FALSE(tile.secret_revealed);
+    }
+
+    SUBCASE("search can reveal an adjacent secret door") {
+        Game g = make_minimal_game();
+        g.rng.seed(find_d6_seed(1));
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        auto& tile = g.map[index_for(g, 2, 1)];
+        tile.type = TileType::SecretDoorClosed;
+
+        PlayerCommand search;
+        search.type = PlayerCommandType::Search;
+        apply_player_command(g, search);
+
+        CHECK(tile.secret_revealed);
+        bool saw_secret = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("secret door") != std::string::npos) saw_secret = true;
+        }
+        CHECK(saw_secret);
+    }
+
+    SUBCASE("a revealed secret door opens like a normal door") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        auto& tile = g.map[index_for(g, 2, 1)];
+        tile.type = TileType::SecretDoorClosed;
+        tile.secret_revealed = true;
+
+        PlayerCommand open;
+        open.type = PlayerCommandType::Open;
+        apply_player_command(g, open);
+
+        CHECK(tile.type == TileType::DoorOpen);
+        CHECK_FALSE(is_blocked(g, 2, 1));
+
+        PlayerCommand move;
+        move.type = PlayerCommandType::Move;
+        move.dx = 1;
+        apply_player_command(g, move);
+
+        CHECK(g.hero.pos.x == 2);
+        CHECK(g.hero.pos.y == 1);
+    }
+}
+
 TEST_CASE("Surprise lifecycle: first contact only") {
     SUBCASE("hero surprised loses the bump-attack action") {
         Game g = make_minimal_game();
