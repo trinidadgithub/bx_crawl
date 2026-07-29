@@ -80,6 +80,21 @@ void announce_dungeon_at_peace(Game& g);
 // Roll 1d6 per side for initiative. Returns true if monsters act first.
 bool roll_initiative(Game& g);
 
+struct SurpriseResult {
+    int hero_roll{};
+    int monster_roll{};
+    bool hero_surprised{};
+    bool monsters_surprised{};
+};
+
+// B/X surprise: each side is surprised on 1-2 on 1d6 by default.
+SurpriseResult resolve_surprise(int hero_roll, int monster_roll,
+                                int hero_threshold = 2,
+                                int monster_threshold = 2);
+SurpriseResult roll_surprise(Game& g,
+                             int hero_threshold = 2,
+                             int monster_threshold = 2);
+
 // B/X detailed encumbrance, measured in coins (10 cn ~= 1 lb).
 int carried_weight_cn(const Game& g);
 int exploration_move_feet(const Game& g);

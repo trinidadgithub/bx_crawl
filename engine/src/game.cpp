@@ -26,6 +26,22 @@ int roll_d(Game& g, int sides) {
     return dist(g.rng);
 }
 
+SurpriseResult resolve_surprise(int hero_roll, int monster_roll,
+                                int hero_threshold,
+                                int monster_threshold) {
+    return SurpriseResult{
+        hero_roll,
+        monster_roll,
+        hero_roll <= hero_threshold,
+        monster_roll <= monster_threshold
+    };
+}
+
+SurpriseResult roll_surprise(Game& g, int hero_threshold, int monster_threshold) {
+    return resolve_surprise(roll_d(g, 6), roll_d(g, 6),
+                            hero_threshold, monster_threshold);
+}
+
 // Check if monster spawning is disabled via environment
 static bool monsters_disabled() {
     const char* env = std::getenv("BX_NO_MONSTERS");
@@ -45,6 +61,37 @@ void log_event(Game& g, const std::string& msg) {
         g.event_log.erase(g.event_log.begin(),
                           g.event_log.begin() + (g.event_log.size() - max_events));
     }
+}
+
+bool resolve_first_contact_surprise(Game& g, Entity& monster) {
+    if (monster.surprise_checked) {
+        return false;
+    }
+
+    monster.surprise_checked = true;
+    if (g.hero.hidden) {
+        monster.surprised = true;
+        return false;
+    }
+
+    SurpriseResult result = roll_surprise(g);
+
+    if (result.hero_surprised && result.monsters_surprised) {
+        log_event(g, "Both sides hesitate in surprise!");
+        return false;
+    }
+
+    if (result.hero_surprised) {
+        log_event(g, "The " + monster.name + " catches you off guard!");
+        return true;
+    }
+
+    if (result.monsters_surprised) {
+        monster.surprised = true;
+        log_event(g, "You catch the " + monster.name + " unaware!");
+    }
+
+    return false;
 }
 
 // B/X ability modifier from bx_data tables, for display/logging.
@@ -2058,6 +2105,12 @@ void monsters_turn(Game& g) {
 
         // Adjacent: attack
         if (dist == 1) {
+            (void)resolve_first_contact_surprise(g, m);
+            if (m.surprised) {
+                m.surprised = false;
+                log_event(g, "The " + m.name + " loses a moment recovering from surprise.");
+                continue;
+            }
             attack(g, m, g.hero);
             if (!g.hero.alive) return;
             continue;
@@ -2938,11 +2991,14 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
 
             // If a monster is there, attack that monster (with backstab if hidden)
             if (Entity* target = monster_at(g, nx, ny)) {
-                attack(g, g.hero, *target);
-                // Backstab breaks stealth
-                if (g.hero.hidden) {
-                    g.hero.hidden = false;
-                    log_event(g, "You emerge from the shadows.");
+                bool hero_loses_action = resolve_first_contact_surprise(g, *target);
+                if (!hero_loses_action) {
+                    attack(g, g.hero, *target);
+                    // Backstab breaks stealth
+                    if (g.hero.hidden) {
+                        g.hero.hidden = false;
+                        log_event(g, "You emerge from the shadows.");
+                    }
                 }
             } else if (in_bounds(g, nx, ny)) {
                 Tile& tile = g.map[index_for(g, nx, ny)];
