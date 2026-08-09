@@ -42,6 +42,15 @@ SurpriseResult roll_surprise(Game& g, int hero_threshold, int monster_threshold)
                             hero_threshold, monster_threshold);
 }
 
+int monster_surprise_threshold(std::string_view name) {
+    // B/X stealthy monsters surprise opponents on better odds than 1-2.
+    if (name.rfind("Bugbear", 0) == 0)                return 3;  // p. B32
+    if (name.rfind("Spider, Crab", 0) == 0)           return 4;  // p. B43
+    if (name.rfind("Shadow", 0) == 0)                 return 5;  // p. B42
+    if (name.rfind("Lycanthrope, Weretiger", 0) == 0) return 4;  // B/X lycanthrope
+    return 2;
+}
+
 // Check if monster spawning is disabled via environment
 static bool monsters_disabled() {
     const char* env = std::getenv("BX_NO_MONSTERS");
@@ -74,7 +83,7 @@ bool resolve_first_contact_surprise(Game& g, Entity& monster) {
         return false;
     }
 
-    SurpriseResult result = roll_surprise(g);
+    SurpriseResult result = roll_surprise(g, monster_surprise_threshold(monster.name));
 
     if (result.hero_surprised && result.monsters_surprised) {
         log_event(g, "Both sides hesitate in surprise!");

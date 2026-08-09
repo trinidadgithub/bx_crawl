@@ -15,6 +15,9 @@ systems at random.
   - `tools/list_monsters` lists monsters by exact challenge level.
   - `tools/show_monster` displays B/X stat blocks and descriptions.
   - `tools/edit_monster` edits monster descriptions.
+- Combat mechanics added: bear hug (2d8 when both claws hit), first-contact
+  surprise with stealthy-monster modifiers (Bugbear 1-3, Crab Spider 1-4,
+  Shadow 1-5, Weretiger 1-4), and secret doors.
 - `data/monster_descriptions.txt` is being reviewed against the Basic Box PDF.
   Some entries are confirmed, but this review should continue incrementally.
 
@@ -46,8 +49,10 @@ systems at random.
 
    - Verify current morale checks and when they happen.
    - Add leader-based morale modifiers for humanoid lairs/groups.
-   - Add surprise modifiers for stealthy monsters such as bugbears, crab spiders,
-     shadows, and weretigers.
+   - ~~Add surprise modifiers for stealthy monsters such as bugbears, crab spiders,
+     shadows, and weretigers.~~ Done: `monster_surprise_threshold` gives
+     Bugbear 1-3, Crab Spider 1-4, Shadow 1-5, and Weretiger 1-4; wired into
+     first-contact surprise and `tools/sim_surprise`.
    - Decide how much lair/group behavior matters in a small roguelike dungeon.
 
 3. **Data Accuracy Pass**
@@ -73,13 +78,14 @@ systems at random.
 
 ## Recommended Next Task
 
-Implement the **bear hug rule**. It is well-defined, important, easy to verify,
-and a good pattern for monster-specific combat hooks.
+Implement the **surprise modifiers for stealthy monsters** and combine them with
+existing first-contact surprise. This is well-defined, builds directly on the
+surprise lifecycle, and is easy to verify.
 
 Acceptance criteria:
 
-- Bears with two claw attacks track whether both claws hit the same target in one
-  combat round.
-- If both claws hit, apply an additional `2d8` hug damage in that same round.
-- Combat log reports the hug clearly.
-- Add tests for no hug, one-claw hit, and two-claw hit cases.
+- Bugbear, crab spider, shadow, and weretiger surprise the hero on better odds
+  than 1-2 on 1d6.
+- `tools/sim_surprise <monster>` reports the monster's actual surprise threshold.
+- Add tests for each threshold and for first-contact surprise against a stealthy
+  monster.
