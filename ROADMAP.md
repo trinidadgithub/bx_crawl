@@ -18,8 +18,10 @@ systems at random.
 - Combat mechanics added: bear hug (2d8 when both claws hit), first-contact
   surprise with stealthy-monster modifiers (Bugbear 1-3, Crab Spider 1-4,
   Shadow 1-5, Weretiger 1-4), paralysis (ghoul/carrion crawler/gelatinous cube/
-  thoul; 2-8 turns, Cure Light Wounds removes it, elves immune to ghouls), and
-  secret doors.
+  thoul; 2-8 turns, Cure Light Wounds removes it, elves immune to ghouls),
+  normal bat swarm confusion (10+ bats: -2 to hit/saves, no spells, bats never
+  bite), giant vampire bats (5% of encounters; save vs. Paralysis or unconscious
+  1-10 rounds, 1-4 HP blood drain per round), and secret doors.
 - `data/monster_descriptions.txt` is being reviewed against the Basic Box PDF.
   Some entries are confirmed, but this review should continue incrementally.
 
@@ -33,8 +35,13 @@ systems at random.
    Priority examples:
 
    - Bears: hug damage when both claw attacks hit. Done.
-   - Normal bats: confusion from groups of 10+ bats.
-   - Giant bats: vampire bat variant, paralysis/unconsciousness, blood drain.
+   - Normal bats: confusion from groups of 10+ bats. Done: a swarm of 10+
+     normal bats within 8 tiles confuses the hero (-2 to hit, -2 on saves,
+     no spellcasting), bats never bite, and they check morale each round.
+   - Giant bats: vampire bat variant. Done: 5% of giant bat encounters are
+     vampire bats; a bite forces a save vs. Paralysis or unconsciousness for
+     1-10 rounds, and an adjacent vampire bat drains 1-4 HP/round while the
+     hero is unconscious.
    - Goblins/orcs/kobolds: daylight penalties and leader morale effects where
      relevant.
    - Ghouls/carrion crawlers: paralysis duration and cure interactions. Done:
@@ -82,12 +89,13 @@ systems at random.
 
 ## Recommended Next Task
 
-Implement the **normal bats confusion rule**. B/X: a swarm of 10+ normal bats
-confuses the hero, who must make a save or wander/hit randomly.
+Implement **daylight penalties and leader morale for humanoid monsters**
+(goblins, orcs, kobolds). B/X: humanoids fight worse in daylight, and when a
+leader dies the rest of a lair checks morale.
 
 Acceptance criteria:
 
-- A normal bat pack of 10+ bats triggers a save vs. Spells on first contact.
-- On a failed save the hero is confused for a short duration (e.g. 1-4 turns).
-- A confused hero moves randomly and cannot attack/cast during the confusion.
-- Logs and tests cover the save-pass and save-fail cases.
+- Goblins/orcs/kobolds suffer a daylight penalty to attack rolls (and saves
+  where relevant) when the hero carries light into their lair.
+- A lair leader's death triggers a group morale check.
+- Logs and tests cover the daylight-penalty and leader-morale cases.

@@ -89,6 +89,10 @@ struct Entity {
     // Paralysis: 0 = normal; >0 = number of turns the hero cannot act.
     int paralyzed_turns{0};
 
+    // Unconscious (giant vampire bat bite): 0 = awake; >0 = the hero is
+    // knocked out for N rounds and a vampire bat may drain blood.
+    int unconscious_turns{0};
+
     // Light / torch
     int torch_turns{60};
     int lantern_turns{0};
@@ -112,6 +116,8 @@ struct Entity {
     bool has_poison{false};
     bool has_disease{false};
     bool has_paralysis{false};
+    bool is_vampire_bat{false};  // giant bat variant: bite causes unconsciousness + blood drain
+    int count{1};  // number of creatures this entity represents (bat swarms)
 
     // Equipment (weapon + armor IDs from bx_data.hpp)
     std::array<int, 16> weapon_counts{};

@@ -685,6 +685,34 @@ static bool is_name_paralysis(const char* name) {
         || n.find("Thoul") != std::string_view::npos;
 }
 
+// Check if a monster name is a normal bat (confusion, no attack)
+static bool is_name_normal_bat(const char* name) {
+    return std::string_view(name) == "Bat, Normal";
+}
+
+// Check if a monster name is a giant bat (vampire bat variant)
+static bool is_name_giant_bat(const char* name) {
+    return std::string_view(name) == "Bat, Giant";
+}
+
+// B/X: 10+ normal bats flying around the hero's head confuse them.
+// Confused characters: -2 to hit, -2 on saves, cannot cast spells.
+static bool hero_is_confused(const Game& g) {
+    if (g.hero.paralyzed_turns > 0) return false;
+    if (g.hero.unconscious_turns > 0) return false;
+    int total = 0;
+    for (const auto& m : g.monsters) {
+        if (!m.alive) continue;
+        if (m.charmed) continue;
+        if (!is_name_normal_bat(m.name.c_str())) continue;
+        // Bats must be close enough to swarm around the hero's head.
+        int dist = std::abs(g.hero.pos.x - m.pos.x) + std::abs(g.hero.pos.y - m.pos.y);
+        if (dist > 8) continue;
+        total += m.count;
+    }
+    return total >= 10;
+}
+
 // Spawn a monster from bx_data. Returns the populated Entity.
 static Entity spawn_bx_monster_by_index(Game& g, int idx) {
     if (idx < 0 || idx >= static_cast<int>(bx::monsters.size())) {
@@ -712,6 +740,18 @@ static Entity spawn_bx_monster_by_index(Game& g, int idx) {
     e.fleeing    = false;
     e.alive      = true;
     e.attacks_per_turn = 1;
+
+    // Normal bats appear as swarms: a single entity represents a flock.
+    // B/X No. Appearing is 1-100; use 2-16 so confusion (10+) is possible.
+    if (is_name_normal_bat(m.name)) {
+        e.count = roll_d(g, 8) + roll_d(g, 8);
+    }
+
+    // Giant bats: 5% of all giant bat encounters are giant vampire bats.
+    // A vampire bat's bite causes unconsciousness and lets it drain blood.
+    if (is_name_giant_bat(m.name) && roll_d(g, 100) <= 5) {
+        e.is_vampire_bat = true;
+    }
 
     // Gold: some monsters carry treasure
     int gold_chance = roll_d(g, 6);
@@ -764,6 +804,8 @@ static bool make_save(Game& g, CharacterClass cc, int category) {
         default: target = row.death_ray_poison; break;
     }
     int roll = roll_d(g, 20);
+    // Confused by bats: -2 on saves
+    if (hero_is_confused(g)) roll -= 2;
     int wis_mod = bx::get_wisdom(g.hero.abilities.wis).savingThrowMagic;
     if (category == 4) roll += wis_mod;
     return roll >= target;
@@ -879,6 +921,9 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
     // Remove Fear: +1 attack for the hero
     if (attacker.type == EntityType::Hero && attacker.courage_turns > 0)
         extra_atk += 1;
+    // Confused by bats: -2 to hit
+    if (attacker.type == EntityType::Hero && hero_is_confused(g))
+        extra_atk -= 2;
     // Starvation penalty: -1 to hit when hungry (96+ turns), -2 when starving (144+)
     if (attacker.type == EntityType::Hero) {
         if (attacker.turns_without_food >= 144)
@@ -1004,6 +1049,21 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
                             std::ostringstream oss;
                             oss << attacker.name << " paralyzes you for "
                                 << g.hero.paralyzed_turns << " turns!";
+                            log_event(g, oss.str());
+                        }
+                    }
+                } else if (attacker.is_vampire_bat) {
+                    // B/X: a vampire bat bite does no extra damage, but the
+                    // victim must save vs. Paralysis or fall unconscious for
+                    // 1-10 rounds, letting the bat drain blood.
+                    if (make_save(g, g.hero.char_class, 2)) {
+                        log_event(g, "You shake off the vampire bat's bite!");
+                    } else {
+                        g.hero.unconscious_turns = roll_d(g, 10);
+                        {
+                            std::ostringstream oss;
+                            oss << "The vampire bat's bite knocks you unconscious for "
+                                << g.hero.unconscious_turns << " rounds!";
                             log_event(g, oss.str());
                         }
                     }
@@ -2103,6 +2163,12 @@ void render(const Game& g) {
             oss << " STARVING!";
         else if (g.hero.turns_without_food >= 12)
             oss << " Hungry";
+        // Confusion indicator
+        if (hero_is_confused(g))
+            oss << " CONFUSED!";
+        // Unconscious indicator
+        if (g.hero.unconscious_turns > 0)
+            oss << " UNCONSCIOUS!";
         oss << " R:" << g.hero.rations;
         put_line(oss.str());
     }
@@ -2154,6 +2220,50 @@ void monsters_turn(Game& g) {
             if (m.surprised) {
                 m.surprised = false;
                 log_event(g, "The " + m.name + " loses a moment recovering from surprise.");
+                continue;
+            }
+            // Normal bats never bite; they swarm around the hero's head instead.
+            if (is_name_normal_bat(m.name.c_str())) {
+                // B/X: normal bats must check morale each round unless
+                // controlled or summoned by a magic-user.
+                int free_attacks = 0;
+                try_morale_check(g, m, g.hero, free_attacks, "surrounding the hero");
+                if (!m.alive) continue;
+                if (m.fleeing) {
+                    flee_ai(g, m);
+                    continue;
+                }
+                if (m.ai_wander_timer++ % 3 == 0) {
+                    // Flutter to a random adjacent free tile, keeping the swarm close.
+                    static const int dirs[] = {-1, 0, 1, 0, 0, -1, 0, 1};
+                    for (int attempt = 0; attempt < 4; ++attempt) {
+                        int r = roll_d(g, 4) - 1;
+                        int nx = m.pos.x + dirs[r * 2];
+                        int ny = m.pos.y + dirs[r * 2 + 1];
+                        if (!is_blocked(g, nx, ny) && !is_occupied(g, nx, ny, &m)) {
+                            move_entity(g, m, dirs[r * 2], dirs[r * 2 + 1]);
+                            break;
+                        }
+                    }
+                }
+                continue;
+            }
+            // A vampire bat next to an unconscious hero feeds without being
+            // disturbed, draining 1-4 points of blood per round.
+            if (m.is_vampire_bat && g.hero.unconscious_turns > 0) {
+                int drain = roll_d(g, 4);
+                g.hero.hp -= drain;
+                {
+                    std::ostringstream oss;
+                    oss << "The vampire bat drains " << drain << " HP of blood!";
+                    log_event(g, oss.str());
+                }
+                if (g.hero.hp <= 0) {
+                    g.hero.hp = 0;
+                    g.hero.alive = false;
+                    log_event(g, "The vampire bat drains you dry!");
+                    sound_player_death();
+                }
                 continue;
             }
             attack(g, m, g.hero);
@@ -2379,6 +2489,18 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
     // While paralyzed only Cure Light Wounds can be cast (it cures paralysis).
     if (hero.paralyzed_turns > 0 && spell != "Cure Light Wounds") {
         log_event(g, "You are too stiff to cast that spell!");
+        return false;
+    }
+
+    // An unconscious hero cannot cast spells at all.
+    if (hero.unconscious_turns > 0) {
+        log_event(g, "You are unconscious and cannot cast spells!");
+        return false;
+    }
+
+    // Confused by bats: no spellcasting at all.
+    if (hero_is_confused(g)) {
+        log_event(g, "The bats' fluttering confuses your concentration!");
         return false;
     }
 
@@ -3014,16 +3136,28 @@ void tick_wander_counter(Game& g) {
 // Player command application
 // ---------------------------
 bool apply_player_command(Game& g, const PlayerCommand& cmd) {
-    // A paralyzed hero cannot act; the turn still passes for monsters.
-    // Exception: casting Cure Light Wounds (which itself cures paralysis) is
-    // allowed so the hero can recover in solo play.
-    if (g.hero.paralyzed_turns > 0 && cmd.type != PlayerCommandType::Quit
-        && cmd.type != PlayerCommandType::Cast) {
-        --g.hero.paralyzed_turns;
-        if (g.hero.paralyzed_turns == 0) {
-            log_event(g, "Your muscles unclench — the paralysis wears off!");
+    // A paralyzed or unconscious hero cannot act; the turn still passes for
+    // monsters. Exception: casting Cure Light Wounds (which itself cures
+    // paralysis) is allowed so the hero can recover in solo play.
+    bool cast_exception = (g.hero.paralyzed_turns > 0
+                           && cmd.type == PlayerCommandType::Cast);
+    if ((g.hero.paralyzed_turns > 0 || g.hero.unconscious_turns > 0)
+        && cmd.type != PlayerCommandType::Quit
+        && !cast_exception) {
+        if (g.hero.unconscious_turns > 0) {
+            --g.hero.unconscious_turns;
+            if (g.hero.unconscious_turns == 0) {
+                log_event(g, "You regain consciousness!");
+            } else {
+                log_event(g, "You are unconscious and cannot act!");
+            }
         } else {
-            log_event(g, "You are paralyzed and cannot act!");
+            --g.hero.paralyzed_turns;
+            if (g.hero.paralyzed_turns == 0) {
+                log_event(g, "Your muscles unclench — the paralysis wears off!");
+            } else {
+                log_event(g, "You are paralyzed and cannot act!");
+            }
         }
         return true;
     }
