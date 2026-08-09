@@ -417,6 +417,28 @@ static unsigned find_bat_tohit_flip_seed() {
     return 1;
 }
 
+// Find a seed where an adjacent vampire bat bites the hero and produces the
+// given unconsciousness outcome (hit + failed save → unconscious).
+static unsigned find_vampire_bat_seed(bool want_unconscious) {
+    for (unsigned seed = 1; seed < 100000; ++seed) {
+        Game g = make_minimal_game();
+        g.rng.seed(seed);
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        auto bat = make_monster("Bat, Giant", EntityType::Monster,
+                                2, 1, 10, 10, 20, 6, 8);
+        bat.is_vampire_bat = true;
+        g.monsters.push_back(bat);
+
+        monsters_turn(g);
+
+        bool unconscious = g.hero.unconscious_turns > 0;
+        if (unconscious == want_unconscious) return seed;
+    }
+    return 1;
+}
+
 TEST_CASE("Secret doors: search, reveal, and open") {
     SUBCASE("an unrevealed secret door blocks movement and opening") {
         Game g = make_minimal_game();
@@ -860,6 +882,149 @@ TEST_CASE("Normal bats: swarm confusion") {
             if (e.find("makes a morale check") != std::string::npos) saw_morale = true;
         }
         CHECK(saw_morale);
+    }
+}
+
+TEST_CASE("Giant vampire bat: unconsciousness and blood drain") {
+    SUBCASE("a vampire bat bite with a failed save knocks the hero unconscious") {
+        Game g = make_minimal_game();
+        g.rng.seed(find_vampire_bat_seed(/*want_unconscious=*/true));
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        auto bat = make_monster("Bat, Giant", EntityType::Monster,
+                                2, 1, 10, 10, 20, 6, 8);
+        bat.is_vampire_bat = true;
+        g.monsters.push_back(bat);
+
+        monsters_turn(g);
+
+        CHECK(g.hero.unconscious_turns >= 1);
+        CHECK(g.hero.unconscious_turns <= 10);
+        bool saw_unconscious = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("knocks you unconscious") != std::string::npos) saw_unconscious = true;
+        }
+        CHECK(saw_unconscious);
+    }
+
+    SUBCASE("a successful save resists the vampire bat bite") {
+        Game g = make_minimal_game();
+        g.rng.seed(find_vampire_bat_seed(/*want_unconscious=*/false));
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        auto bat = make_monster("Bat, Giant", EntityType::Monster,
+                                2, 1, 10, 10, 20, 6, 8);
+        bat.is_vampire_bat = true;
+        g.monsters.push_back(bat);
+
+        monsters_turn(g);
+
+        CHECK(g.hero.unconscious_turns == 0);
+        bool saw_resist = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("shake off the vampire bat's bite") != std::string::npos) saw_resist = true;
+        }
+        CHECK(saw_resist);
+    }
+
+    SUBCASE("an unconscious hero cannot act") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.unconscious_turns = 3;
+        g.monsters.push_back(make_monster("Bat, Giant", EntityType::Monster,
+                                          2, 1, 5, 6, 0, 6, 7));
+
+        PlayerCommand cmd;
+        cmd.type = PlayerCommandType::Move;
+        cmd.dx = 1;
+        apply_player_command(g, cmd);
+
+        CHECK(g.hero.unconscious_turns == 2);
+        CHECK(g.hero.pos.x == 1);  // did not move
+        CHECK(g.monsters[0].hp == 5);  // did not attack
+    }
+
+    SUBCASE("unconsciousness wears off after its round count elapses") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.unconscious_turns = 1;
+        g.monsters.push_back(make_monster("Bat, Giant", EntityType::Monster,
+                                          2, 1, 5, 6, 0, 6, 7));
+
+        PlayerCommand cmd;
+        cmd.type = PlayerCommandType::Move;
+        cmd.dx = 1;
+        apply_player_command(g, cmd);
+
+        CHECK(g.hero.unconscious_turns == 0);
+        CHECK(g.hero.pos.x == 1);  // this turn was consumed, still didn't move
+        bool saw_wake = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("regain consciousness") != std::string::npos) saw_wake = true;
+        }
+        CHECK(saw_wake);
+    }
+
+    SUBCASE("an unconscious hero cannot cast spells") {
+        Game g = make_minimal_game(10, 10);
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.unconscious_turns = 2;
+        g.hero.spell_slots[1] = 1;
+        g.hero.spells = {"Cure Light Wounds"};
+        g.hero.hp = 3;
+
+        apply_player_command(g, {PlayerCommandType::Cast, /*spell_index=*/0, 0, 0});
+
+        CHECK(g.hero.spell_slots[1] == 1);  // slot not consumed
+        bool saw_block = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("unconscious and cannot act") != std::string::npos) saw_block = true;
+        }
+        CHECK(saw_block);
+    }
+
+    SUBCASE("a vampire bat drains blood from an unconscious hero") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.unconscious_turns = 2;
+        auto bat = make_monster("Bat, Giant", EntityType::Monster,
+                                2, 1, 10, 10, 20, 6, 8);
+        bat.is_vampire_bat = true;
+        g.monsters.push_back(bat);
+
+        int hp_before = g.hero.hp;
+        monsters_turn(g);
+
+        CHECK(g.hero.hp < hp_before);  // blood was drained
+        bool saw_drain = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("drains") != std::string::npos) saw_drain = true;
+        }
+        CHECK(saw_drain);
+    }
+
+    SUBCASE("a plain giant bat does not cause unconsciousness") {
+        Game g = make_minimal_game();
+        g.rng.seed(1);
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.monsters.push_back(make_monster("Bat, Giant", EntityType::Monster,
+                                          2, 1, 10, 10, 20, 6, 8));  // not vampire
+
+        monsters_turn(g);
+
+        CHECK(g.hero.unconscious_turns == 0);
     }
 }
 

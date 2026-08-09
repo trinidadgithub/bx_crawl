@@ -690,10 +690,16 @@ static bool is_name_normal_bat(const char* name) {
     return std::string_view(name) == "Bat, Normal";
 }
 
+// Check if a monster name is a giant bat (vampire bat variant)
+static bool is_name_giant_bat(const char* name) {
+    return std::string_view(name) == "Bat, Giant";
+}
+
 // B/X: 10+ normal bats flying around the hero's head confuse them.
 // Confused characters: -2 to hit, -2 on saves, cannot cast spells.
 static bool hero_is_confused(const Game& g) {
     if (g.hero.paralyzed_turns > 0) return false;
+    if (g.hero.unconscious_turns > 0) return false;
     int total = 0;
     for (const auto& m : g.monsters) {
         if (!m.alive) continue;
@@ -739,6 +745,12 @@ static Entity spawn_bx_monster_by_index(Game& g, int idx) {
     // B/X No. Appearing is 1-100; use 2-16 so confusion (10+) is possible.
     if (is_name_normal_bat(m.name)) {
         e.count = roll_d(g, 8) + roll_d(g, 8);
+    }
+
+    // Giant bats: 5% of all giant bat encounters are giant vampire bats.
+    // A vampire bat's bite causes unconsciousness and lets it drain blood.
+    if (is_name_giant_bat(m.name) && roll_d(g, 100) <= 5) {
+        e.is_vampire_bat = true;
     }
 
     // Gold: some monsters carry treasure
@@ -1037,6 +1049,21 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
                             std::ostringstream oss;
                             oss << attacker.name << " paralyzes you for "
                                 << g.hero.paralyzed_turns << " turns!";
+                            log_event(g, oss.str());
+                        }
+                    }
+                } else if (attacker.is_vampire_bat) {
+                    // B/X: a vampire bat bite does no extra damage, but the
+                    // victim must save vs. Paralysis or fall unconscious for
+                    // 1-10 rounds, letting the bat drain blood.
+                    if (make_save(g, g.hero.char_class, 2)) {
+                        log_event(g, "You shake off the vampire bat's bite!");
+                    } else {
+                        g.hero.unconscious_turns = roll_d(g, 10);
+                        {
+                            std::ostringstream oss;
+                            oss << "The vampire bat's bite knocks you unconscious for "
+                                << g.hero.unconscious_turns << " rounds!";
                             log_event(g, oss.str());
                         }
                     }
@@ -2139,6 +2166,9 @@ void render(const Game& g) {
         // Confusion indicator
         if (hero_is_confused(g))
             oss << " CONFUSED!";
+        // Unconscious indicator
+        if (g.hero.unconscious_turns > 0)
+            oss << " UNCONSCIOUS!";
         oss << " R:" << g.hero.rations;
         put_line(oss.str());
     }
@@ -2215,6 +2245,24 @@ void monsters_turn(Game& g) {
                             break;
                         }
                     }
+                }
+                continue;
+            }
+            // A vampire bat next to an unconscious hero feeds without being
+            // disturbed, draining 1-4 points of blood per round.
+            if (m.is_vampire_bat && g.hero.unconscious_turns > 0) {
+                int drain = roll_d(g, 4);
+                g.hero.hp -= drain;
+                {
+                    std::ostringstream oss;
+                    oss << "The vampire bat drains " << drain << " HP of blood!";
+                    log_event(g, oss.str());
+                }
+                if (g.hero.hp <= 0) {
+                    g.hero.hp = 0;
+                    g.hero.alive = false;
+                    log_event(g, "The vampire bat drains you dry!");
+                    sound_player_death();
                 }
                 continue;
             }
@@ -2441,6 +2489,12 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
     // While paralyzed only Cure Light Wounds can be cast (it cures paralysis).
     if (hero.paralyzed_turns > 0 && spell != "Cure Light Wounds") {
         log_event(g, "You are too stiff to cast that spell!");
+        return false;
+    }
+
+    // An unconscious hero cannot cast spells at all.
+    if (hero.unconscious_turns > 0) {
+        log_event(g, "You are unconscious and cannot cast spells!");
         return false;
     }
 
@@ -3082,16 +3136,28 @@ void tick_wander_counter(Game& g) {
 // Player command application
 // ---------------------------
 bool apply_player_command(Game& g, const PlayerCommand& cmd) {
-    // A paralyzed hero cannot act; the turn still passes for monsters.
-    // Exception: casting Cure Light Wounds (which itself cures paralysis) is
-    // allowed so the hero can recover in solo play.
-    if (g.hero.paralyzed_turns > 0 && cmd.type != PlayerCommandType::Quit
-        && cmd.type != PlayerCommandType::Cast) {
-        --g.hero.paralyzed_turns;
-        if (g.hero.paralyzed_turns == 0) {
-            log_event(g, "Your muscles unclench — the paralysis wears off!");
+    // A paralyzed or unconscious hero cannot act; the turn still passes for
+    // monsters. Exception: casting Cure Light Wounds (which itself cures
+    // paralysis) is allowed so the hero can recover in solo play.
+    bool cast_exception = (g.hero.paralyzed_turns > 0
+                           && cmd.type == PlayerCommandType::Cast);
+    if ((g.hero.paralyzed_turns > 0 || g.hero.unconscious_turns > 0)
+        && cmd.type != PlayerCommandType::Quit
+        && !cast_exception) {
+        if (g.hero.unconscious_turns > 0) {
+            --g.hero.unconscious_turns;
+            if (g.hero.unconscious_turns == 0) {
+                log_event(g, "You regain consciousness!");
+            } else {
+                log_event(g, "You are unconscious and cannot act!");
+            }
         } else {
-            log_event(g, "You are paralyzed and cannot act!");
+            --g.hero.paralyzed_turns;
+            if (g.hero.paralyzed_turns == 0) {
+                log_event(g, "Your muscles unclench — the paralysis wears off!");
+            } else {
+                log_event(g, "You are paralyzed and cannot act!");
+            }
         }
         return true;
     }
