@@ -233,6 +233,20 @@ static unsigned find_surprise_seed(bool hero_surprised, bool monster_surprised) 
     return 1;
 }
 
+static unsigned find_surprise_seed(int hero_threshold,
+                                   bool hero_surprised, bool monster_surprised) {
+    for (unsigned seed = 1; seed < 10000; ++seed) {
+        Game g = make_minimal_game();
+        g.rng.seed(seed);
+        SurpriseResult result = roll_surprise(g, hero_threshold);
+        if (result.hero_surprised == hero_surprised
+            && result.monsters_surprised == monster_surprised) {
+            return seed;
+        }
+    }
+    return 1;
+}
+
 TEST_CASE("Surprise: B/X 1-2 on 1d6 per side") {
     SUBCASE("exact rolls determine hero surprise") {
         SurpriseResult result = resolve_surprise(/*hero_roll=*/1, /*monster_roll=*/3);
@@ -255,6 +269,35 @@ TEST_CASE("Surprise: B/X 1-2 on 1d6 per side") {
     SUBCASE("neither side is surprised") {
         SurpriseResult result = resolve_surprise(/*hero_roll=*/3, /*monster_roll=*/6);
         CHECK_FALSE(result.hero_surprised);
+        CHECK_FALSE(result.monsters_surprised);
+    }
+}
+
+TEST_CASE("Surprise: stealthy monster thresholds") {
+    SUBCASE("most monsters use the default 1-2 threshold") {
+        CHECK(monster_surprise_threshold("Goblin") == 2);
+        CHECK(monster_surprise_threshold("Orc") == 2);
+        CHECK(monster_surprise_threshold("Bugbear") == 3);
+        CHECK(monster_surprise_threshold("Spider, Crab") == 4);
+        CHECK(monster_surprise_threshold("Shadow") == 5);
+        CHECK(monster_surprise_threshold("Lycanthrope, Weretiger") == 4);
+    }
+
+    SUBCASE("an unknown monster defaults to 2") {
+        CHECK(monster_surprise_threshold("Made Up Monster") == 2);
+    }
+
+    SUBCASE("a bugbear can surprise the hero on a roll of 3") {
+        SurpriseResult result = resolve_surprise(/*hero_roll=*/3, /*monster_roll=*/6,
+                                                 monster_surprise_threshold("Bugbear"));
+        CHECK(result.hero_surprised);
+        CHECK_FALSE(result.monsters_surprised);
+    }
+
+    SUBCASE("a shadow can surprise the hero on a roll of 5") {
+        SurpriseResult result = resolve_surprise(/*hero_roll=*/5, /*monster_roll=*/6,
+                                                 monster_surprise_threshold("Shadow"));
+        CHECK(result.hero_surprised);
         CHECK_FALSE(result.monsters_surprised);
     }
 }
@@ -460,6 +503,32 @@ TEST_CASE("Surprise lifecycle: first contact only") {
             if (e.find("catches you off guard") != std::string::npos) ++surprise_logs;
         }
         CHECK(surprise_logs == 1);
+    }
+
+    SUBCASE("a bugbear surprises the hero on a roll of 3 during first contact") {
+        Game g = make_minimal_game();
+        g.rng.seed(find_surprise_seed(monster_surprise_threshold("Bugbear"),
+                                      /*hero_surprised=*/true,
+                                      /*monster_surprised=*/false));
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.monsters.push_back(make_monster("Bugbear", EntityType::Monster,
+                                          2, 1, 5, 6, 0, 6, 7));
+        g.monsters[0].surprise_checked = false;
+
+        PlayerCommand cmd;
+        cmd.type = PlayerCommandType::Move;
+        cmd.dx = 1;
+        apply_player_command(g, cmd);
+
+        CHECK(g.monsters[0].hp == 5);
+        CHECK(g.monsters[0].surprise_checked);
+        bool saw_surprise = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("catches you off guard") != std::string::npos) saw_surprise = true;
+        }
+        CHECK(saw_surprise);
     }
 }
 

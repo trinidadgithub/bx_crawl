@@ -95,6 +95,11 @@ SurpriseResult roll_surprise(Game& g,
                              int hero_threshold = 2,
                              int monster_threshold = 2);
 
+// Some monsters are unusually stealthy and surprise opponents on better
+// odds than 1-2. Returns the hero's surprise threshold (roll <= threshold)
+// when facing the named monster. Default is 2.
+int monster_surprise_threshold(std::string_view name);
+
 // B/X detailed encumbrance, measured in coins (10 cn ~= 1 lb).
 int carried_weight_cn(const Game& g);
 int exploration_move_feet(const Game& g);

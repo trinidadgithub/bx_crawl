@@ -61,10 +61,14 @@ List monsters by approximate challenge level before choosing one:
 
 The listed `Idx` values can be passed directly to `BX_TEST_MONSTER`.
 
-Simulate default B/X surprise odds without launching the game:
+Simulate B/X surprise odds against a named monster without launching the game.
+Stealthy monsters surprise the hero on better odds than 1-2 (e.g. Bugbear 1-3,
+Spider, Crab 1-4, Shadow 1-5, Weretiger 1-4):
 
 ```bash
 ./build/tools/sim_surprise Goblin --trials 1000 --seed 12345
+./build/tools/sim_surprise "Bugbear" --trials 1000 --seed 12345
+./build/tools/sim_surprise "Shadow" --trials 1000 --seed 12345
 ```
 
 Inspect generated dungeon features, including secret doors:

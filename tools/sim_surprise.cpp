@@ -11,9 +11,9 @@ namespace {
 void usage(const char* argv0) {
     std::cout << "Usage: " << argv0 << " [monster-name] [--trials N] [--seed N]\n"
               << "\n"
-              << "Simulates default B/X surprise: each side is surprised on 1-2 on 1d6.\n"
-              << "The monster name is informational for now; monster-specific modifiers\n"
-              << "will be added after the generic lifecycle is stable.\n";
+              << "Simulates B/X surprise against a named monster. Most monsters\n"
+              << "surprise the hero on 1-2 on 1d6; stealthy monsters surprise on\n"
+              << "better odds (e.g. Bugbear 1-3, Crab Spider 1-4, Shadow 1-5).\n";
 }
 
 } // namespace
@@ -43,13 +43,15 @@ int main(int argc, char** argv) {
     Game g;
     g.rng.seed(seed);
 
+    int hero_threshold = monster_surprise_threshold(monster);
+
     int hero_only = 0;
     int monster_only = 0;
     int both = 0;
     int neither = 0;
 
     for (int i = 0; i < trials; ++i) {
-        SurpriseResult result = roll_surprise(g);
+        SurpriseResult result = roll_surprise(g, hero_threshold);
         if (result.hero_surprised && result.monsters_surprised) ++both;
         else if (result.hero_surprised) ++hero_only;
         else if (result.monsters_surprised) ++monster_only;
@@ -57,9 +59,8 @@ int main(int argc, char** argv) {
     }
 
     std::cout << "Monster: " << monster << "\n"
-              << "Hero surprised on: 1-2 on 1d6\n"
+              << "Hero surprised on: 1-" << hero_threshold << " on 1d6\n"
               << "Monster surprised on: 1-2 on 1d6\n"
-              << "Modifier: none\n\n"
               << "Trials: " << trials << "\n"
               << "Seed: " << seed << "\n"
               << "Hero surprised only:    " << hero_only << "\n"
