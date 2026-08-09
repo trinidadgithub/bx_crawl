@@ -86,6 +86,9 @@ struct Entity {
     int courage_turns{0};      // Remove Fear — +1 atk
     int resist_cold_turns{0};  // Resist Cold — +1 AC
 
+    // Paralysis: 0 = normal; >0 = number of turns the hero cannot act.
+    int paralyzed_turns{0};
+
     // Light / torch
     int torch_turns{60};
     int lantern_turns{0};
@@ -108,6 +111,7 @@ struct Entity {
     bool undead{false};
     bool has_poison{false};
     bool has_disease{false};
+    bool has_paralysis{false};
 
     // Equipment (weapon + armor IDs from bx_data.hpp)
     std::array<int, 16> weapon_counts{};

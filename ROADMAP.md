@@ -17,7 +17,9 @@ systems at random.
   - `tools/edit_monster` edits monster descriptions.
 - Combat mechanics added: bear hug (2d8 when both claws hit), first-contact
   surprise with stealthy-monster modifiers (Bugbear 1-3, Crab Spider 1-4,
-  Shadow 1-5, Weretiger 1-4), and secret doors.
+  Shadow 1-5, Weretiger 1-4), paralysis (ghoul/carrion crawler/gelatinous cube/
+  thoul; 2-8 turns, Cure Light Wounds removes it, elves immune to ghouls), and
+  secret doors.
 - `data/monster_descriptions.txt` is being reviewed against the Basic Box PDF.
   Some entries are confirmed, but this review should continue incrementally.
 
@@ -30,12 +32,14 @@ systems at random.
 
    Priority examples:
 
-   - Bears: hug damage when both claw attacks hit.
+   - Bears: hug damage when both claw attacks hit. Done.
    - Normal bats: confusion from groups of 10+ bats.
    - Giant bats: vampire bat variant, paralysis/unconsciousness, blood drain.
    - Goblins/orcs/kobolds: daylight penalties and leader morale effects where
      relevant.
-   - Ghouls/carrion crawlers: paralysis duration and cure interactions.
+   - Ghouls/carrion crawlers: paralysis duration and cure interactions. Done:
+     save vs. Paralysis or 2-8 turns, Cure Light Wounds removes it, elves are
+     immune to ghoul paralysis.
    - Shadows/wights/wraiths: drain effects and appropriate weapon immunity.
    - Rust monster/oozes/slimes: equipment destruction/corrosion consistency.
 
@@ -78,14 +82,12 @@ systems at random.
 
 ## Recommended Next Task
 
-Implement the **surprise modifiers for stealthy monsters** and combine them with
-existing first-contact surprise. This is well-defined, builds directly on the
-surprise lifecycle, and is easy to verify.
+Implement the **normal bats confusion rule**. B/X: a swarm of 10+ normal bats
+confuses the hero, who must make a save or wander/hit randomly.
 
 Acceptance criteria:
 
-- Bugbear, crab spider, shadow, and weretiger surprise the hero on better odds
-  than 1-2 on 1d6.
-- `tools/sim_surprise <monster>` reports the monster's actual surprise threshold.
-- Add tests for each threshold and for first-contact surprise against a stealthy
-  monster.
+- A normal bat pack of 10+ bats triggers a save vs. Spells on first contact.
+- On a failed save the hero is confused for a short duration (e.g. 1-4 turns).
+- A confused hero moves randomly and cannot attack/cast during the confusion.
+- Logs and tests cover the save-pass and save-fail cases.

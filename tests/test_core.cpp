@@ -352,6 +352,29 @@ static unsigned find_d6_seed(int wanted_roll) {
     return 1;
 }
 
+// Find a seed where an adjacent monster attacks the hero once and the given
+// paralysis outcome occurs (hit + failed save → paralyzed).
+static unsigned find_paralysis_seed(const std::string& name, bool elf,
+                                    bool want_paralyzed) {
+    for (unsigned seed = 1; seed < 100000; ++seed) {
+        Game g = make_minimal_game();
+        g.rng.seed(seed);
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        if (elf) g.hero.char_class = CharacterClass::Elf;
+        g.monsters.push_back(make_monster(name, EntityType::Monster,
+                                          2, 1, 10, 10, 20, 6, 9));
+        g.monsters[0].has_paralysis = true;
+
+        monsters_turn(g);
+
+        bool paralyzed = g.hero.paralyzed_turns > 0;
+        if (paralyzed == want_paralyzed) return seed;
+    }
+    return 1;
+}
+
 TEST_CASE("Secret doors: search, reveal, and open") {
     SUBCASE("an unrevealed secret door blocks movement and opening") {
         Game g = make_minimal_game();
@@ -532,8 +555,152 @@ TEST_CASE("Surprise lifecycle: first contact only") {
     }
 }
 
-// ── Developer monster launch override tests ──────────────
+TEST_CASE("Paralysis: ghoul touch") {
+    SUBCASE("a ghoul hit with a failed save paralyzes the hero for 2-8 turns") {
+        Game g = make_minimal_game();
+        g.rng.seed(find_paralysis_seed("Ghoul", /*elf=*/false, /*want_paralyzed=*/true));
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.monsters.push_back(make_monster("Ghoul", EntityType::Monster,
+                                          2, 1, 10, 10, 20, 6, 9));
+        g.monsters[0].has_paralysis = true;
 
+        monsters_turn(g);
+
+        CHECK(g.hero.paralyzed_turns >= 2);
+        CHECK(g.hero.paralyzed_turns <= 8);
+        bool saw_paralysis = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("paralyzes you") != std::string::npos) saw_paralysis = true;
+        }
+        CHECK(saw_paralysis);
+    }
+
+    SUBCASE("a successful save resists paralysis") {
+        Game g = make_minimal_game();
+        g.rng.seed(find_paralysis_seed("Ghoul", /*elf=*/false, /*want_paralyzed=*/false));
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.monsters.push_back(make_monster("Ghoul", EntityType::Monster,
+                                          2, 1, 10, 10, 20, 6, 9));
+        g.monsters[0].has_paralysis = true;
+
+        monsters_turn(g);
+
+        CHECK(g.hero.paralyzed_turns == 0);
+        bool saw_resist = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("resist the paralysis") != std::string::npos) saw_resist = true;
+        }
+        CHECK(saw_resist);
+    }
+
+    SUBCASE("elves are immune to ghoul paralysis") {
+        Game g = make_minimal_game();
+        g.rng.seed(find_paralysis_seed("Ghoul", /*elf=*/true, /*want_paralyzed=*/false));
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.char_class = CharacterClass::Elf;
+        g.monsters.push_back(make_monster("Ghoul", EntityType::Monster,
+                                          2, 1, 10, 10, 20, 6, 9));
+        g.monsters[0].has_paralysis = true;
+
+        monsters_turn(g);
+
+        CHECK(g.hero.paralyzed_turns == 0);
+        bool saw_elf_immune = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("elven blood") != std::string::npos) saw_elf_immune = true;
+        }
+        CHECK(saw_elf_immune);
+    }
+
+    SUBCASE("a carrion crawler paralyzes even an elf") {
+        Game g = make_minimal_game();
+        g.rng.seed(find_paralysis_seed("Carrion Crawler", /*elf=*/true, /*want_paralyzed=*/true));
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.char_class = CharacterClass::Elf;
+        g.monsters.push_back(make_monster("Carrion Crawler", EntityType::Monster,
+                                          2, 1, 10, 10, 20, 6, 9));
+        g.monsters[0].has_paralysis = true;
+
+        monsters_turn(g);
+
+        CHECK(g.hero.paralyzed_turns >= 2);
+        CHECK(g.hero.paralyzed_turns <= 8);
+    }
+}
+
+TEST_CASE("Paralysis: blocks hero actions and wears off") {
+    SUBCASE("a paralyzed hero cannot act while turns remain") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.paralyzed_turns = 3;
+        g.monsters.push_back(make_monster("Ghoul", EntityType::Monster,
+                                          2, 1, 5, 6, 0, 6, 7));
+
+        PlayerCommand cmd;
+        cmd.type = PlayerCommandType::Move;
+        cmd.dx = 1;
+        apply_player_command(g, cmd);
+
+        CHECK(g.hero.paralyzed_turns == 2);
+        CHECK(g.hero.pos.x == 1);  // did not move
+        CHECK(g.monsters[0].hp == 5);  // did not attack
+    }
+
+    SUBCASE("paralysis wears off after its turn count elapses") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.paralyzed_turns = 1;
+        g.monsters.push_back(make_monster("Ghoul", EntityType::Monster,
+                                          2, 1, 5, 6, 0, 6, 7));
+
+        PlayerCommand cmd;
+        cmd.type = PlayerCommandType::Move;
+        cmd.dx = 1;
+        apply_player_command(g, cmd);
+
+        CHECK(g.hero.paralyzed_turns == 0);
+        CHECK(g.hero.pos.x == 1);  // this turn was consumed, still didn't move
+        bool saw_wear_off = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("wears off") != std::string::npos) saw_wear_off = true;
+        }
+        CHECK(saw_wear_off);
+    }
+
+    SUBCASE("cure light wounds removes paralysis immediately") {
+        Game g = make_minimal_game(10, 10);
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.paralyzed_turns = 4;
+        g.hero.spell_slots[1] = 1;
+        g.hero.spells = {"Cure Light Wounds"};
+        g.hero.hp = 3;
+
+        apply_player_command(g, {PlayerCommandType::Cast, /*spell_index=*/0, 0, 0});
+
+        CHECK(g.hero.paralyzed_turns == 0);
+        bool saw_cure = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("cures your paralysis") != std::string::npos) saw_cure = true;
+        }
+        CHECK(saw_cure);
+    }
+}
+
+// ── Developer monster launch override tests ──────────────
 TEST_CASE("BX_TEST_MONSTER spawns exactly one chosen monster by name") {
     ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
     ScopedEnvVar test_monster("BX_TEST_MONSTER", "gObLiN");

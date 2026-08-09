@@ -77,6 +77,20 @@ Inspect generated dungeon features, including secret doors:
 ./build/tools/show_map_features --seed 2 --draw
 ```
 
+## Monster Mechanics
+
+Special monster traits implemented per B/X:
+
+- **Bear hug** — a bear (or werebear) whose two claws both hit the same target
+  in one round deals an additional 2d8 hug damage.
+- **Surprise** — stealthy monsters surprise the hero on better odds than 1-2
+  on 1d6: Bugbear 1-3, Spider, Crab 1-4, Shadow 1-5, Weretiger 1-4.
+- **Paralysis** — a hit from a ghoul, carrion crawler, gelatinous cube, or
+  thoul forces a save vs. Paralysis; failure paralyzes the hero for 2-8 turns.
+  Elves are immune to ghoul paralysis (but not other paralysis). A paralyzed
+  hero cannot act; only Cure Light Wounds (cast while paralyzed) restores
+  movement immediately.
+
 ## Controls
 - `w`, `a`, `s`, `d` — cardinal movement
 - `q`, `e`, `z`, `c` — diagonal movement
