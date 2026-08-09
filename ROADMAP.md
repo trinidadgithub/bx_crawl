@@ -33,7 +33,9 @@ systems at random.
    Priority examples:
 
    - Bears: hug damage when both claw attacks hit. Done.
-   - Normal bats: confusion from groups of 10+ bats.
+   - Normal bats: confusion from groups of 10+ bats. Done: a swarm of 10+
+     normal bats within 8 tiles confuses the hero (-2 to hit, -2 on saves,
+     no spellcasting), bats never bite, and they check morale each round.
    - Giant bats: vampire bat variant, paralysis/unconsciousness, blood drain.
    - Goblins/orcs/kobolds: daylight penalties and leader morale effects where
      relevant.
@@ -82,12 +84,12 @@ systems at random.
 
 ## Recommended Next Task
 
-Implement the **normal bats confusion rule**. B/X: a swarm of 10+ normal bats
-confuses the hero, who must make a save or wander/hit randomly.
+Implement the **giant bats (vampire bat variant)** mechanics. B/X: a giant bat
+attacks with 2 attacks (1 bite, 1 special), and on a successful hit the hero
+must save vs. Paralysis or fall unconscious for 1-4 turns, with blood drain.
 
 Acceptance criteria:
 
-- A normal bat pack of 10+ bats triggers a save vs. Spells on first contact.
-- On a failed save the hero is confused for a short duration (e.g. 1-4 turns).
-- A confused hero moves randomly and cannot attack/cast during the confusion.
+- Giant bats have a distinct special attack (paralysis/unconsciousness).
+- Blood drain or unconsciousness interacts correctly with combat and recovery.
 - Logs and tests cover the save-pass and save-fail cases.

@@ -685,6 +685,28 @@ static bool is_name_paralysis(const char* name) {
         || n.find("Thoul") != std::string_view::npos;
 }
 
+// Check if a monster name is a normal bat (confusion, no attack)
+static bool is_name_normal_bat(const char* name) {
+    return std::string_view(name) == "Bat, Normal";
+}
+
+// B/X: 10+ normal bats flying around the hero's head confuse them.
+// Confused characters: -2 to hit, -2 on saves, cannot cast spells.
+static bool hero_is_confused(const Game& g) {
+    if (g.hero.paralyzed_turns > 0) return false;
+    int total = 0;
+    for (const auto& m : g.monsters) {
+        if (!m.alive) continue;
+        if (m.charmed) continue;
+        if (!is_name_normal_bat(m.name.c_str())) continue;
+        // Bats must be close enough to swarm around the hero's head.
+        int dist = std::abs(g.hero.pos.x - m.pos.x) + std::abs(g.hero.pos.y - m.pos.y);
+        if (dist > 8) continue;
+        total += m.count;
+    }
+    return total >= 10;
+}
+
 // Spawn a monster from bx_data. Returns the populated Entity.
 static Entity spawn_bx_monster_by_index(Game& g, int idx) {
     if (idx < 0 || idx >= static_cast<int>(bx::monsters.size())) {
@@ -712,6 +734,12 @@ static Entity spawn_bx_monster_by_index(Game& g, int idx) {
     e.fleeing    = false;
     e.alive      = true;
     e.attacks_per_turn = 1;
+
+    // Normal bats appear as swarms: a single entity represents a flock.
+    // B/X No. Appearing is 1-100; use 2-16 so confusion (10+) is possible.
+    if (is_name_normal_bat(m.name)) {
+        e.count = roll_d(g, 8) + roll_d(g, 8);
+    }
 
     // Gold: some monsters carry treasure
     int gold_chance = roll_d(g, 6);
@@ -764,6 +792,8 @@ static bool make_save(Game& g, CharacterClass cc, int category) {
         default: target = row.death_ray_poison; break;
     }
     int roll = roll_d(g, 20);
+    // Confused by bats: -2 on saves
+    if (hero_is_confused(g)) roll -= 2;
     int wis_mod = bx::get_wisdom(g.hero.abilities.wis).savingThrowMagic;
     if (category == 4) roll += wis_mod;
     return roll >= target;
@@ -879,6 +909,9 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
     // Remove Fear: +1 attack for the hero
     if (attacker.type == EntityType::Hero && attacker.courage_turns > 0)
         extra_atk += 1;
+    // Confused by bats: -2 to hit
+    if (attacker.type == EntityType::Hero && hero_is_confused(g))
+        extra_atk -= 2;
     // Starvation penalty: -1 to hit when hungry (96+ turns), -2 when starving (144+)
     if (attacker.type == EntityType::Hero) {
         if (attacker.turns_without_food >= 144)
@@ -2103,6 +2136,9 @@ void render(const Game& g) {
             oss << " STARVING!";
         else if (g.hero.turns_without_food >= 12)
             oss << " Hungry";
+        // Confusion indicator
+        if (hero_is_confused(g))
+            oss << " CONFUSED!";
         oss << " R:" << g.hero.rations;
         put_line(oss.str());
     }
@@ -2154,6 +2190,32 @@ void monsters_turn(Game& g) {
             if (m.surprised) {
                 m.surprised = false;
                 log_event(g, "The " + m.name + " loses a moment recovering from surprise.");
+                continue;
+            }
+            // Normal bats never bite; they swarm around the hero's head instead.
+            if (is_name_normal_bat(m.name.c_str())) {
+                // B/X: normal bats must check morale each round unless
+                // controlled or summoned by a magic-user.
+                int free_attacks = 0;
+                try_morale_check(g, m, g.hero, free_attacks, "surrounding the hero");
+                if (!m.alive) continue;
+                if (m.fleeing) {
+                    flee_ai(g, m);
+                    continue;
+                }
+                if (m.ai_wander_timer++ % 3 == 0) {
+                    // Flutter to a random adjacent free tile, keeping the swarm close.
+                    static const int dirs[] = {-1, 0, 1, 0, 0, -1, 0, 1};
+                    for (int attempt = 0; attempt < 4; ++attempt) {
+                        int r = roll_d(g, 4) - 1;
+                        int nx = m.pos.x + dirs[r * 2];
+                        int ny = m.pos.y + dirs[r * 2 + 1];
+                        if (!is_blocked(g, nx, ny) && !is_occupied(g, nx, ny, &m)) {
+                            move_entity(g, m, dirs[r * 2], dirs[r * 2 + 1]);
+                            break;
+                        }
+                    }
+                }
                 continue;
             }
             attack(g, m, g.hero);
@@ -2379,6 +2441,12 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
     // While paralyzed only Cure Light Wounds can be cast (it cures paralysis).
     if (hero.paralyzed_turns > 0 && spell != "Cure Light Wounds") {
         log_event(g, "You are too stiff to cast that spell!");
+        return false;
+    }
+
+    // Confused by bats: no spellcasting at all.
+    if (hero_is_confused(g)) {
+        log_event(g, "The bats' fluttering confuses your concentration!");
         return false;
     }
 

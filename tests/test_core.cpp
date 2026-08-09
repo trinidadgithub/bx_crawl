@@ -375,6 +375,48 @@ static unsigned find_paralysis_seed(const std::string& name, bool elf,
     return 1;
 }
 
+// Find a seed where a swarm of 10 normal bats adjacent to the hero makes the
+// hero MISS an attack (due to the -2 confusion penalty) that the SAME hero
+// would otherwise HIT without the swarm. Proves the -2 to-hit is applied.
+static unsigned find_bat_tohit_flip_seed() {
+    for (unsigned seed = 1; seed < 200000; ++seed) {
+        // With the swarm (confused): expect a miss.
+        Game g = make_minimal_game();
+        g.rng.seed(seed);
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/10, /*dmg_die=*/1,
+                           /*ac=*/10);
+        auto bat = make_monster("Bat, Normal", EntityType::Monster,
+                                1, 2, 1, 10, 0, 1, 9);
+        bat.count = 10;
+        g.monsters.push_back(bat);
+        g.monsters.push_back(make_monster("Orc", EntityType::Monster,
+                                          2, 1, 10, 12, 0, 6, 9));
+        PlayerCommand move;
+        move.type = PlayerCommandType::Move;
+        move.dx = 1;
+        apply_player_command(g, move);
+        bool confused_miss = g.monsters[1].hp == 10;
+
+        // Without the swarm (not confused): same seed must HIT.
+        Game g2 = make_minimal_game();
+        g2.rng.seed(seed);
+        g2.hero = make_hero(/*x=*/1, /*y=*/1,
+                            /*atk_bonus=*/10, /*dmg_die=*/1,
+                            /*ac=*/10);
+        g2.monsters.push_back(make_monster("Orc", EntityType::Monster,
+                                           2, 1, 10, 12, 0, 6, 9));
+        PlayerCommand move2;
+        move2.type = PlayerCommandType::Move;
+        move2.dx = 1;
+        apply_player_command(g2, move2);
+        bool clear_hit = g2.monsters[0].hp < 10;
+
+        if (confused_miss && clear_hit) return seed;
+    }
+    return 1;
+}
+
 TEST_CASE("Secret doors: search, reveal, and open") {
     SUBCASE("an unrevealed secret door blocks movement and opening") {
         Game g = make_minimal_game();
@@ -697,6 +739,127 @@ TEST_CASE("Paralysis: blocks hero actions and wears off") {
             if (e.find("cures your paralysis") != std::string::npos) saw_cure = true;
         }
         CHECK(saw_cure);
+    }
+}
+
+TEST_CASE("Normal bats: swarm confusion") {
+    SUBCASE("a swarm of 10+ normal bats adjacent to the hero confuses them (-2 to hit)") {
+        unsigned seed = find_bat_tohit_flip_seed();
+        REQUIRE(seed != 1);
+
+        Game g = make_minimal_game();
+        g.rng.seed(seed);
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/10, /*dmg_die=*/1,
+                           /*ac=*/10);
+        auto bat = make_monster("Bat, Normal", EntityType::Monster,
+                                1, 2, 1, 10, 0, 1, 9);
+        bat.count = 10;
+        g.monsters.push_back(bat);
+        g.monsters.push_back(make_monster("Orc", EntityType::Monster,
+                                          2, 1, 10, 12, 0, 6, 9));
+
+        PlayerCommand move;
+        move.type = PlayerCommandType::Move;
+        move.dx = 1;
+        apply_player_command(g, move);
+
+        CHECK(g.monsters[1].hp == 10);  // missed because of the -2 penalty
+    }
+
+    SUBCASE("without a swarm the same attack hits") {
+        unsigned seed = find_bat_tohit_flip_seed();
+        REQUIRE(seed != 1);
+
+        Game g = make_minimal_game();
+        g.rng.seed(seed);
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/10, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.monsters.push_back(make_monster("Orc", EntityType::Monster,
+                                          2, 1, 10, 12, 0, 6, 9));
+
+        PlayerCommand move;
+        move.type = PlayerCommandType::Move;
+        move.dx = 1;
+        apply_player_command(g, move);
+
+        CHECK(g.monsters[0].hp < 10);  // hits without confusion
+    }
+
+    SUBCASE("a confused hero cannot cast spells") {
+        Game g = make_minimal_game(10, 10);
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.spell_slots[1] = 1;
+        g.hero.spells = {"Cure Light Wounds"};
+        g.hero.hp = 3;
+        auto bat = make_monster("Bat, Normal", EntityType::Monster,
+                                2, 1, 1, 10, 0, 1, 9);
+        bat.count = 10;
+        g.monsters.push_back(bat);
+
+        apply_player_command(g, {PlayerCommandType::Cast, /*spell_index=*/0, 0, 0});
+
+        CHECK(g.hero.spell_slots[1] == 1);  // slot not consumed
+        bool saw_block = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("confuses your concentration") != std::string::npos) saw_block = true;
+        }
+        CHECK(saw_block);
+    }
+
+    SUBCASE("a small flock (fewer than 10) does not confuse the hero") {
+        Game g = make_minimal_game(10, 10);
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.spell_slots[1] = 1;
+        g.hero.spells = {"Cure Light Wounds"};
+        g.hero.hp = 3;
+        auto bat = make_monster("Bat, Normal", EntityType::Monster,
+                                2, 1, 1, 10, 0, 1, 9);
+        bat.count = 9;
+        g.monsters.push_back(bat);
+
+        apply_player_command(g, {PlayerCommandType::Cast, /*spell_index=*/0, 0, 0});
+
+        CHECK(g.hero.spell_slots[1] == 0);  // slot consumed, spell cast
+    }
+
+    SUBCASE("normal bats never bite: adjacent swarm leaves the hero unharmed") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        auto bat = make_monster("Bat, Normal", EntityType::Monster,
+                                2, 1, 10, 10, 0, 6, 9);
+        bat.count = 10;
+        g.monsters.push_back(bat);
+
+        monsters_turn(g);
+
+        CHECK(g.hero.hp == 20);  // untouched by the swarm
+    }
+
+    SUBCASE("normal bats check morale each round while swarming") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        auto bat = make_monster("Bat, Normal", EntityType::Monster,
+                                2, 1, 10, 10, 0, 6, 2);  // very low morale
+        bat.count = 10;
+        g.monsters.push_back(bat);
+
+        monsters_turn(g);
+
+        bool saw_morale = false;
+        for (const auto& e : g.event_log) {
+            if (e.find("makes a morale check") != std::string::npos) saw_morale = true;
+        }
+        CHECK(saw_morale);
     }
 }
 

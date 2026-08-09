@@ -90,6 +90,10 @@ Special monster traits implemented per B/X:
   Elves are immune to ghoul paralysis (but not other paralysis). A paralyzed
   hero cannot act; only Cure Light Wounds (cast while paralyzed) restores
   movement immediately.
+- **Normal bats** — normal bats never bite; they swarm around the hero's head.
+  A swarm of 10+ normal bats within 8 tiles confuses the hero (-2 to hit, -2 on
+  saving throws, no spellcasting). The HUD shows `CONFUSED!` while active. Each
+  round a swarming flock checks morale, and a panicked flock flees.
 
 ## Controls
 - `w`, `a`, `s`, `d` — cardinal movement

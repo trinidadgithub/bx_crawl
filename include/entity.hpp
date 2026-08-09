@@ -112,6 +112,7 @@ struct Entity {
     bool has_poison{false};
     bool has_disease{false};
     bool has_paralysis{false};
+    int count{1};  // number of creatures this entity represents (bat swarms)
 
     // Equipment (weapon + armor IDs from bx_data.hpp)
     std::array<int, 16> weapon_counts{};
