@@ -676,6 +676,15 @@ static bool is_name_disease(const char* name) {
         || n.find("Tick") != std::string_view::npos;
 }
 
+// Check if a monster name indicates a paralysis attack (save vs. Paralysis)
+static bool is_name_paralysis(const char* name) {
+    std::string_view n(name);
+    return n.find("Ghoul") != std::string_view::npos
+        || n.find("Carrion Crawler") != std::string_view::npos
+        || n.find("Gelatinous Cube") != std::string_view::npos
+        || n.find("Thoul") != std::string_view::npos;
+}
+
 // Spawn a monster from bx_data. Returns the populated Entity.
 static Entity spawn_bx_monster_by_index(Game& g, int idx) {
     if (idx < 0 || idx >= static_cast<int>(bx::monsters.size())) {
@@ -699,6 +708,7 @@ static Entity spawn_bx_monster_by_index(Game& g, int idx) {
     e.undead     = is_name_undead(m.name);
     e.has_poison = is_name_poison(m.name);
     e.has_disease = is_name_disease(m.name);
+    e.has_paralysis = is_name_paralysis(m.name);
     e.fleeing    = false;
     e.alive      = true;
     e.attacks_per_turn = 1;
@@ -979,6 +989,22 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
                         if (defender.hp <= 0) {
                             defender.hp = 0;
                             defender.alive = false;
+                        }
+                    }
+                } else if (attacker.has_paralysis) {
+                    bool elf_immune = (g.hero.char_class == CharacterClass::Elf
+                                       && attacker.name.find("Ghoul") != std::string::npos);
+                    if (elf_immune) {
+                        log_event(g, "Your elven blood resists the ghoul's paralysis!");
+                    } else if (make_save(g, g.hero.char_class, 2)) {
+                        log_event(g, "You resist the paralysis!");
+                    } else {
+                        g.hero.paralyzed_turns = roll_d(g, 4) + roll_d(g, 4);
+                        {
+                            std::ostringstream oss;
+                            oss << attacker.name << " paralyzes you for "
+                                << g.hero.paralyzed_turns << " turns!";
+                            log_event(g, oss.str());
                         }
                     }
                 }
@@ -2350,6 +2376,12 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
     }
     const std::string& spell = hero.spells[spell_index];
 
+    // While paralyzed only Cure Light Wounds can be cast (it cures paralysis).
+    if (hero.paralyzed_turns > 0 && spell != "Cure Light Wounds") {
+        log_event(g, "You are too stiff to cast that spell!");
+        return false;
+    }
+
     if (hero.char_class == CharacterClass::Cleric && is_cleric_spell_name(spell)
         && !has_gear(hero, "holy-symbol")) {
         log_event(g, "You need a holy symbol to cast cleric spells.");
@@ -2446,6 +2478,12 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
             oss << "Cure Light Wounds heals " << actual
                 << " HP (" << hero.hp << "/" << hero.max_hp << ").";
             log_event(g, oss.str());
+        }
+        // Cure Light Wounds also removes paralysis (B/X: "unless removed by a
+        // cure light wounds spell").
+        if (hero.paralyzed_turns > 0) {
+            hero.paralyzed_turns = 0;
+            log_event(g, "The spell also cures your paralysis!");
         }
         return true;
     }
@@ -2976,6 +3014,20 @@ void tick_wander_counter(Game& g) {
 // Player command application
 // ---------------------------
 bool apply_player_command(Game& g, const PlayerCommand& cmd) {
+    // A paralyzed hero cannot act; the turn still passes for monsters.
+    // Exception: casting Cure Light Wounds (which itself cures paralysis) is
+    // allowed so the hero can recover in solo play.
+    if (g.hero.paralyzed_turns > 0 && cmd.type != PlayerCommandType::Quit
+        && cmd.type != PlayerCommandType::Cast) {
+        --g.hero.paralyzed_turns;
+        if (g.hero.paralyzed_turns == 0) {
+            log_event(g, "Your muscles unclench — the paralysis wears off!");
+        } else {
+            log_event(g, "You are paralyzed and cannot act!");
+        }
+        return true;
+    }
+
     // Break stealth on most actions (not Wait, Hide, Search, Help, or None)
     if (g.hero.hidden) {
         switch (cmd.type) {
