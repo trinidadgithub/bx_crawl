@@ -713,81 +713,6 @@ static bool hero_is_confused(const Game& g) {
     return total >= 10;
 }
 
-// Hero's light radius from the active light source. Demihuman infravision
-// gives a small radius with no actual light.
-static int hero_light_radius(const Game& g) {
-    if (g.hero.light_spell_turns > 0) return 10;
-    if (g.hero.lantern_turns > 0) return 6;
-    if (g.hero.torch_turns > 0) return 6;
-    switch (g.hero.char_class) {
-        case CharacterClass::Dwarf:
-        case CharacterClass::Elf:
-        case CharacterClass::Halfling:
-            return 2;
-        default:
-            return 0;
-    }
-}
-
-// Does the hero have an actual light source (not infravision)?
-static bool hero_carries_light(const Game& g) {
-    return g.hero.light_spell_turns > 0
-        || g.hero.lantern_turns > 0
-        || g.hero.torch_turns > 0;
-}
-
-// B/X lair humanoids that suffer a -1 to-hit penalty in full daylight.
-static bool is_name_daylight_sensitive(const char* name) {
-    std::string_view n(name);
-    return n == "Goblin" || n == "Orc";
-}
-
-// B/X: goblins and orcs were used to the dark. Fighting in the hero's light
-// (i.e. carrying light into their lair) gives them a -1 to-hit penalty.
-// The goblin king and his bodyguard are used to light and fight unhindered.
-static int daylight_to_hit_penalty(const Game& g, const Entity& m) {
-    if (!is_name_daylight_sensitive(m.name.c_str())) return 0;
-    if (m.is_leader) return 0;
-    if (!hero_carries_light(g)) return 0;
-    int r = hero_light_radius(g);
-    int dist = std::abs(g.hero.pos.x - m.pos.x) + std::abs(g.hero.pos.y - m.pos.y);
-    if (dist > r) return 0;
-    return 1;
-}
-
-// B/X lair humanoids with a lair leader wielding morale as a collective.
-static bool is_name_lair_humanoid(const char* name) {
-    std::string_view n(name);
-    return n == "Goblin" || n == "Hobgoblin" || n == "Kobold" || n == "Orc";
-}
-
-// Is a living leader of the monster's kind close enough to inspire it?
-static bool leader_inspiring(const Game& g, const Entity& m) {
-    if (!m.alive) return false;
-    if (!is_name_lair_humanoid(m.name.c_str())) return false;
-    for (const auto& other : g.monsters) {
-        if (&other == &m) continue;
-        if (!other.alive || !other.is_leader) continue;
-        if (other.name != m.name) continue;
-        int dist = std::abs(other.pos.x - m.pos.x) + std::abs(other.pos.y - m.pos.y);
-        if (dist <= 8) return true;
-    }
-    return false;
-}
-
-// B/X morale with lair leaders: while their king/chieftain lives nearby the
-// group fights bravely; once the leader falls they fall back on their base
-// morale. Non-lair creatures always use their own morale.
-static int effective_morale(const Game& g, const Entity& m) {
-    if (!is_name_lair_humanoid(m.name.c_str())) return m.morale;
-    if (!leader_inspiring(g, m)) return m.morale;
-    if (m.name == "Goblin")    return 9;
-    if (m.name == "Hobgoblin") return 10;
-    if (m.name == "Kobold")    return 8;
-    if (m.name == "Orc")       return 8;
-    return m.morale;
-}
-
 // Spawn a monster from bx_data. Returns the populated Entity.
 static Entity spawn_bx_monster_by_index(Game& g, int idx) {
     if (idx < 0 || idx >= static_cast<int>(bx::monsters.size())) {
@@ -846,30 +771,6 @@ static Entity spawn_bx_monster(Game& g, int dungeon_level) {
 
 static Entity spawn_test_monster(Game& g) {
     return spawn_bx_monster_by_index(g, test_monster_index());
-}
-
-// Promote one creature of each lair humanoid type to its B/X lair leader.
-// Killing the leader removes the morale so the group fights at a lower value.
-static void promote_lair_leaders(Game& g) {
-    struct LeaderSpec { const char* name; int hp; int atk; int dmg; };
-    const LeaderSpec spec[] = {
-        {"Goblin",    15, 3, 1},
-        {"Orc",        8, 1, 1},
-        {"Kobold",     9, 2, 0},
-        {"Hobgoblin", 22, 5, 2},
-    };
-    for (const LeaderSpec& s : spec) {
-        for (auto& m : g.monsters) {
-            if (m.alive && !m.is_leader && m.name == s.name) {
-                m.is_leader = true;
-                m.max_hp = s.hp;
-                m.hp = s.hp;
-                m.attack_bonus = s.atk;
-                m.damage_bonus += s.dmg;
-                break;
-            }
-        }
-    }
 }
 
 // Forward declarations for morale/attack internals
@@ -1030,8 +931,6 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
         else if (attacker.turns_without_food >= 96)
             extra_atk -= 1;
     }
-    // B/X daylight penalty: light-shy humanoids fight at -1 in the hero's light
-    extra_atk -= daylight_to_hit_penalty(g, attacker);
     // Backstab: hidden Thief gets +4 to hit and double damage
     int backstab_bonus = (attacker.type == EntityType::Hero && attacker.hidden) ? 4 : 0;
     int total  = roll + attacker.attack_bonus + extra_atk + backstab_bonus;
@@ -1092,14 +991,6 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
             {
                 std::ostringstream oss;
                 oss << defender.name << " is slain!";
-                log_event(g, oss.str());
-            }
-
-            // B/X: slaying a lair leader breaks the group's morale.
-            if (defender.type != EntityType::Hero && defender.is_leader) {
-                std::ostringstream oss;
-                oss << "The " << defender.name
-                    << " leader has fallen — the group's morale wavers!";
                 log_event(g, oss.str());
             }
 
@@ -1196,19 +1087,18 @@ void try_morale_check(Game& g, Entity& m, Entity& attacker,
                       int& free_attacks_remaining, const std::string& reason) {
     if (!m.alive) return;
     if (m.type == EntityType::Hero) return;
-    int morale = effective_morale(g, m);
-    if (m.morale <= 0 && morale <= 0) return;
+    if (m.morale <= 0) return;
 
     int roll = roll_2d6(g);
 
     {
         std::ostringstream oss;
         oss << m.name << " makes a morale check (" << reason
-            << "): 2d6 = " << roll << " vs morale " << morale;
+            << "): 2d6 = " << roll << " vs morale " << m.morale;
         log_event(g, oss.str());
     }
 
-    if (roll > morale) {
+    if (roll > m.morale) {
         {
             std::ostringstream oss;
             oss << m.name << " panics and attempts to flee!";
@@ -1418,7 +1308,6 @@ void init_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data
             place_monster(e, rooms[static_cast<std::size_t>(random_monster_room())]);
             g.monsters.push_back(e);
         }
-        promote_lair_leaders(g);
     }
 
     // Initial location description
@@ -1490,7 +1379,6 @@ void regenerate_dungeon(Game& g, int new_dungeon_level) {
             place_monster(e, rooms[static_cast<std::size_t>(random_monster_room())]);
             g.monsters.push_back(e);
         }
-        promote_lair_leaders(g);
     }
 }
 
