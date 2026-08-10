@@ -99,6 +99,12 @@ Special monster traits implemented per B/X:
   Paralysis; failure knocks the hero unconscious for 1-10 rounds. While
   unconscious the hero cannot act, and an adjacent vampire bat drains 1-4 HP of
   blood each round. The HUD shows `UNCONSCIOUS!` while knocked out.
+- **Daylight-shy humanoids** — goblins and orcs were used to the dark and fight
+  at -1 to hit in the hero's torchlight (the goblin king is used to light). A
+  lair king/chieftain/leader is promoted per level; while a leader lives nearby
+  its kind fights at boosted morale (goblins 9, orcs 8, kobolds 8, hobgoblins
+  10), and slaying a leader is announced and sends the group's morale back to
+  its base value.
 
 ## Controls
 - `w`, `a`, `s`, `d` — cardinal movement
