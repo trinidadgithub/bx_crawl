@@ -138,4 +138,9 @@ struct Entity {
     int ai_wander_timer{};
     bool surprise_checked{false};
     bool surprised{false};
+
+    // Lair leader: goblin king / kobold chieftain / orc leader / hobgoblin king.
+    // While alive, allied lair humanoids fight with boosted morale; when it
+    // dies, their morale breaks.
+    bool is_leader{false};
 };
