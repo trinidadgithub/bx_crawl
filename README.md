@@ -139,11 +139,17 @@ rations and hunger status.
 
 ## Save Data
 
-Camp saves to:
+Camp saves to a per-hero file:
 
 ```text
-~/.bx_crawl/save.dat
+~/.bx_crawl/saves/<hero>.dat
 ```
+
+Save files are treated as untrusted input: corrupt, truncated, or invalid save
+files are rejected cleanly without touching the current game, and hero names
+are sanitized before being used as filenames so they can never escape the saves
+directory (unsafe characters such as `/`, `\`, and `.` are replaced with `_`).
+A legacy single-file save at `~/.bx_crawl/save.dat` can still be loaded.
 
 ## Sound and Debug Log
 
