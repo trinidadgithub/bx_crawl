@@ -36,7 +36,7 @@ All of those vectors are now closed. The public persistence API
 ## Tests Added
 
 Baseline before these changes: **113 test cases / 2901 assertions**. After:
-**122 test cases / 3505 assertions**, all passing in the normal build and under
+**123 test cases / 4259 assertions**, all passing in the normal build and under
 ASan+UBSan.
 
 New categories:
@@ -62,6 +62,45 @@ New categories:
 - **Filename safety** — hero names containing `/`, `\`, `..`, control
   characters, or empty, never escape the saves directory; sanitized names
   round-trip through save/load/enumerate and `find_save`.
+
+## Validation Remediation
+
+### F-001
+
+`save_game` now explicitly flushes and closes the output stream before reporting
+success, so ordinary buffered stream failures observed during final flush/close
+are not silently reported as successful saves. A direct final-flush failure test
+was not added because a portable deterministic trigger would require filesystem
+fault injection, disk exhaustion, or platform-specific devices such as
+`/dev/full`; the existing write-failure test remains focused on deterministic
+directory failure, and the flush/close behavior is verified by implementation
+inspection.
+
+### F-002
+
+`write_str` now enforces the same `kMaxSerializedStringLength = 1024` limit as
+`read_str`. The invariant is now that any string `save_game` successfully writes
+is within the size range accepted by `load_game`. Tests cover a maximum-size
+hero name that saves and reloads, and a maximum-plus-one name that causes
+`save_game` to return false.
+
+### F-003
+
+F-003 remains intentionally deferred. Richer caller-visible load diagnostics
+will be reconsidered when the application/GameSession boundary is designed, to
+avoid designing the public persistence error API twice.
+
+### F-004
+
+The truncated-save regression now includes an explicit zero-byte payload. The
+test verifies clean load failure and unchanged live `Game` state.
+
+### F-005
+
+The failed-load state-preservation test now includes representative runtime-only
+state: map dimensions/tile data/items, monster count and fields, room data,
+event log contents, and deterministic RNG state via copied `std::mt19937`
+comparison.
 
 ## Save Format Compatibility
 
@@ -111,8 +150,8 @@ Ran the full suite under AddressSanitizer + UndefinedBehaviorSanitizer
 (`-DBX_ENABLE_SANITIZERS=ON`, Debug build in `build-asan/`):
 
 ```
-122 test cases | 122 passed | 0 failed
-3505 assertions | 3505 passed | 0 failed
+123 test cases | 123 passed | 0 failed
+4259 assertions | 4259 passed | 0 failed
 ```
 
 No ASan findings, no UBSan `runtime error` reports, no leaks

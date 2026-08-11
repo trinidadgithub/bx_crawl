@@ -13,7 +13,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <limits>
 #include <string>
 #include <sstream>
 #include <utility>
@@ -3918,7 +3917,7 @@ inline bool read_exact(std::istream& in, char* dst, std::size_t n) {
 }
 
 inline bool write_str(std::ostream& out, const std::string& s) {
-    if (s.size() > static_cast<std::size_t>(std::numeric_limits<int32_t>::max()))
+    if (s.size() > kMaxSerializedStringLength)
         return false;
     const int32_t len = static_cast<int32_t>(s.size());
     return write_exact(out, reinterpret_cast<const char*>(&len), sizeof(len))
@@ -4382,6 +4381,9 @@ bool save_game(const Game& g, const std::filesystem::path& path) {
     for (int count : h.armor_counts)
         if (!write_int(out, count)) return false;
 
+    out.flush();
+    if (!out) return false;
+    out.close();
     return out.good();
 }
 

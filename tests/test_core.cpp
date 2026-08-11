@@ -3592,6 +3592,8 @@ TEST_CASE("find_save checks pregenerated directory as fallback") {
 
 namespace {
 
+constexpr std::size_t kSerializedStringLimitForTests = 1024;
+
 // Copy an int32 into its serialized form (little-endian byte order matches
 // the writer, which memcpy's the raw value).
 std::string pack_i32(int32_t v) {
@@ -3682,6 +3684,13 @@ Game make_known_game_state() {
     g.total_gold = 999;
     g.hero_level = 4;
     g.dungeon_level = 3;
+    g.rng.seed(777u);
+    g.map[0].type = TileType::Wall;
+    g.map[0].visible = true;
+    g.map[0].items.push_back(ItemType::Torch);
+    g.monsters.push_back(make_monster("Goblin", EntityType::Goblin, 2, 2, 3, 7, 1, 6, 7));
+    g.rooms.push_back(Room{1, 1, 3, 3});
+    g.event_log.push_back("Known state must survive failed loads.");
     return g;
 }
 
@@ -3702,6 +3711,29 @@ void assert_load_rejected_cleanly(Game& g, const std::filesystem::path& path) {
     CHECK(g.total_xp == before.total_xp);
     CHECK(g.hero_level == before.hero_level);
     CHECK(g.dungeon_level == before.dungeon_level);
+    CHECK(g.width == before.width);
+    CHECK(g.height == before.height);
+    REQUIRE(g.map.size() == before.map.size());
+    REQUIRE_FALSE(g.map.empty());
+    CHECK(g.map[0].type == before.map[0].type);
+    CHECK(g.map[0].visible == before.map[0].visible);
+    CHECK(g.map[0].items == before.map[0].items);
+    REQUIRE(g.monsters.size() == before.monsters.size());
+    REQUIRE_FALSE(g.monsters.empty());
+    CHECK(g.monsters[0].name == before.monsters[0].name);
+    CHECK(g.monsters[0].hp == before.monsters[0].hp);
+    CHECK(g.monsters[0].pos.x == before.monsters[0].pos.x);
+    CHECK(g.monsters[0].pos.y == before.monsters[0].pos.y);
+    REQUIRE(g.rooms.size() == before.rooms.size());
+    REQUIRE_FALSE(g.rooms.empty());
+    CHECK(g.rooms[0].x == before.rooms[0].x);
+    CHECK(g.rooms[0].y == before.rooms[0].y);
+    CHECK(g.rooms[0].w == before.rooms[0].w);
+    CHECK(g.rooms[0].h == before.rooms[0].h);
+    CHECK(g.event_log == before.event_log);
+    auto before_rng = before.rng;
+    auto after_rng = g.rng;
+    CHECK(before_rng() == after_rng());
 }
 
 } // anonymous namespace
@@ -3745,7 +3777,7 @@ TEST_CASE("Malformed saves: bad magic and unsupported versions are rejected") {
 TEST_CASE("Malformed saves: truncated files are rejected without side effects") {
     auto crafted = make_valid_save_v5();
     const std::vector<std::size_t> cuts = {
-        4, 8, 12, 32,
+        0, 4, 8, 12, 32,
         crafted.off_name_len, crafted.off_name_len + 4,
         crafted.bytes.size() / 2, crafted.bytes.size() - 16,
         crafted.bytes.size() - 4, crafted.bytes.size() - 1
@@ -3867,6 +3899,30 @@ TEST_CASE("save_game fails instead of silently succeeding when it cannot write")
     CHECK_FALSE(save_game(g, blocker / "x.dat"));   // parent is a regular file
 
     std::filesystem::remove(blocker);
+}
+
+TEST_CASE("Serialized string limit is enforced by both writer and reader") {
+    auto max_path = std::filesystem::path{"/tmp/opencode/bx_crawl_max_string.dat"};
+    auto too_long_path = std::filesystem::path{"/tmp/opencode/bx_crawl_too_long_string.dat"};
+    std::filesystem::remove(max_path);
+    std::filesystem::remove(too_long_path);
+
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 2, 6, 9);
+    g.hero.char_class = CharacterClass::Fighter;
+    g.hero.name = std::string(kSerializedStringLimitForTests, 'A');
+    CHECK(save_game(g, max_path));
+
+    Game loaded = make_minimal_game();
+    CHECK(load_game(loaded, max_path));
+    CHECK(loaded.hero.name.size() == kSerializedStringLimitForTests);
+    CHECK(loaded.hero.name == g.hero.name);
+
+    g.hero.name = std::string(kSerializedStringLimitForTests + 1, 'B');
+    CHECK_FALSE(save_game(g, too_long_path));
+
+    std::filesystem::remove(max_path);
+    std::filesystem::remove(too_long_path);
 }
 
 TEST_CASE("Hero-derived save filenames never escape the saves directory") {
