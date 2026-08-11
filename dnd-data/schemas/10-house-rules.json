@@ -1,0 +1,36 @@
+{
+  "//": "Optional house rules (not B/X RAW), speced for later implementation.",
+  "schema": "bx-house-rules-v1",
+  "rules": [
+    {
+      "id": "sense-deceit",
+      "name": "Sense Deceit",
+      "status": "spec",
+      "category": "social",
+      "description": "Lets a PC attempt to tell whether an NPC is lying when they ask directly. The referee rolls this check in secret and narrates the result; the player never sees the die.",
+      "resolution": {
+        "type": "d6-in-6",
+        "baseChance": "1 in 6",
+        "when": "PC explicitly asks whether an NPC's current statement is a lie",
+        "procedure": [
+          "Roll 1d6 in secret.",
+          "A roll equal to or under the PC's chance detects the truth: the PC senses the NPC is lying (or is not, if they ask about a genuine statement).",
+          "Never reveal the roll or the chance to the player; narrate only the in-fiction tell."
+        ],
+        "modifiers": [
+          { "condition": "Wisdom 13-15", "chance": "2 in 6" },
+          { "condition": "Wisdom 16-18", "chance": "3 in 6" },
+          { "condition": "NPC is a skilled liar (cultured/intelligent class, spy, courtier)", "chance": "2 in 6" },
+          { "condition": "PC and NPC share a common language", "chance": "no change" },
+          { "condition": "NPC under magical compulsion (charm, possession)", "chance": "no check" }
+        ]
+      },
+      "notes": [
+        "Only tests the statement the PC asks about, not general character knowledge.",
+        "If the check succeeds and the NPC is lying, the PC knows the statement is false, but not the truth behind it.",
+        "If the check succeeds and the NPC is truthful, the PC senses sincerity.",
+        "A failed check reveals nothing; the PC remains unsure. This is a house rule — B/X RAW has no perception/insight mechanic for social situations."
+      ]
+    }
+  ]
+}
