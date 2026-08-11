@@ -4,6 +4,21 @@ project(bx_crawl VERSION 0.1.0 LANGUAGES CXX)
 add_library(bx_project_options INTERFACE)
 target_compile_features(bx_project_options INTERFACE cxx_std_20)
 
+# Optional Address + UndefinedBehavior sanitizers for development/testing.
+option(BX_ENABLE_SANITIZERS "Build with Address + UndefinedBehavior sanitizers" OFF)
+if(BX_ENABLE_SANITIZERS)
+    if(NOT MSVC)
+        target_compile_options(bx_project_options INTERFACE
+            -fsanitize=address,undefined
+            -fno-omit-frame-pointer
+            -g
+        )
+        target_link_options(bx_project_options INTERFACE -fsanitize=address,undefined)
+    else()
+        message(STATUS "BX_ENABLE_SANITIZERS is only supported with GCC/Clang")
+    endif()
+endif()
+
 # -- Data codegen: optionally regenerates include/bx_data.hpp from dnd-data. --
 # The checked-in header is currently curated by hand during monster review.
 option(BX_REGENERATE_DATA "Regenerate include/bx_data.hpp during build" OFF)

@@ -4,8 +4,12 @@
 #include "game.hpp"
 #include "map.hpp"
 
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <fstream>
 #include <string>
+#include <vector>
 
 class ScopedEnvVar {
 public:
@@ -3579,6 +3583,343 @@ TEST_CASE("find_save checks pregenerated directory as fallback") {
     std::filesystem::remove_all(saves_directory());
     if (old_home) setenv("HOME", old_home, 1);
     else unsetenv("HOME");
+}
+
+// ── Persistence hardening tests ──────────────────────────────────
+// These treat the on-disk save format as a compatibility spec: payloads are
+// handcrafted here so that individual bytes can be corrupted to exercise the
+// loader's validation paths.
+
+namespace {
+
+// Copy an int32 into its serialized form (little-endian byte order matches
+// the writer, which memcpy's the raw value).
+std::string pack_i32(int32_t v) {
+    std::string b(sizeof(v), '\0');
+    std::memcpy(&b[0], &v, sizeof(v));
+    return b;
+}
+
+std::string pack_str(const std::string& s) {
+    return pack_i32(static_cast<int32_t>(s.size())) + s;
+}
+
+struct CraftedSave {
+    std::string bytes;
+    std::size_t off_state{};
+    std::size_t off_hero_level{};
+    std::size_t off_dungeon_level{};
+    std::size_t off_name_len{};
+    std::size_t off_char_class{};
+    std::size_t off_nspells{};
+};
+
+// A valid version-5 payload following the exact byte layout produced by
+// save_game. Field offsets are recorded so tests can corrupt individual values.
+CraftedSave make_valid_save_v5() {
+    CraftedSave s;
+    auto i32 = [&](int32_t v) { s.bytes += pack_i32(v); };
+    auto str = [&](const std::string& v) { s.bytes += pack_str(v); };
+
+    s.bytes += "BXSV";                          // magic
+    i32(5);                                     // version
+
+    s.off_state = s.bytes.size();        i32(0);   // GameState::Town
+    i32(100);                                      // total_gold
+    i32(0);                                        // total_xp
+    s.off_hero_level = s.bytes.size();     i32(1); // hero_level
+    s.off_dungeon_level = s.bytes.size();  i32(1); // dungeon_level
+
+    s.off_name_len = s.bytes.size();       str("CraftedHero");
+    i32(10); i32(10);                       // hp, max_hp
+    i32(1); i32(6); i32(0); i32(9);         // attack_bonus, damage_die, damage_bonus, ac
+    i32(9); i32(9); i32(9); i32(9); i32(9); i32(9); // abilities (str,int,wis,dex,con,cha)
+
+    s.off_char_class = s.bytes.size();      i32(1); // Fighter
+    i32(60); i32(0); i32(0); i32(0);        // torch, light, knives, darts
+    i32(0); i32(0); i32(0); i32(0);         // shield/protection/courage/resist turns
+
+    str(""); str("");                       // weapon_id, armor_id
+    i32(0);                                 // has_shield
+    i32(0); i32(0); i32(0); i32(0); i32(0); i32(0); // six thief skills
+
+    s.off_nspells = s.bytes.size();         i32(0); // no known spells
+    for (int i = 0; i <= 9; ++i) i32(0);            // spell_slots[0..9]
+    for (int i = 0; i <= 9; ++i) i32(0);            // max_spell_slots[0..9]
+
+    // Version 2+ fields
+    i32(0); i32(0); i32(0); i32(0); i32(0); i32(0); i32(0); // rations..ai_wander_timer
+    // Version 3+ fields
+    for (int i = 0; i < 20; ++i) i32(0);                // gear_counts
+    // Version 4+ fields
+    i32(0);                                             // lantern_turns
+    // Version 5+ fields
+    for (int i = 0; i < 16; ++i) i32(0);                // weapon_counts
+    for (int i = 0; i < 4; ++i)  i32(0);                // armor_counts
+    return s;
+}
+
+void write_save_file(const std::string& bytes, const std::filesystem::path& path) {
+    std::ofstream out(path, std::ios::binary);
+    out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+}
+
+void patch_i32(std::string& bytes, std::size_t off, int32_t v) {
+    REQUIRE(off + sizeof(int32_t) <= bytes.size());
+    std::memcpy(&bytes[off], &v, sizeof(v));
+}
+
+// A representative live game that malformed loads must not disturb.
+Game make_known_game_state() {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 2, 6, 9);
+    g.hero.name = "Keeper";
+    g.hero.char_class = CharacterClass::MagicUser;
+    g.hero.weapon_id = "sword";
+    g.hero.armor_id = "leather-armor";
+    g.hero.spells = {"Sleep", "Read Magic"};
+    g.state = GameState::Dungeon;
+    g.total_gold = 999;
+    g.hero_level = 4;
+    g.dungeon_level = 3;
+    return g;
+}
+
+// Load `path` into `g`; verify the load fails and no meaningful field changes.
+void assert_load_rejected_cleanly(Game& g, const std::filesystem::path& path) {
+    const Game before = g;
+    CHECK_FALSE(load_game(g, path));
+    CHECK(g.hero.name == before.hero.name);
+    CHECK(g.hero.hp == before.hero.hp);
+    CHECK(g.hero.max_hp == before.hero.max_hp);
+    CHECK(g.hero.abilities.str == before.hero.abilities.str);
+    CHECK(g.hero.char_class == before.hero.char_class);
+    CHECK(g.hero.weapon_id == before.hero.weapon_id);
+    CHECK(g.hero.armor_id == before.hero.armor_id);
+    CHECK(g.hero.spells == before.hero.spells);
+    CHECK(g.state == before.state);
+    CHECK(g.total_gold == before.total_gold);
+    CHECK(g.total_xp == before.total_xp);
+    CHECK(g.hero_level == before.hero_level);
+    CHECK(g.dungeon_level == before.dungeon_level);
+}
+
+} // anonymous namespace
+
+TEST_CASE("Crafted v5 payload loads, validating the format contract") {
+    auto crafted = make_valid_save_v5();
+    auto path = std::filesystem::path{"/tmp/opencode/bx_crawl_crafted_v5.dat"};
+    write_save_file(crafted.bytes, path);
+
+    Game loaded = make_minimal_game();
+    CHECK(load_game(loaded, path));
+    CHECK(loaded.hero.name == "CraftedHero");
+    CHECK(loaded.hero.char_class == CharacterClass::Fighter);
+    CHECK(loaded.hero.hp == 10);
+    CHECK(loaded.hero.max_hp == 10);
+    CHECK(loaded.total_gold == 100);
+    CHECK(loaded.hero_level == 1);
+    CHECK(loaded.dungeon_level == 1);
+    CHECK(loaded.state == GameState::Town);
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("Malformed saves: bad magic and unsupported versions are rejected") {
+    auto path = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_magic.dat"};
+    write_save_file("NOTABXSAVE........", path);
+    Game g = make_known_game_state();
+    assert_load_rejected_cleanly(g, path);
+    std::filesystem::remove(path);
+
+    for (int32_t bad_version : {-1, 0, 6, 1000000}) {
+        auto c = make_valid_save_v5();
+        patch_i32(c.bytes, 4, bad_version);
+        auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_version.dat"};
+        write_save_file(c.bytes, p);
+        assert_load_rejected_cleanly(g, p);
+        std::filesystem::remove(p);
+    }
+}
+
+TEST_CASE("Malformed saves: truncated files are rejected without side effects") {
+    auto crafted = make_valid_save_v5();
+    const std::vector<std::size_t> cuts = {
+        4, 8, 12, 32,
+        crafted.off_name_len, crafted.off_name_len + 4,
+        crafted.bytes.size() / 2, crafted.bytes.size() - 16,
+        crafted.bytes.size() - 4, crafted.bytes.size() - 1
+    };
+
+    Game g = make_known_game_state();
+    int idx = 0;
+    for (std::size_t cut : cuts) {
+        auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_trunc_" +
+                                       std::to_string(idx++) + ".dat"};
+        write_save_file(crafted.bytes.substr(0, cut), p);
+        assert_load_rejected_cleanly(g, p);
+        std::filesystem::remove(p);
+    }
+}
+
+TEST_CASE("Malformed saves: invalid string lengths are rejected before allocation") {
+    const int32_t lengths[] = {-1, -100, 0x10000000, 0x7FFFFFFF};
+    Game g = make_known_game_state();
+    int idx = 0;
+    for (int32_t len : lengths) {
+        auto c = make_valid_save_v5();
+        patch_i32(c.bytes, c.off_name_len, len);
+        auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_badlen_" +
+                                       std::to_string(idx++) + ".dat"};
+        write_save_file(c.bytes, p);
+        assert_load_rejected_cleanly(g, p);
+        std::filesystem::remove(p);
+    }
+}
+
+TEST_CASE("Malformed saves: invalid serialized enums are rejected") {
+    Game g = make_known_game_state();
+
+    auto c = make_valid_save_v5();
+    for (int32_t state : {-1, 99, 500}) {
+        patch_i32(c.bytes, c.off_state, state);
+        auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_state.dat"};
+        write_save_file(c.bytes, p);
+        assert_load_rejected_cleanly(g, p);
+        std::filesystem::remove(p);
+    }
+
+    auto c2 = make_valid_save_v5();
+    for (int32_t cc : {-2, 99, 42}) {
+        patch_i32(c2.bytes, c2.off_char_class, cc);
+        auto p2 = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_class.dat"};
+        write_save_file(c2.bytes, p2);
+        assert_load_rejected_cleanly(g, p2);
+        std::filesystem::remove(p2);
+    }
+}
+
+TEST_CASE("Malformed saves: impossible counts and levels are rejected") {
+    Game g = make_known_game_state();
+
+    for (int32_t level : {0, -1, 1000000}) {
+        auto c = make_valid_save_v5();
+        patch_i32(c.bytes, c.off_hero_level, level);
+        auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_hl.dat"};
+        write_save_file(c.bytes, p);
+        assert_load_rejected_cleanly(g, p);
+        std::filesystem::remove(p);
+    }
+
+    for (int32_t dl : {0, -3, 1000000}) {
+        auto c = make_valid_save_v5();
+        patch_i32(c.bytes, c.off_dungeon_level, dl);
+        auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_dl.dat"};
+        write_save_file(c.bytes, p);
+        assert_load_rejected_cleanly(g, p);
+        std::filesystem::remove(p);
+    }
+
+    for (int32_t n : {-1, 5000, 1000000}) {
+        auto c = make_valid_save_v5();
+        patch_i32(c.bytes, c.off_nspells, n);
+        auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_n.dat"};
+        write_save_file(c.bytes, p);
+        assert_load_rejected_cleanly(g, p);
+        std::filesystem::remove(p);
+    }
+}
+
+TEST_CASE("Old save versions still load with defaulted fields") {
+    for (int32_t version : {1, 2, 3, 4}) {
+        auto crafted = make_valid_save_v5();
+        patch_i32(crafted.bytes, 4, version);
+        auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_old_v" +
+                                       std::to_string(version) + ".dat"};
+        write_save_file(crafted.bytes, p);
+
+        Game loaded = make_minimal_game();
+        CHECK(load_game(loaded, p));
+        CHECK(loaded.hero.name == "CraftedHero");
+        CHECK(loaded.hero.char_class == CharacterClass::Fighter);
+        CHECK(loaded.total_gold == 100);
+        if (version >= 2)
+            CHECK(loaded.hero.rations == 0);
+        if (version < 4)
+            CHECK(loaded.hero.lantern_turns == 0);
+        if (version < 5) {
+            bool any_owned = false;
+            for (int c : loaded.hero.weapon_counts)
+                any_owned = any_owned || (c != 0);
+            CHECK_FALSE(any_owned);   // weapon_id empty → no weapon restored
+        }
+        std::filesystem::remove(p);
+    }
+}
+
+TEST_CASE("save_game fails instead of silently succeeding when it cannot write") {
+    auto blocker = std::filesystem::path{"/tmp/opencode/bx_crawl_blocker"};
+    std::filesystem::remove_all(blocker);
+    { std::ofstream f(blocker); f << "not a directory"; }
+
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 2, 6, 9);
+    CHECK_FALSE(save_game(g, blocker / "x.dat"));   // parent is a regular file
+
+    std::filesystem::remove(blocker);
+}
+
+TEST_CASE("Hero-derived save filenames never escape the saves directory") {
+    ScopedEnvVar home("HOME", "/tmp/opencode");
+    std::filesystem::remove_all(saves_directory());
+
+    const char* nasty_names[] = {
+        "../../evil", "foo/bar", "foo\\bar", "..", ".", "",
+        "/etc/passwd", "a/b/c", "x..y", ".hidden", " hero ",
+        "../sneaky", "dir/..", "C:\\windows\\system32"
+    };
+    for (const char* n : nasty_names) {
+        auto p = save_path_for_hero(n);
+        CHECK(p.parent_path() == saves_directory());
+        CHECK(p.filename().string().find('/') == std::string::npos);
+        CHECK(p.filename().string().find('\\') == std::string::npos);
+        CHECK(p.filename().string().find("..") == std::string::npos);
+    }
+    CHECK(save_path_for_hero("").filename() == "hero.dat");
+
+    // Sanitized round trip: a hostile name still saves/loads within saves dir.
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 2, 6, 9);
+    g.hero.name = "foo/bar";
+    auto p = save_path_for_hero("foo/bar");
+    CHECK(save_game(g, p));
+    {
+        auto all = enumerate_saves();
+        bool found = false;
+        for (const auto& e : all)
+            if (e == p) found = true;
+        CHECK(found);
+    }
+    Game loaded;
+    CHECK(load_game(loaded, p));
+
+    // find_save uses the same sanitization for user and pregenerated lookups.
+    auto data_dir = std::filesystem::path{"/tmp/opencode/bx_crawl_testdata"};
+    auto pregen_dir = pregenerated_saves_directory(data_dir);
+    std::filesystem::remove_all(data_dir);
+    std::filesystem::create_directories(pregen_dir);
+    CHECK(save_game(g, pregen_dir / "Volk.dat"));
+
+    auto found_user = find_save("foo/bar", data_dir);
+    CHECK_FALSE(found_user.empty());
+    CHECK(found_user == p);
+
+    auto found_pregen = find_save("Volk", data_dir);
+    CHECK_FALSE(found_pregen.empty());
+    CHECK(strip_save_extension(found_pregen) == "Volk");
+
+    std::filesystem::remove_all(data_dir);
+    std::filesystem::remove_all(saves_directory());
 }
 
 TEST_CASE("Help command (h key) is safe from every town screen") {
