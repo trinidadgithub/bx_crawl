@@ -1,4 +1,6 @@
 #include "game.hpp"
+#include "game_session.hpp"
+#include "render_snapshot.hpp"
 #include "bx_data.hpp"
 #include "sound.hpp"
 
@@ -352,7 +354,11 @@ int main() {
         }
     }
 
-    Game g;
+    // One GameSession owns the authoritative Game. The frontend keeps access to
+    // the Game (via the transitional accessor) for rendering and the startup
+    // save/load flow, and submits gameplay intent through GameSession::apply.
+    GameSession session;
+    Game& g = session.game();
 
     // Check BX_LOAD_SAVE env var for auto-load (testing / speed)
     bool loaded = false;
@@ -438,67 +444,33 @@ int main() {
     std::cout << "\x1B[2J\x1B[H" << std::flush;
 
     while (true) {
-        // ── Render ──────────────────────────────────────
-        render(g);
+        // ── Render a fresh frame ──────────────────────────
+        // Dungeon frames advance dungeon timing/visibility first (GameSession
+        // owns that step); town frames render directly.
+        if (g.state == GameState::Dungeon)
+            session.prepare_dungeon_frame();
+        render(session.snapshot());
 
-        // ── Command input & dispatch ─────────────────────
-        bool keep_playing = true;
+        // ── Command input ─────────────────────────────────
+        PlayerCommand cmd = (g.state == GameState::Dungeon)
+            ? read_player_command(g)
+            : read_town_command(g);
 
-        if (g.state == GameState::Dungeon) {
-            // ── Dungeon loop ────────────────────────────
-            compute_visibility(g);
-            render(g);
+        // ── GameSession owns the gameplay turn cycle ──────
+        // Initiative, monster turns, the player action, death checks, peace
+        // announcement, and state-transition handling all happen inside
+        // apply(). The frontend only submits intent and presents the result.
+        ActionResult result = session.apply(cmd);
 
-            PlayerCommand cmd = read_player_command(g);
-            if (cmd.type == PlayerCommandType::Inventory || cmd.type == PlayerCommandType::Quit) {
-                keep_playing = apply_player_command(g, cmd);
-                if (!keep_playing) break;
-                continue;
-            }
-
-            bool monsters_present = any_monsters_alive(g);
-            bool monsters_first = monsters_present && roll_initiative(g);
-
-            if (monsters_first) {
-                monsters_turn(g);
-                if (!g.hero.alive) {
-                    render(g);
-                    std::cout << "You have died.\r\n";
-                    std::cout << "Game over.\r\n";
-                    break;
-                }
-            }
-
-            keep_playing = apply_player_command(g, cmd);
-
-            if (!keep_playing) break;
-
-            // State may have changed to Camp via ascend_stairs — skip dungeon-only checks
-            if (g.state != GameState::Dungeon) continue;
-
-            if (!g.hero.alive) {
-                render(g);
-                std::cout << "You have died.\r\n";
-                break;
-            }
-
-            if (!any_monsters_alive(g))
-                announce_dungeon_at_peace(g);
-
-            if (monsters_present && !monsters_first) {
-                monsters_turn(g);
-                if (!g.hero.alive) {
-                    render(g);
-                    std::cout << "You have died.\r\n";
-                    break;
-                }
-            }
-        } else {
-            // ── Town loop ───────────────────────────────
-            PlayerCommand cmd = read_town_command(g);
-            keep_playing = apply_town_command(g, cmd);
-            if (!keep_playing) break;
+        if (result.hero_died) {
+            render(session.snapshot());
+            std::cout << "You have died.\r\n";
+            if (result.died_before_action)
+                std::cout << "Game over.\r\n";
         }
+
+        if (!result.keep_playing)
+            break;
     }
 
     return 0;

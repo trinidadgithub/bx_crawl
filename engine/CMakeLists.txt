@@ -2,6 +2,7 @@
 
 add_library(bx_engine STATIC
     src/game.cpp
+    src/game_session.cpp
     src/map.cpp
     src/description.cpp
     src/chargen.cpp

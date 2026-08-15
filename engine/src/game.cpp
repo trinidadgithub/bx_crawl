@@ -1,10 +1,12 @@
 #include "game.hpp"
+#include "game_snapshot.hpp"
 #include "map.hpp"
 #include "chargen.hpp"
 #include "bx_data.hpp"
 #include "item_effects.hpp"
 #include "sound.hpp"
 
+#include <algorithm>
 #include <iostream>
 #include <chrono>
 #include <cctype>
@@ -2294,6 +2296,114 @@ void render(const Game& g) {
 
     // Clear any stale lines then prompt
     std::cout << "\x1B[J> " << std::flush;
+}
+
+GameStateSnapshot make_game_state_snapshot(const Game& g) {
+    GameStateSnapshot out;
+    out.state = g.state;
+    out.previous_state = g.previous_state;
+    out.town_submenu = g.town_submenu;
+    out.width = g.width;
+    out.height = g.height;
+    out.total_gold = g.total_gold;
+    out.total_xp = g.total_xp;
+    out.hero_level = g.hero_level;
+    out.dungeon_level = g.dungeon_level;
+    out.next_level_xp = xp_for_level(g.hero.char_class, g.hero_level + 1);
+    out.carried_weight_cn = carried_weight_cn(g);
+    out.exploration_move_feet = exploration_move_feet(g);
+    out.encounter_move_feet = encounter_move_feet(g);
+    out.purse_text = format_coin_purse(g.total_gold);
+    out.event_log = g.event_log;
+
+    const std::size_t expected_tiles = (g.width > 0 && g.height > 0)
+        ? static_cast<std::size_t>(g.width) * static_cast<std::size_t>(g.height)
+        : 0;
+    if (expected_tiles > g.map.size()) {
+        out.width = 0;
+        out.height = 0;
+    } else {
+        out.tiles.reserve(expected_tiles);
+    }
+    for (int y = 0; y < out.height; ++y) {
+        for (int x = 0; x < out.width; ++x) {
+            const Tile& t = g.map[index_for(g, x, y)];
+            TileView tv;
+            tv.type = t.type;
+            tv.explored = t.explored;
+            tv.visible = t.visible;
+            tv.secret_revealed = t.secret_revealed;
+            tv.trap_visible = t.trap_visible;
+            tv.has_trap = t.has_trap;
+            tv.visible_wall = is_visible_wall(g, x, y);
+            tv.wall_glyph = wall_glyph(g, x, y);
+            tv.items = t.items;
+            out.tiles.push_back(std::move(tv));
+        }
+    }
+
+    const Entity& h = g.hero;
+    out.hero.name = h.name;
+    out.hero.char_class = h.char_class;
+    out.hero.class_name = class_name(h.char_class);
+    out.hero.pos = h.pos;
+    out.hero.alive = h.alive;
+    out.hero.hp = h.hp;
+    out.hero.max_hp = h.max_hp;
+    out.hero.ac = h.ac;
+    out.hero.effective_ac = h.ac;
+    out.hero.buff_turns = 999;
+    if (h.shield_turns > 0) {
+        out.hero.effective_ac += 4;
+        out.hero.buff_turns = std::min(out.hero.buff_turns, h.shield_turns);
+    }
+    if (h.protection_turns > 0) {
+        out.hero.effective_ac += 1;
+        out.hero.buff_turns = std::min(out.hero.buff_turns, h.protection_turns);
+    }
+    if (h.resist_cold_turns > 0) {
+        out.hero.effective_ac += 1;
+        out.hero.buff_turns = std::min(out.hero.buff_turns, h.resist_cold_turns);
+    }
+    out.hero.attack_bonus = h.attack_bonus;
+    out.hero.damage_die = h.damage_die;
+    out.hero.damage_bonus = h.damage_bonus;
+    out.hero.abilities = h.abilities;
+    out.hero.weapon_id = h.weapon_id;
+    out.hero.armor_id = h.armor_id;
+    out.hero.has_shield = h.has_shield;
+    out.hero.weapon_counts = h.weapon_counts;
+    out.hero.armor_counts = h.armor_counts;
+    out.hero.gear_counts = h.gear_counts;
+    out.hero.spells = h.spells;
+    out.hero.knives = h.knives;
+    out.hero.darts = h.darts;
+    out.hero.torch_turns = h.torch_turns;
+    out.hero.lantern_turns = h.lantern_turns;
+    out.hero.light_spell_turns = h.light_spell_turns;
+    out.hero.turns_without_food = h.turns_without_food;
+    out.hero.rations = h.rations;
+    out.hero.shield_turns = h.shield_turns;
+    out.hero.protection_turns = h.protection_turns;
+    out.hero.courage_turns = h.courage_turns;
+    out.hero.resist_cold_turns = h.resist_cold_turns;
+    out.hero.unconscious_turns = h.unconscious_turns;
+    out.hero.confused = hero_is_confused(g);
+
+    out.monsters.reserve(g.monsters.size());
+    for (const auto& m : g.monsters) {
+        EntityView mv;
+        mv.name = m.name;
+        mv.type = m.type;
+        mv.pos = m.pos;
+        mv.alive = m.alive;
+        mv.glyph = glyph_for(m);
+        if (m.alive)
+            ++out.alive_monster_count;
+        out.monsters.push_back(std::move(mv));
+    }
+
+    return out;
 }
 
 // ---------------------------
