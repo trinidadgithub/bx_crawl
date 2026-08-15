@@ -1,5 +1,6 @@
 #include "game.hpp"
 #include "game_session.hpp"
+#include "render_snapshot.hpp"
 #include "bx_data.hpp"
 #include "sound.hpp"
 
@@ -448,7 +449,7 @@ int main() {
         // owns that step); town frames render directly.
         if (g.state == GameState::Dungeon)
             session.prepare_dungeon_frame();
-        render(g);
+        render(session.snapshot());
 
         // ── Command input ─────────────────────────────────
         PlayerCommand cmd = (g.state == GameState::Dungeon)
@@ -462,7 +463,7 @@ int main() {
         ActionResult result = session.apply(cmd);
 
         if (result.hero_died) {
-            render(g);
+            render(session.snapshot());
             std::cout << "You have died.\r\n";
             if (result.died_before_action)
                 std::cout << "Game over.\r\n";
