@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game.hpp"
+#include "game_snapshot.hpp"
 
 #include <utility>
 
@@ -45,6 +46,10 @@ public:
     // this coordinates initiative, monster turns, the player action, death and
     // peace evaluation; outside the dungeon it delegates to the town flow.
     ActionResult apply(const PlayerCommand& cmd);
+
+    // Frontend-neutral presentation state for renderers. This is the Phase 3
+    // replacement seam for rendering from raw Game internals.
+    GameStateSnapshot snapshot() const;
 
 private:
     Game game_;

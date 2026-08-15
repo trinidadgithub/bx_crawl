@@ -67,3 +67,7 @@ ActionResult GameSession::apply(const PlayerCommand& cmd) {
 
     return result;
 }
+
+GameStateSnapshot GameSession::snapshot() const {
+    return make_game_state_snapshot(game_);
+}
