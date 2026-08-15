@@ -4714,3 +4714,78 @@ TEST_CASE("GameSession.prepare_dungeon_frame advances dungeon timing and lights 
     CHECK(session.game().tick_clock == 1);
     CHECK(session.game().map[index_for(session.game(), 3, 3)].visible);
 }
+
+TEST_CASE("GameSession snapshot exposes presentation state without mutating RNG") {
+    Game g = make_minimal_game(12, 8);
+    g.state = GameState::Dungeon;
+    g.hero = make_hero(3, 3, 2, 6, 9);
+    g.hero.name = "Snapshot Hero";
+    g.hero.char_class = CharacterClass::Fighter;
+    g.hero.knives = 2;
+    g.hero.darts = 3;
+    g.total_gold = 12;
+    g.event_log.push_back("Snapshot log line.");
+    g.monsters.push_back(make_monster("Goblin", EntityType::Goblin,
+                                      4, 3, 3, 7, 1, 6, 7));
+    g.rng.seed(999u);
+
+    GameSession session{std::move(g)};
+    session.prepare_dungeon_frame();
+
+    auto rng_before = session.game().rng;
+    GameStateSnapshot snapshot = session.snapshot();
+    auto rng_after = session.game().rng;
+
+    CHECK(rng_before() == rng_after());
+    CHECK(snapshot.state == GameState::Dungeon);
+    CHECK(snapshot.width == 12);
+    CHECK(snapshot.height == 8);
+    CHECK(snapshot.hero.name == "Snapshot Hero");
+    CHECK(snapshot.hero.class_name == "Fighter");
+    CHECK(snapshot.hero.pos.x == 3);
+    CHECK(snapshot.hero.pos.y == 3);
+    CHECK(snapshot.hero.knives == 2);
+    CHECK(snapshot.hero.darts == 3);
+    CHECK(snapshot.total_gold == 12);
+    CHECK(snapshot.purse_text.find("12 gp") != std::string::npos);
+    CHECK(snapshot.alive_monster_count == 1);
+    REQUIRE(snapshot.monsters.size() == 1);
+    CHECK(snapshot.monsters[0].name == "Goblin");
+    CHECK(snapshot.monsters[0].glyph == 'g');
+    CHECK(snapshot.event_log.back() == "Snapshot log line.");
+
+    const auto& hero_tile = snapshot.tiles[index_for(session.game(), 3, 3)];
+    CHECK(hero_tile.visible);
+    CHECK(hero_tile.explored);
+}
+
+TEST_CASE("GameStateSnapshot carries town and character-sheet render data") {
+    Game g = make_minimal_game();
+    g.state = GameState::CharacterSheet;
+    g.town_submenu = 6;
+    g.hero = make_hero(1, 1, 1, 8, 6);
+    g.hero.name = "Sheet Hero";
+    g.hero.char_class = CharacterClass::Elf;
+    g.hero.weapon_id = "sword";
+    g.hero.armor_id = "chain-mail";
+    g.hero.has_shield = true;
+    g.hero.weapon_counts[0] = 1;
+    g.hero.gear_counts[0] = 2;
+    g.total_gold = 25;
+    g.total_xp = 100;
+    g.hero_level = 1;
+
+    GameStateSnapshot snapshot = make_game_state_snapshot(g);
+
+    CHECK(snapshot.state == GameState::CharacterSheet);
+    CHECK(snapshot.town_submenu == 6);
+    CHECK(snapshot.hero.class_name == "Elf");
+    CHECK(snapshot.hero.weapon_id == "sword");
+    CHECK(snapshot.hero.armor_id == "chain-mail");
+    CHECK(snapshot.hero.has_shield);
+    CHECK(snapshot.hero.weapon_counts[0] == 1);
+    CHECK(snapshot.hero.gear_counts[0] == 2);
+    CHECK(snapshot.purse_text.find("25 gp") != std::string::npos);
+    CHECK(snapshot.total_xp == 100);
+    CHECK(snapshot.next_level_xp > snapshot.total_xp);
+}
