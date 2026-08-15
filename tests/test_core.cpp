@@ -2,6 +2,7 @@
 #include "third_party/doctest.h"
 
 #include "game.hpp"
+#include "game_session.hpp"
 #include "map.hpp"
 
 #include <cstdint>
@@ -4413,4 +4414,303 @@ TEST_CASE("Monster AI: patrol and chase") {
         // The monster might also escape if it reaches the edge
         CHECK(g.monsters[0].pos.x <= old_x); // should move left or stay
     }
+}
+
+// ══════════════════════════════════════════════════════════════
+// GameSession application boundary
+// ══════════════════════════════════════════════════════════════
+
+namespace {
+
+// Minimal dungeon with a hero and optionally one adjacent monster (2,1).
+Game make_dungeon_game(bool with_monster) {
+    Game g = make_minimal_game(12, 8);
+    g.state = GameState::Dungeon;
+    g.hero = make_hero(1, 1, 10, 6, 12);
+    g.hero.name = "Session Hero";
+    if (with_monster) {
+        g.monsters.push_back(make_monster("Orc", EntityType::Monster,
+                                          2, 1, 4, 10, 0, 6, 9));
+    }
+    return g;
+}
+
+// Reproduce the pre-boundary dungeon turn cycle exactly as the text frontend
+// used to sequence it, for behavioral/RNG-equivalence checks against
+// GameSession.
+void legacy_dungeon_cycle(Game& g, const PlayerCommand& cmd) {
+    compute_visibility(g);
+
+    if (cmd.type == PlayerCommandType::Inventory ||
+        cmd.type == PlayerCommandType::Quit) {
+        apply_player_command(g, cmd);
+        return;
+    }
+
+    const bool monsters_present = any_monsters_alive(g);
+    const bool monsters_first = monsters_present && roll_initiative(g);
+
+    if (monsters_first) {
+        monsters_turn(g);
+        if (!g.hero.alive) return;
+    }
+
+    apply_player_command(g, cmd);
+
+    if (g.state != GameState::Dungeon) return;
+
+    if (!g.hero.alive) return;
+
+    if (!any_monsters_alive(g))
+        announce_dungeon_at_peace(g);
+
+    if (monsters_present && !monsters_first)
+        monsters_turn(g);
+}
+
+// Two identical seeded games must end up indistinguishable after running the
+// same dungeon command, one through GameSession and one through the legacy
+// (frontend-sequenced) path.
+void check_dungeon_cycle_equivalent(const Game& session_g, const Game& legacy_g) {
+    CHECK(session_g.hero.hp == legacy_g.hero.hp);
+    CHECK(session_g.hero.alive == legacy_g.hero.alive);
+    CHECK(session_g.hero.pos.x == legacy_g.hero.pos.x);
+    CHECK(session_g.hero.pos.y == legacy_g.hero.pos.y);
+    CHECK(session_g.state == legacy_g.state);
+    CHECK(session_g.tick_clock == legacy_g.tick_clock);
+    CHECK(session_g.dungeon_peace_announced == legacy_g.dungeon_peace_announced);
+    CHECK(session_g.event_log == legacy_g.event_log);
+    REQUIRE(session_g.monsters.size() == legacy_g.monsters.size());
+    for (std::size_t i = 0; i < session_g.monsters.size(); ++i) {
+        CHECK(session_g.monsters[i].alive == legacy_g.monsters[i].alive);
+        CHECK(session_g.monsters[i].hp == legacy_g.monsters[i].hp);
+        CHECK(session_g.monsters[i].pos.x == legacy_g.monsters[i].pos.x);
+        CHECK(session_g.monsters[i].pos.y == legacy_g.monsters[i].pos.y);
+    }
+    auto session_rng = session_g.rng;
+    auto legacy_rng = legacy_g.rng;
+    CHECK(session_rng() == legacy_rng());
+}
+
+} // anonymous namespace
+
+TEST_CASE("GameSession owns the authoritative Game state") {
+    GameSession session{make_minimal_game()};
+    Game& g = session.game();
+    g.hero = make_hero(1, 1, 0, 1, 9);
+    g.hero.hp = 10;
+    g.state = GameState::Dungeon;
+
+    CHECK(session.game().hero.hp == 10);
+    CHECK(session.game().state == GameState::Dungeon);
+
+    // The transitional accessor reflects session-owned state and vice versa.
+    session.game().hero.hp = 6;
+    CHECK(session.game().hero.hp == 6);
+    CHECK(g.hero.hp == 6);
+}
+
+TEST_CASE("GameSession delegates town commands through a single boundary") {
+    GameSession session{make_minimal_game()}; // default state: Town
+    session.game().hero = make_hero(1, 1, 0, 1, 9);
+
+    PlayerCommand nav;
+    nav.type = PlayerCommandType::Move;
+    nav.dx = 0;
+    nav.dy = -1; // tavern from town square
+
+    ActionResult result = session.apply(nav);
+    CHECK(result.keep_playing);
+    CHECK_FALSE(result.hero_died);
+    CHECK(session.game().state == GameState::Tavern);
+    CHECK(session.game().town_submenu == 0);
+
+    PlayerCommand quit;
+    quit.type = PlayerCommandType::Quit;
+    result = session.apply(quit);
+    CHECK_FALSE(result.keep_playing);
+    CHECK_FALSE(result.hero_died);
+}
+
+TEST_CASE("GameSession: non-turn commands do not consume initiative or monster dice") {
+    GameSession session{make_dungeon_game(true)};
+    session.prepare_dungeon_frame(); // advance the clock as the frontend does
+
+    auto rng_before = session.game().rng;
+
+    PlayerCommand inv;
+    inv.type = PlayerCommandType::Inventory;
+    ActionResult result = session.apply(inv);
+
+    CHECK(result.keep_playing);
+    CHECK_FALSE(result.hero_died);
+    REQUIRE_FALSE(session.game().monsters.empty());
+    CHECK(session.game().monsters[0].alive);
+
+    // Inventory is not a turn: the RNG stream must be untouched (no
+    // initiative/monster rolls happened).
+    auto rng_after = session.game().rng;
+    CHECK(rng_before() == rng_after());
+
+    PlayerCommand quit;
+    quit.type = PlayerCommandType::Quit;
+    result = session.apply(quit);
+    CHECK_FALSE(result.keep_playing);
+}
+
+TEST_CASE("GameSession preserves dungeon turn sequencing and RNG ordering") {
+    PlayerCommand move_into_monster;
+    move_into_monster.type = PlayerCommandType::Move;
+    move_into_monster.dx = 1; // hero at (1,1) attacks the monster at (2,1)
+
+    PlayerCommand wait;
+    wait.type = PlayerCommandType::Wait;
+
+    PlayerCommand rest;
+    rest.type = PlayerCommandType::Rest;
+
+    for (unsigned seed : {1u, 77u, 12345u, 777u}) {
+        SUBCASE("move into adjacent monster") {
+            Game initial = make_dungeon_game(true);
+            initial.rng.seed(seed);
+
+            GameSession session{Game(initial)};
+            session.prepare_dungeon_frame();
+            ActionResult result = session.apply(move_into_monster);
+
+            Game legacy = initial;
+            legacy_dungeon_cycle(legacy, move_into_monster);
+
+            check_dungeon_cycle_equivalent(session.game(), legacy);
+            if (!session.game().hero.alive) {
+                CHECK_FALSE(result.keep_playing);
+                CHECK(result.hero_died);
+            }
+        }
+
+        SUBCASE("wait") {
+            Game initial = make_dungeon_game(true);
+            initial.rng.seed(seed);
+
+            GameSession session{Game(initial)};
+            session.prepare_dungeon_frame();
+            session.apply(wait);
+
+            Game legacy = initial;
+            legacy_dungeon_cycle(legacy, wait);
+
+            check_dungeon_cycle_equivalent(session.game(), legacy);
+        }
+
+        SUBCASE("rest") {
+            Game initial = make_dungeon_game(true);
+            initial.hero.hp = 5;
+            initial.rng.seed(seed);
+
+            GameSession session{Game(initial)};
+            session.prepare_dungeon_frame();
+            session.apply(rest);
+
+            Game legacy = initial;
+            legacy_dungeon_cycle(legacy, rest);
+
+            check_dungeon_cycle_equivalent(session.game(), legacy);
+        }
+
+        SUBCASE("monster-free floor is untouched") {
+            Game initial = make_dungeon_game(false);
+            initial.hero.hp = 20;
+            initial.rng.seed(seed);
+
+            GameSession session{Game(initial)};
+            session.prepare_dungeon_frame();
+            session.apply(wait);
+
+            Game legacy = initial;
+            legacy_dungeon_cycle(legacy, wait);
+
+            check_dungeon_cycle_equivalent(session.game(), legacy);
+        }
+    }
+}
+
+TEST_CASE("GameSession leaves the dungeon and skips monster checks after ascending") {
+    Game initial = make_dungeon_game(false);
+    initial.map[index_for(initial, 2, 1)].type = TileType::StairsUp;
+    initial.hero.pos = {1, 1};
+    initial.rng.seed(4242u);
+
+    PlayerCommand ascend;
+    ascend.type = PlayerCommandType::Move;
+    ascend.dx = 1; // step onto the StairsUp tile
+
+    GameSession session{Game(initial)};
+    session.prepare_dungeon_frame();
+    ActionResult result = session.apply(ascend);
+
+    CHECK(result.keep_playing);
+    CHECK_FALSE(result.hero_died);
+    CHECK(session.game().state == GameState::Camp);
+
+    Game legacy = initial;
+    legacy_dungeon_cycle(legacy, ascend);
+    check_dungeon_cycle_equivalent(session.game(), legacy);
+}
+
+TEST_CASE("GameSession: monsters winning initiative can kill the hero before acting") {
+    auto make_fragile_dungeon = []() {
+        Game g = make_minimal_game(12, 8);
+        g.state = GameState::Dungeon;
+        g.hero = make_hero(1, 1, 0, 1, 10);
+        g.hero.hp = 1;
+        g.monsters.push_back(make_monster("Ogre", EntityType::Monster,
+                                          2, 1, 20, 10, 20, 6, 9));
+        return g;
+    };
+
+    PlayerCommand wait;
+    wait.type = PlayerCommandType::Wait;
+
+    unsigned died_before = 0;
+    unsigned died_after = 0;
+    for (unsigned seed = 1; seed < 20000 && (died_before == 0 || died_after == 0); ++seed) {
+        Game g = make_fragile_dungeon();
+        g.rng.seed(seed);
+        GameSession session{std::move(g)};
+        session.prepare_dungeon_frame();
+        ActionResult result = session.apply(wait);
+
+        if (!result.hero_died) continue;
+        if (result.died_before_action) {
+            if (died_before == 0) {
+                died_before = seed;
+                CHECK_FALSE(result.keep_playing);
+                CHECK_FALSE(session.game().hero.alive);
+            }
+        } else if (died_after == 0) {
+            died_after = seed;
+            CHECK_FALSE(result.keep_playing);
+            CHECK_FALSE(session.game().hero.alive);
+        }
+    }
+
+    CAPTURE(died_before);
+    CAPTURE(died_after);
+    CHECK(died_before != 0); // some seed: monsters acted first and killed the hero
+    CHECK(died_after != 0);  // some seed: hero acted, then monsters killed the hero
+}
+
+TEST_CASE("GameSession.prepare_dungeon_frame advances dungeon timing and lights the hero tile") {
+    Game g = make_minimal_game(12, 8);
+    g.state = GameState::Dungeon;
+    g.hero = make_hero(3, 3, 0, 1, 9);
+    g.hero.torch_turns = 60; // lit torch → radius 6
+
+    GameSession session{std::move(g)};
+    CHECK(session.game().tick_clock == 0);
+
+    session.prepare_dungeon_frame();
+
+    CHECK(session.game().tick_clock == 1);
+    CHECK(session.game().map[index_for(session.game(), 3, 3)].visible);
 }
