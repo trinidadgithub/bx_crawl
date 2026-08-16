@@ -1,5 +1,7 @@
 #pragma once
 
+#include "game_event.hpp"
+
 // Procedural sound effects via WAV generation + aplay/paplay.
 // Zero external dependencies — sounds are synthesised at runtime.
 // Non-blocking: fork+exec aplay with pipe'd WAV data.
@@ -23,3 +25,6 @@ void sound_trap();
 void sound_player_death();
 void sound_backstab();
 void sound_throw();
+
+// Frontend event-consumer entry point.
+void sound_play(SoundEffect effect);

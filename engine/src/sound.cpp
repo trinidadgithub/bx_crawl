@@ -318,3 +318,19 @@ void sound_throw() {
     }
     play_wav(make_wav(s));
 }
+
+void sound_play(SoundEffect effect) {
+    switch (effect) {
+        case SoundEffect::Footstep:     sound_footstep(); break;
+        case SoundEffect::DoorOpen:     sound_door_open(); break;
+        case SoundEffect::DoorClose:    sound_door_close(); break;
+        case SoundEffect::AttackHit:    sound_attack_hit(); break;
+        case SoundEffect::MonsterDeath: sound_monster_death(); break;
+        case SoundEffect::GoldPickup:   sound_gold_pickup(); break;
+        case SoundEffect::Spell:        sound_spell(); break;
+        case SoundEffect::Trap:         sound_trap(); break;
+        case SoundEffect::PlayerDeath:  sound_player_death(); break;
+        case SoundEffect::Backstab:     sound_backstab(); break;
+        case SoundEffect::Throw:        sound_throw(); break;
+    }
+}
