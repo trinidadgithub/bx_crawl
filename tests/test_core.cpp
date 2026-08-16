@@ -4,6 +4,7 @@
 #include "game.hpp"
 #include "game_session.hpp"
 #include "map.hpp"
+#include "module_manifest.hpp"
 #include "rules_catalog.hpp"
 #include "campaign_state.hpp"
 
@@ -5081,4 +5082,166 @@ TEST_CASE("CampaignState separates future module identity from current procedura
     CHECK(restored.current_location_id == state.current_location_id);
     CHECK(state.module_id == "module.testing_tomb");
     CHECK(state.module_version == "0.1.0");
+}
+
+// ══════════════════════════════════════════════════════════════
+// Module manifest loader
+// ══════════════════════════════════════════════════════════════
+
+namespace {
+
+std::filesystem::path make_manifest_test_dir(const std::string& name) {
+    auto dir = std::filesystem::path{"/tmp/opencode"} / name;
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    return dir;
+}
+
+std::string valid_module_manifest_json() {
+    return R"json({
+  "module_id": "testing_tomb",
+  "title": "Testing Tomb",
+  "version": "0.1.0",
+  "author": "BX Crawl",
+  "ruleset": "bx.moldvay_basic",
+  "engine_min_version": "0.1.0",
+  "content_schema_version": 1,
+  "entry_location_id": "module.testing_tomb.location.entrance",
+  "files": {
+    "locations": "locations.json",
+    "map": "maps/tomb.json",
+    "encounters": "encounters.json",
+    "treasures": "treasures.json",
+    "traps": "traps.json",
+    "descriptions": "text/descriptions.txt"
+  }
+})json";
+}
+
+void write_module_json(const std::filesystem::path& dir, const std::string& json) {
+    write_save_file(json, dir / "module.json");
+}
+
+} // anonymous namespace
+
+TEST_CASE("Module manifest loader accepts a minimal valid manifest") {
+    auto dir = make_manifest_test_dir("bx_module_manifest_valid");
+    write_module_json(dir, valid_module_manifest_json());
+
+    ModuleManifestResult result = load_module_manifest(dir);
+
+    REQUIRE(result.ok);
+    CHECK(result.error.empty());
+    CHECK(result.manifest.module_id == "testing_tomb");
+    CHECK(result.manifest.title == "Testing Tomb");
+    CHECK(result.manifest.version == "0.1.0");
+    CHECK(result.manifest.author == "BX Crawl");
+    CHECK(result.manifest.ruleset == "bx.moldvay_basic");
+    CHECK(result.manifest.engine_min_version == "0.1.0");
+    CHECK(result.manifest.content_schema_version == 1);
+    CHECK(result.manifest.entry_location_id == "module.testing_tomb.location.entrance");
+    CHECK(result.manifest.files.at("locations") == std::filesystem::path{"locations.json"});
+    CHECK(result.manifest.files.at("map") == std::filesystem::path{"maps/tomb.json"});
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("Module manifest loader rejects missing or invalid required fields") {
+    auto dir = make_manifest_test_dir("bx_module_manifest_invalid_fields");
+
+    SUBCASE("missing title") {
+        write_module_json(dir, R"json({
+  "module_id": "testing_tomb",
+  "version": "0.1.0",
+  "author": "BX Crawl",
+  "ruleset": "bx.moldvay_basic",
+  "engine_min_version": "0.1.0",
+  "content_schema_version": 1,
+  "entry_location_id": "module.testing_tomb.location.entrance",
+  "files": { "locations": "locations.json" }
+})json");
+        ModuleManifestResult result = load_module_manifest(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "missing title");
+    }
+
+    SUBCASE("invalid module id") {
+        std::string json = valid_module_manifest_json();
+        const std::string needle = "\"module_id\": \"testing_tomb\"";
+        json.replace(json.find(needle), needle.size(), "\"module_id\": \"Testing-Tomb\"");
+        write_module_json(dir, json);
+        ModuleManifestResult result = load_module_manifest(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "invalid module_id");
+    }
+
+    SUBCASE("invalid schema version") {
+        std::string json = valid_module_manifest_json();
+        const std::string needle = "\"content_schema_version\": 1";
+        json.replace(json.find(needle), needle.size(), "\"content_schema_version\": 0");
+        write_module_json(dir, json);
+        ModuleManifestResult result = load_module_manifest(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "invalid content_schema_version");
+    }
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("Module manifest loader validates entry location namespace") {
+    auto dir = make_manifest_test_dir("bx_module_manifest_entry_namespace");
+    std::string json = valid_module_manifest_json();
+    const std::string needle = "\"entry_location_id\": \"module.testing_tomb.location.entrance\"";
+    json.replace(json.find(needle), needle.size(),
+                 "\"entry_location_id\": \"module.other.location.entrance\"");
+    write_module_json(dir, json);
+
+    ModuleManifestResult result = load_module_manifest(dir);
+
+    CHECK_FALSE(result.ok);
+    CHECK(result.error == "entry_location_id must belong to module location namespace");
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("Module manifest loader rejects unsafe file references") {
+    auto dir = make_manifest_test_dir("bx_module_manifest_unsafe_files");
+
+    SUBCASE("parent traversal") {
+        std::string json = valid_module_manifest_json();
+        const std::string needle = "\"locations\": \"locations.json\"";
+        json.replace(json.find(needle), needle.size(), "\"locations\": \"../outside.json\"");
+        write_module_json(dir, json);
+        ModuleManifestResult result = load_module_manifest(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "unsafe file path");
+    }
+
+    SUBCASE("absolute path") {
+        std::string json = valid_module_manifest_json();
+        const std::string needle = "\"locations\": \"locations.json\"";
+        json.replace(json.find(needle), needle.size(), "\"locations\": \"/tmp/outside.json\"");
+        write_module_json(dir, json);
+        ModuleManifestResult result = load_module_manifest(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "unsafe file path");
+    }
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("Module manifest loader handles missing directories and files") {
+    auto dir = std::filesystem::path{"/tmp/opencode/bx_module_manifest_missing"};
+    std::filesystem::remove_all(dir);
+
+    ModuleManifestResult no_dir = load_module_manifest(dir);
+    CHECK_FALSE(no_dir.ok);
+    CHECK(no_dir.error == "module directory does not exist");
+
+    std::filesystem::create_directories(dir);
+    ModuleManifestResult no_file = load_module_manifest(dir);
+    CHECK_FALSE(no_file.ok);
+    CHECK(no_file.error == "could not open module.json");
+
+    std::filesystem::remove_all(dir);
 }
