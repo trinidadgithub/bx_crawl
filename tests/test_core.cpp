@@ -4789,3 +4789,59 @@ TEST_CASE("GameStateSnapshot carries town and character-sheet render data") {
     CHECK(snapshot.total_xp == 100);
     CHECK(snapshot.next_level_xp > snapshot.total_xp);
 }
+
+TEST_CASE("Structured log events preserve existing event_log text") {
+    Game g = make_minimal_game();
+    g.state = GameState::Tavern;
+    g.hero = make_hero(1, 1, 1, 6, 9);
+    g.hero.hp = 5;
+    g.hero.max_hp = 10;
+    g.total_gold = 1;
+    g.rng.seed(17u);
+
+    GameSession session{std::move(g)};
+
+    PlayerCommand rest;
+    rest.type = PlayerCommandType::Rest;
+    ActionResult result = session.apply(rest);
+
+    CHECK(result.keep_playing);
+    REQUIRE_FALSE(session.game().event_log.empty());
+
+    bool found_structured_log = false;
+    for (const auto& event : session.events()) {
+        if (event.type == GameEventType::LogMessage &&
+            event.text == session.game().event_log.back()) {
+            found_structured_log = true;
+            break;
+        }
+    }
+    CHECK(found_structured_log);
+}
+
+TEST_CASE("Gameplay sound cues are queued as structured events") {
+    Game g = make_minimal_game(12, 8);
+    g.state = GameState::Dungeon;
+    g.hero = make_hero(3, 3, 1, 6, 9);
+    g.rng.seed(123u);
+
+    GameSession session{std::move(g)};
+    session.prepare_dungeon_frame();
+
+    PlayerCommand move;
+    move.type = PlayerCommandType::Move;
+    move.dx = 1;
+    move.dy = 0;
+    ActionResult result = session.apply(move);
+
+    CHECK(result.keep_playing);
+
+    bool found_footstep = false;
+    for (const auto& event : session.events()) {
+        if (event.type == GameEventType::Sound && event.sound == SoundEffect::Footstep) {
+            found_footstep = true;
+            break;
+        }
+    }
+    CHECK(found_footstep);
+}
