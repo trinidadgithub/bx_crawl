@@ -1,10 +1,12 @@
 #pragma once
 
+#include "map.hpp"
 #include "module_manifest.hpp"
 
 #include <filesystem>
 #include <map>
 #include <string>
+#include <vector>
 
 struct ModuleMapDefinition {
     std::string map_id;
@@ -12,6 +14,9 @@ struct ModuleMapDefinition {
     int height{};
     int entry_x{};
     int entry_y{};
+    std::vector<TileType> tiles;
+
+    const TileType* tile_at(int x, int y) const;
 };
 
 struct ModuleLocation {

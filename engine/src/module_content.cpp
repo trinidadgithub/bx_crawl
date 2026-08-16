@@ -61,6 +61,20 @@ bool extract_int(const std::string& json, const char* key, int& out) {
     return true;
 }
 
+bool extract_string_array(const std::string& json, const char* key, std::vector<std::string>& out) {
+    std::regex array_pattern(std::string{"\""} + key + "\"\\s*:\\s*\\[([^\\]]*)\\]");
+    std::smatch array_match;
+    if (!std::regex_search(json, array_match, array_pattern))
+        return false;
+
+    const std::string body = array_match[1].str();
+    std::regex string_pattern("\"([^\"]*)\"");
+    for (std::sregex_iterator it(body.begin(), body.end(), string_pattern), end; it != end; ++it) {
+        out.push_back((*it)[1].str());
+    }
+    return !out.empty();
+}
+
 std::vector<std::string> extract_flat_objects(const std::string& json) {
     std::vector<std::string> objects;
     std::regex object_pattern("\\{([^{}]*)\\}");
@@ -74,6 +88,23 @@ bool valid_module_namespace(std::string_view id, const ModuleManifest& manifest,
                             std::string_view category) {
     return is_valid_content_id(id) &&
            starts_with(id, "module." + manifest.module_id + "." + std::string{category} + ".");
+}
+
+bool tile_type_from_glyph(char glyph, TileType& out) {
+    switch (glyph) {
+    case '#': out = TileType::Wall; return true;
+    case '.': out = TileType::Floor; return true;
+    case '+': out = TileType::DoorClosed; return true;
+    case '/': out = TileType::DoorOpen; return true;
+    case '<': out = TileType::StairsUp; return true;
+    case '>': out = TileType::StairsDown; return true;
+    default: return false;
+    }
+}
+
+bool tile_is_walkable(TileType type) {
+    return type == TileType::Floor || type == TileType::DoorOpen || type == TileType::StairsUp ||
+           type == TileType::StairsDown;
 }
 
 ModuleContentResult load_locations(const std::filesystem::path& module_dir,
@@ -142,6 +173,9 @@ ModuleContentResult load_map(const std::filesystem::path& module_dir, ModuleCont
         return fail("map missing entry_x");
     if (!extract_int(json, "entry_y", map.entry_y))
         return fail("map missing entry_y");
+    std::vector<std::string> rows;
+    if (!extract_string_array(json, "tiles", rows))
+        return fail("map missing tiles");
 
     if (!valid_module_namespace(map.map_id, module.manifest, "map"))
         return fail("invalid map_id");
@@ -149,6 +183,24 @@ ModuleContentResult load_map(const std::filesystem::path& module_dir, ModuleCont
         return fail("invalid map dimensions");
     if (map.entry_x < 0 || map.entry_y < 0 || map.entry_x >= map.width || map.entry_y >= map.height)
         return fail("invalid map entry position");
+    if (static_cast<int>(rows.size()) != map.height)
+        return fail("map tile height mismatch");
+
+    map.tiles.reserve(static_cast<std::size_t>(map.width * map.height));
+    for (const std::string& row : rows) {
+        if (static_cast<int>(row.size()) != map.width)
+            return fail("map tile width mismatch");
+        for (char glyph : row) {
+            TileType type{};
+            if (!tile_type_from_glyph(glyph, type))
+                return fail("invalid map tile glyph");
+            map.tiles.push_back(type);
+        }
+    }
+
+    const auto entry_index = static_cast<std::size_t>(map.entry_y * map.width + map.entry_x);
+    if (!tile_is_walkable(map.tiles[entry_index]))
+        return fail("map entry position is blocked");
 
     module.maps.emplace(map.map_id, std::move(map));
     for (const auto& [location_id, location] : module.locations) {
@@ -224,6 +276,15 @@ ModuleContentResult load_descriptions(const std::filesystem::path& module_dir,
 }
 
 } // namespace
+
+const TileType* ModuleMapDefinition::tile_at(int x, int y) const {
+    if (x < 0 || y < 0 || x >= width || y >= height)
+        return nullptr;
+    const auto index = static_cast<std::size_t>(y * width + x);
+    if (index >= tiles.size())
+        return nullptr;
+    return &tiles[index];
+}
 
 const ModuleLocation* ModuleContent::find_location(const std::string& location_id) const {
     auto it = locations.find(location_id);
