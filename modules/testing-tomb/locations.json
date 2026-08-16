@@ -1,0 +1,8 @@
+[
+  {
+    "location_id": "module.testing_tomb.location.entrance",
+    "title": "Entrance",
+    "description_id": "module.testing_tomb.text.entrance",
+    "map_id": "module.testing_tomb.map.tomb"
+  }
+]

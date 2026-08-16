@@ -4,6 +4,7 @@
 #include "game.hpp"
 #include "game_session.hpp"
 #include "map.hpp"
+#include "module_content.hpp"
 #include "module_manifest.hpp"
 #include "rules_catalog.hpp"
 #include "campaign_state.hpp"
@@ -5242,6 +5243,68 @@ TEST_CASE("Module manifest loader handles missing directories and files") {
     ModuleManifestResult no_file = load_module_manifest(dir);
     CHECK_FALSE(no_file.ok);
     CHECK(no_file.error == "could not open module.json");
+
+    std::filesystem::remove_all(dir);
+}
+
+// ══════════════════════════════════════════════════════════════
+// Module content loader
+// ══════════════════════════════════════════════════════════════
+
+TEST_CASE("Testing Tomb module loads and exposes its entry location") {
+    const auto module_dir = std::filesystem::path{"modules/testing-tomb"};
+
+    ModuleContentResult result = load_module_content(module_dir);
+
+    REQUIRE(result.ok);
+    CHECK(result.error.empty());
+    CHECK(result.module.manifest.module_id == "testing_tomb");
+
+    const ModuleLocation* entry = result.module.entry_location();
+    REQUIRE(entry != nullptr);
+    CHECK(entry->location_id == "module.testing_tomb.location.entrance");
+    CHECK(entry->title == "Entrance");
+    CHECK(entry->description_id == "module.testing_tomb.text.entrance");
+    CHECK(entry->map_id == "module.testing_tomb.map.tomb");
+
+    const ModuleMapDefinition* map = result.module.find_map(entry->map_id);
+    REQUIRE(map != nullptr);
+    CHECK(map->width == 5);
+    CHECK(map->height == 5);
+    CHECK(map->entry_x == 2);
+    CHECK(map->entry_y == 4);
+
+    const std::string* description = result.module.find_description(entry->description_id);
+    REQUIRE(description != nullptr);
+    CHECK(description->find("stone antechamber") != std::string::npos);
+}
+
+TEST_CASE("Module content loader rejects invalid location references") {
+    auto dir = make_manifest_test_dir("bx_module_content_bad_refs");
+    std::filesystem::create_directories(dir / "maps");
+    std::filesystem::create_directories(dir / "text");
+    write_module_json(dir, valid_module_manifest_json());
+    write_save_file(R"json([
+  {
+    "location_id": "module.testing_tomb.location.entrance",
+    "title": "Entrance",
+    "description_id": "module.testing_tomb.text.missing",
+    "map_id": "module.testing_tomb.map.tomb"
+  }
+])json", dir / "locations.json");
+    write_save_file(R"json({
+  "map_id": "module.testing_tomb.map.tomb",
+  "width": 5,
+  "height": 5,
+  "entry_x": 2,
+  "entry_y": 4
+})json", dir / "maps/tomb.json");
+    write_save_file("[module.testing_tomb.text.entrance]\nEntrance text.\n", dir / "text/descriptions.txt");
+
+    ModuleContentResult result = load_module_content(dir);
+
+    CHECK_FALSE(result.ok);
+    CHECK(result.error == "location references missing description");
 
     std::filesystem::remove_all(dir);
 }

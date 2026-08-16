@@ -18,3 +18,6 @@ set_target_properties(bx_crawl_tests PROPERTIES
 )
 
 add_test(NAME bx_crawl_tests COMMAND bx_crawl_tests)
+set_tests_properties(bx_crawl_tests PROPERTIES
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
