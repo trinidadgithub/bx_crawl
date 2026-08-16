@@ -51,6 +51,10 @@ public:
     // replacement seam for rendering from raw Game internals.
     GameStateSnapshot snapshot() const;
 
+    // Structured event stream. Frontends may consume new events by retaining a
+    // cursor into this vector; Game still owns event storage for now.
+    const std::vector<GameEvent>& events() const;
+
 private:
     Game game_;
 };
