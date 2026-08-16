@@ -4,6 +4,7 @@
 #include "game.hpp"
 #include "game_session.hpp"
 #include "map.hpp"
+#include "rules_catalog.hpp"
 
 #include <cstdint>
 #include <cstdlib>
@@ -4844,4 +4845,115 @@ TEST_CASE("Gameplay sound cues are queued as structured events") {
         }
     }
     CHECK(found_footstep);
+}
+
+// ══════════════════════════════════════════════════════════════
+// Content IDs / RulesCatalog adapter
+// ══════════════════════════════════════════════════════════════
+
+TEST_CASE("ContentId validation accepts stable dotted lowercase ids") {
+    CHECK(is_valid_content_id("bx.weapon.long_bow"));
+    CHECK(is_valid_content_id("bx.spell.magic_user.magic_missile"));
+    CHECK(is_valid_content_id("module.testing_tomb.room.room_a"));
+
+    CHECK_FALSE(is_valid_content_id(""));
+    CHECK_FALSE(is_valid_content_id("bx..weapon"));
+    CHECK_FALSE(is_valid_content_id("bx.weapon."));
+    CHECK_FALSE(is_valid_content_id("Bx.weapon.sword"));
+    CHECK_FALSE(is_valid_content_id("bx.weapon.long-bow"));
+    CHECK_FALSE(is_valid_content_id("bx.weapon.long bow"));
+}
+
+TEST_CASE("ContentId canonicalization maps existing content names to stable segments") {
+    CHECK(canonical_content_segment("Long Bow") == "long_bow");
+    CHECK(canonical_content_segment("magic-user") == "magic_user");
+    CHECK(canonical_content_segment("Bat, Normal") == "bat_normal");
+    CHECK(canonical_content_segment("  Silence 15' radius  ") == "silence_15_radius");
+
+    CHECK(make_content_id("weapon", "long-bow") == ContentId{"bx.weapon.long_bow"});
+    CHECK(make_content_id("monster", "Goblin") == ContentId{"bx.monster.goblin"});
+}
+
+TEST_CASE("RulesCatalog resolves core B/X equipment ids") {
+    const RulesCatalog& catalog = RulesCatalog::core();
+
+    const bx::Weapon* sword = catalog.find_weapon(ContentId{"bx.weapon.sword"});
+    REQUIRE(sword != nullptr);
+    CHECK(std::string_view(sword->id) == "sword");
+    CHECK(std::string_view(sword->name) == "Sword");
+
+    const bx::Weapon* long_bow = catalog.find_weapon(ContentId{"bx.weapon.long_bow"});
+    REQUIRE(long_bow != nullptr);
+    CHECK(std::string_view(long_bow->id) == "long-bow");
+
+    const bx::ArmorItem* chain = catalog.find_armor(ContentId{"bx.armor.chain_mail"});
+    REQUIRE(chain != nullptr);
+    CHECK(std::string_view(chain->id) == "chain-mail");
+
+    const bx::GearItem* pole = catalog.find_gear(ContentId{"bx.gear.pole_10ft"});
+    REQUIRE(pole != nullptr);
+    CHECK(std::string_view(pole->id) == "pole-10ft");
+
+    CHECK(catalog.find_weapon(ContentId{"bx.weapon.nope"}) == nullptr);
+    CHECK(catalog.find_armor(ContentId{"bx.weapon.sword"}) == nullptr);
+}
+
+TEST_CASE("RulesCatalog resolves core spell and monster ids") {
+    const RulesCatalog& catalog = RulesCatalog::core();
+
+    const bx::Spell* magic_missile = catalog.find_spell(ContentId{"bx.spell.magic_user.magic_missile"});
+    REQUIRE(magic_missile != nullptr);
+    CHECK(std::string_view(magic_missile->name) == "Magic Missile");
+    CHECK(std::string_view(magic_missile->class_name) == "Magic-User");
+
+    const bx::Spell* cleric_light = catalog.find_spell(ContentId{"bx.spell.cleric.light"});
+    REQUIRE(cleric_light != nullptr);
+    CHECK(std::string_view(cleric_light->name) == "Light");
+    CHECK(std::string_view(cleric_light->class_name) == "Cleric");
+
+    const bx::Spell* magic_user_light = catalog.find_spell(ContentId{"bx.spell.magic_user.light"});
+    REQUIRE(magic_user_light != nullptr);
+    CHECK(std::string_view(magic_user_light->class_name) == "Magic-User");
+    CHECK(magic_user_light != cleric_light);
+
+    const bx::Monster* goblin = catalog.find_monster(ContentId{"bx.monster.goblin"});
+    REQUIRE(goblin != nullptr);
+    CHECK(std::string_view(goblin->name) == "Goblin");
+
+    const bx::Monster* normal_bat = catalog.find_monster(ContentId{"bx.monster.bat_normal"});
+    REQUIRE(normal_bat != nullptr);
+    CHECK(std::string_view(normal_bat->name) == "Bat, Normal");
+
+    const bx::Monster* first_ghoul = catalog.find_monster(ContentId{"bx.monster.ghoul"});
+    const bx::Monster* second_ghoul = catalog.find_monster(ContentId{"bx.monster.ghoul_2"});
+    REQUIRE(first_ghoul != nullptr);
+    REQUIRE(second_ghoul != nullptr);
+    CHECK(first_ghoul != second_ghoul);
+}
+
+TEST_CASE("RulesCatalog exposes ids for all current core arrays") {
+    const RulesCatalog& catalog = RulesCatalog::core();
+
+    CHECK(catalog.weapon_ids().size() == bx::weapons.size());
+    CHECK(catalog.armor_ids().size() == bx::armor_items.size());
+    CHECK(catalog.gear_ids().size() == bx::gear_items.size());
+    CHECK(catalog.spell_ids().size() == bx::spells.size());
+    CHECK(catalog.monster_ids().size() == bx::monsters.size());
+
+    for (const ContentId& id : catalog.weapon_ids())
+        CHECK(is_valid_content_id(id.value));
+    for (const ContentId& id : catalog.spell_ids())
+        CHECK(is_valid_content_id(id.value));
+    for (const ContentId& id : catalog.monster_ids())
+        CHECK(is_valid_content_id(id.value));
+
+    auto monster_ids = catalog.monster_ids();
+    bool monster_ids_unique = true;
+    for (std::size_t i = 0; i < monster_ids.size(); ++i) {
+        for (std::size_t j = i + 1; j < monster_ids.size(); ++j) {
+            if (monster_ids[i] == monster_ids[j])
+                monster_ids_unique = false;
+        }
+    }
+    CHECK(monster_ids_unique);
 }
