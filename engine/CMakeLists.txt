@@ -5,6 +5,7 @@ add_library(bx_engine STATIC
     src/game.cpp
     src/game_session.cpp
     src/map.cpp
+    src/module_content.cpp
     src/module_manifest.cpp
     src/rules_catalog.cpp
     src/description.cpp
