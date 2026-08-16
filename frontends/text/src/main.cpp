@@ -336,6 +336,17 @@ static PlayerCommand read_town_command(const Game& g) {
     }
 }
 
+static void play_new_sound_events(const GameSession& session, std::size_t& cursor) {
+    const auto& events = session.events();
+    if (cursor > events.size())
+        cursor = events.size();
+    while (cursor < events.size()) {
+        const GameEvent& event = events[cursor++];
+        if (event.type == GameEventType::Sound)
+            sound_play(event.sound);
+    }
+}
+
 int main() {
     // Resolve data_dir relative to the binary so it works from any CWD
     std::filesystem::path bx_data_dir = "../data";
@@ -435,7 +446,10 @@ int main() {
 
     if (!loaded)
         init_game(g, bx_data_dir);
+
+    sound_init();
     sound_set_enabled(true);
+    std::size_t sound_event_cursor = session.events().size();
 
     // Raw mode for instant keypress AFTER character creation
     set_raw_mode();
@@ -447,8 +461,10 @@ int main() {
         // ── Render a fresh frame ──────────────────────────
         // Dungeon frames advance dungeon timing/visibility first (GameSession
         // owns that step); town frames render directly.
-        if (g.state == GameState::Dungeon)
+        if (g.state == GameState::Dungeon) {
             session.prepare_dungeon_frame();
+            play_new_sound_events(session, sound_event_cursor);
+        }
         render(session.snapshot());
 
         // ── Command input ─────────────────────────────────
@@ -461,6 +477,7 @@ int main() {
         // announcement, and state-transition handling all happen inside
         // apply(). The frontend only submits intent and presents the result.
         ActionResult result = session.apply(cmd);
+        play_new_sound_events(session, sound_event_cursor);
 
         if (result.hero_died) {
             render(session.snapshot());

@@ -4,7 +4,6 @@
 #include "chargen.hpp"
 #include "bx_data.hpp"
 #include "item_effects.hpp"
-#include "sound.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -66,12 +65,20 @@ namespace {
 
 void log_event(Game& g, const std::string& msg) {
     g.event_log.push_back(msg);
+    g.events.push_back(GameEvent{GameEventType::LogMessage, msg});
     // keep the log small (e.g., last 8 messages)
     const std::size_t max_events = 8;
     if (g.event_log.size() > max_events) {
         g.event_log.erase(g.event_log.begin(),
                           g.event_log.begin() + (g.event_log.size() - max_events));
     }
+}
+
+void queue_sound(Game& g, SoundEffect effect) {
+    GameEvent event;
+    event.type = GameEventType::Sound;
+    event.sound = effect;
+    g.events.push_back(std::move(event));
 }
 
 bool resolve_first_contact_surprise(Game& g, Entity& monster) {
@@ -981,7 +988,7 @@ static bool resolve_bear_attack(Game& g, Entity& attacker, Entity& defender,
         if (defender.hp <= 0) {
             defender.hp = 0;
             defender.alive = false;
-            sound_player_death();
+            queue_sound(g, SoundEffect::PlayerDeath);
             log_event(g, defender.name + " is slain!");
         }
     };
@@ -1002,7 +1009,7 @@ static bool resolve_bear_attack(Game& g, Entity& attacker, Entity& defender,
         if (defender.hp <= 0) {
             defender.hp = 0;
             defender.alive = false;
-            sound_player_death();
+            queue_sound(g, SoundEffect::PlayerDeath);
             log_event(g, defender.name + " is slain!");
         }
     }
@@ -1066,10 +1073,10 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
         dmg = std::max(1, dmg);
         if (backstab_bonus) {
             dmg *= 2;
-            sound_backstab();
+            queue_sound(g, SoundEffect::Backstab);
             log_event(g, "Backstab hits for double damage!");
         } else if (attacker.type == EntityType::Hero) {
-            sound_attack_hit();
+            queue_sound(g, SoundEffect::AttackHit);
         }
         defender.hp -= dmg;
 
@@ -1086,9 +1093,9 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
 
             // Play sound: monster death or hero death
             if (defender.type == EntityType::Hero) {
-                sound_player_death();
+                queue_sound(g, SoundEffect::PlayerDeath);
             } else {
-                sound_monster_death();
+                queue_sound(g, SoundEffect::MonsterDeath);
             }
 
             {
@@ -1327,7 +1334,6 @@ void seed_rng(Game& g) {
 }
 
 void init_runtime_state(Game& g, const std::filesystem::path& data_dir, bool should_seed_rng) {
-    sound_init();
     g.width  = 40;
     g.height = 20;
 
@@ -2484,7 +2490,7 @@ void monsters_turn(Game& g) {
                     g.hero.hp = 0;
                     g.hero.alive = false;
                     log_event(g, "The vampire bat drains you dry!");
-                    sound_player_death();
+                    queue_sound(g, SoundEffect::PlayerDeath);
                 }
                 continue;
             }
@@ -2550,7 +2556,7 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
         return false;
     }
 
-    sound_throw();
+    queue_sound(g, SoundEffect::Throw);
 
     int dist = 1;
     int nx = attacker.pos.x + dx;
@@ -2649,7 +2655,7 @@ static bool throw_holy_water(Game& g, int dx, int dy) {
         return false;
     }
     g.hero.holy_water--;
-    sound_throw();
+    queue_sound(g, SoundEffect::Throw);
 
     int dist = 1;
     int nx = g.hero.pos.x + dx;
@@ -2742,7 +2748,7 @@ static bool cast_spell(Game& g, int spell_index, int dx, int dy) {
         return false;
     }
 
-    sound_spell();
+    queue_sound(g, SoundEffect::Spell);
 
     // --- Magic Missile ---
     if (spell == "Magic Missile") {
@@ -3296,7 +3302,7 @@ static int spawn_wandering_monsters(Game& g) {
 // Trigger a trap on the hero
 static void trigger_trap(Game& g, Entity& hero, Tile& tile) {
     if (!tile.has_trap || tile.trap_type == TrapType::None) return;
-    sound_trap();
+    queue_sound(g, SoundEffect::Trap);
     int dmg = 0;
     const char* msg = "";
     switch (tile.trap_type) {
@@ -3335,7 +3341,7 @@ static void trigger_trap(Game& g, Entity& hero, Tile& tile) {
         if (hero.hp <= 0) {
             hero.hp    = 0;
             hero.alive = false;
-            sound_player_death();
+            queue_sound(g, SoundEffect::PlayerDeath);
             log_event(g, "You have died.");
         }
     }
@@ -3453,14 +3459,14 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                         log_event(g, "You scale the wall.");
                         g.hero.pos.x = nx;
                         g.hero.pos.y = ny;
-                        sound_footstep();
+                        queue_sound(g, SoundEffect::Footstep);
                         update_location_description(g);
                     } else {
                         log_event(g, "You fail to climb the wall.");
                     }
                 } else if (tt != TileType::Wall) {
                     move_entity(g, g.hero, dx, dy);
-                    sound_footstep();
+                    queue_sound(g, SoundEffect::Footstep);
                     update_location_description(g);
                 }
 
@@ -3517,7 +3523,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                             tile.locked = false;
                             tile.type   = TileType::DoorOpen;
                             log_event(g, "You pick the lock and open the door.");
-                            sound_door_open();
+                            queue_sound(g, SoundEffect::DoorOpen);
                             opened = true;
                             break;
                         } else {
@@ -3531,7 +3537,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                         if (roll <= 2 + od_mod) {
                             tile.locked = false;
                             tile.type   = TileType::DoorOpen;
-                            sound_door_open();
+                            queue_sound(g, SoundEffect::DoorOpen);
                             log_event(g, "You force the door open!");
                             opened = true;
                             break;
@@ -3544,7 +3550,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 }
                 if (closed_door) {
                     tile.type = TileType::DoorOpen;
-                    sound_door_open();
+                    queue_sound(g, SoundEffect::DoorOpen);
                     opened = true;
                     log_event(g, "You open a door.");
                     break;
@@ -3572,7 +3578,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 }
                 if (tile.type == TileType::DoorOpen) {
                     tile.type = TileType::DoorClosed;
-                    sound_door_close();
+                    queue_sound(g, SoundEffect::DoorClose);
                     closed = true;
                     log_event(g, "You close a door.");
                     break;
@@ -3674,7 +3680,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                 }
             }
             if (torches > 0 || gp_found > 0) {
-                if (gp_found > 0) sound_gold_pickup();
+                if (gp_found > 0) queue_sound(g, SoundEffect::GoldPickup);
                 std::ostringstream oss;
                 if (torches > 0) {
                     oss << "Picked up " << torches << " torch" << (torches == 1 ? "" : "es") << ".";

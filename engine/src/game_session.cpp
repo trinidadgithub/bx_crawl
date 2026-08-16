@@ -71,3 +71,7 @@ ActionResult GameSession::apply(const PlayerCommand& cmd) {
 GameStateSnapshot GameSession::snapshot() const {
     return make_game_state_snapshot(game_);
 }
+
+const std::vector<GameEvent>& GameSession::events() const {
+    return game_.events;
+}

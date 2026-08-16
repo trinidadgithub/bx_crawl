@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "entity.hpp"
+#include "game_event.hpp"
 #include "map.hpp"
 #include "description.hpp"
 
@@ -35,6 +36,7 @@ struct Game {
 
     // Event log
     std::vector<std::string> event_log;
+    std::vector<GameEvent> events;
 
     // Progression
     int total_gold{};
