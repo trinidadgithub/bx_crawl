@@ -1,6 +1,7 @@
 # engine/CMakeLists.txt
 
 add_library(bx_engine STATIC
+    src/campaign_state.cpp
     src/game.cpp
     src/game_session.cpp
     src/map.cpp

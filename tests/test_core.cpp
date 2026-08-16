@@ -5,6 +5,7 @@
 #include "game_session.hpp"
 #include "map.hpp"
 #include "rules_catalog.hpp"
+#include "campaign_state.hpp"
 
 #include <cstdint>
 #include <cstdlib>
@@ -4956,4 +4957,128 @@ TEST_CASE("RulesCatalog exposes ids for all current core arrays") {
         }
     }
     CHECK(monster_ids_unique);
+}
+
+// ══════════════════════════════════════════════════════════════
+// CampaignState model
+// ══════════════════════════════════════════════════════════════
+
+TEST_CASE("CampaignState captures mutable campaign and runtime state") {
+    Game g = make_minimal_game(12, 8);
+    g.state = GameState::Dungeon;
+    g.previous_state = GameState::Camp;
+    g.town_submenu = 3;
+    g.current_location_id = "procedural.dungeon.level_3";
+    g.total_gold = 123;
+    g.total_xp = 456;
+    g.hero_level = 4;
+    g.dungeon_level = 3;
+    g.wander_counter = 7;
+    g.tick_clock = 9;
+    g.dungeon_peace_announced = true;
+    g.rng.seed(2026u);
+    g.hero = make_hero(2, 2, 5, 8, 4);
+    g.hero.name = "Campaign Hero";
+    g.hero.weapon_id = "sword";
+    g.hero.weapon_counts[8] = 1;
+    g.hero.gear_counts[15] = 2;
+    g.map[index_for(g, 2, 2)].visible = true;
+    g.map[index_for(g, 2, 2)].items.push_back(ItemType::Gold);
+    g.monsters.push_back(make_monster("Goblin", EntityType::Goblin,
+                                      4, 2, 3, 7, 1, 6, 7));
+    g.rooms.push_back(Room{1, 1, 4, 4});
+    g.event_log.push_back("Captured state log.");
+
+    CampaignState state = capture_campaign_state(g);
+
+    CHECK(state.schema_version == 1);
+    CHECK(state.rules_version == "bx.moldvay-basic");
+    CHECK(state.current_location_id == g.current_location_id);
+    CHECK(state.state == GameState::Dungeon);
+    CHECK(state.previous_state == GameState::Camp);
+    CHECK(state.town_submenu == 3);
+    CHECK(state.total_gold == 123);
+    CHECK(state.total_xp == 456);
+    CHECK(state.hero_level == 4);
+    CHECK(state.dungeon_level == 3);
+    CHECK(state.wander_counter == 7);
+    CHECK(state.tick_clock == 9);
+    CHECK(state.dungeon_peace_announced);
+    CHECK(state.hero.name == "Campaign Hero");
+    CHECK(state.hero.weapon_id == "sword");
+    CHECK(state.hero.gear_counts[15] == 2);
+    CHECK(state.width == 12);
+    CHECK(state.height == 8);
+    REQUIRE(state.map.size() == g.map.size());
+    CHECK(state.map[index_for(g, 2, 2)].visible);
+    CHECK(state.map[index_for(g, 2, 2)].items == std::vector<ItemType>{ItemType::Gold});
+    REQUIRE(state.monsters.size() == 1);
+    CHECK(state.monsters[0].name == "Goblin");
+    REQUIRE(state.rooms.size() == 1);
+    CHECK(state.rooms[0].w == 4);
+    CHECK(state.event_log.back() == "Captured state log.");
+
+    auto game_rng = g.rng;
+    auto state_rng = state.rng;
+    CHECK(game_rng() == state_rng());
+}
+
+TEST_CASE("CampaignState restores Game while preserving runtime configuration") {
+    Game source = make_minimal_game(10, 6);
+    source.data_dir = "/tmp/source-data";
+    source.state = GameState::Dungeon;
+    source.current_location_id = "source.location";
+    source.hero = make_hero(1, 1, 2, 6, 8);
+    source.hero.name = "Restored Hero";
+    source.total_gold = 50;
+    source.rng.seed(1234u);
+    source.monsters.push_back(make_monster("Orc", EntityType::Orc,
+                                           3, 1, 5, 7, 1, 6, 8));
+    source.event_log.push_back("Restore me.");
+
+    CampaignState state = capture_campaign_state(source);
+
+    Game target = make_minimal_game(4, 4);
+    target.data_dir = "/tmp/target-data";
+    target.current_location_id = "old.location";
+    target.hero = make_hero(0, 0, 0, 4, 9);
+    target.total_gold = 1;
+    target.events.push_back(GameEvent{GameEventType::Sound, {}, SoundEffect::Footstep});
+
+    restore_campaign_state(target, state);
+
+    CHECK(target.data_dir == std::filesystem::path{"/tmp/target-data"});
+    CHECK(target.current_location_id == "source.location");
+    CHECK(target.state == GameState::Dungeon);
+    CHECK(target.hero.name == "Restored Hero");
+    CHECK(target.hero.pos.x == 1);
+    CHECK(target.total_gold == 50);
+    REQUIRE(target.monsters.size() == 1);
+    CHECK(target.monsters[0].name == "Orc");
+    CHECK(target.event_log.back() == "Restore me.");
+    CHECK(target.events.empty());
+
+    auto source_rng = source.rng;
+    auto target_rng = target.rng;
+    CHECK(source_rng() == target_rng());
+}
+
+TEST_CASE("CampaignState separates future module identity from current procedural saves") {
+    Game g = make_minimal_game();
+    CampaignState state = capture_campaign_state(g);
+
+    CHECK(state.module_id.empty());
+    CHECK(state.module_version.empty());
+
+    state.module_id = "module.testing_tomb";
+    state.module_version = "0.1.0";
+
+    Game restored = make_minimal_game();
+    restore_campaign_state(restored, state);
+
+    // Module metadata is part of the campaign model, but restoring into current
+    // Game intentionally does not create a module runtime in this phase.
+    CHECK(restored.current_location_id == state.current_location_id);
+    CHECK(state.module_id == "module.testing_tomb");
+    CHECK(state.module_version == "0.1.0");
 }
