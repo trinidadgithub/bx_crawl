@@ -5397,3 +5397,64 @@ TEST_CASE("Module content loader rejects invalid map topology") {
 
     std::filesystem::remove_all(dir);
 }
+
+// ══════════════════════════════════════════════════════════════
+// Module session entry
+// ══════════════════════════════════════════════════════════════
+
+TEST_CASE("GameSession starts at the Testing Tomb module entry location") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+
+    Entity hero = make_hero(0, 0, 2, 6, 14);
+    hero.gold_pieces = 12;
+
+    GameSession session;
+    ModuleStartResult started = session.start_module(loaded.module, hero);
+
+    REQUIRE(started.ok);
+    CHECK(started.error.empty());
+
+    const Game& game = session.game();
+    CHECK(game.state == GameState::Dungeon);
+    CHECK(game.previous_state == GameState::Town);
+    CHECK(game.width == 5);
+    CHECK(game.height == 5);
+    REQUIRE(game.map.size() == 25);
+    CHECK(game.hero.pos.x == 2);
+    CHECK(game.hero.pos.y == 4);
+    CHECK(game.current_location_id == "module.testing_tomb.location.entrance");
+    CHECK(game.total_gold == 12);
+    CHECK(game.hero.gold_pieces == 0);
+    CHECK(game.monsters.empty());
+    CHECK(game.rooms.empty());
+    CHECK(game.map[static_cast<std::size_t>(4 * game.width + 2)].type == TileType::Floor);
+    CHECK(game.map[static_cast<std::size_t>(2 * game.width + 2)].type == TileType::DoorClosed);
+    CHECK(game.map[static_cast<std::size_t>(4 * game.width + 2)].visible);
+
+    REQUIRE_FALSE(game.event_log.empty());
+    CHECK(game.event_log.back() == "You enter Testing Tomb.");
+    REQUIRE_FALSE(session.events().empty());
+    CHECK(session.events().back().type == GameEventType::LogMessage);
+    CHECK(session.events().back().text == "You enter Testing Tomb.");
+
+    GameStateSnapshot snapshot = session.snapshot();
+    CHECK(snapshot.state == GameState::Dungeon);
+    CHECK(snapshot.width == 5);
+    CHECK(snapshot.height == 5);
+    CHECK(snapshot.hero.pos.x == 2);
+    CHECK(snapshot.hero.pos.y == 4);
+}
+
+TEST_CASE("GameSession rejects module entry maps that cannot become runtime maps") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+    loaded.module.maps.at("module.testing_tomb.map.tomb").tiles.pop_back();
+
+    GameSession session;
+    ModuleStartResult started = session.start_module(loaded.module, make_hero(0, 0, 2, 6, 14));
+
+    CHECK_FALSE(started.ok);
+    CHECK(started.error == "module entry map tile count mismatch");
+    CHECK(session.game().state == GameState::Town);
+}
