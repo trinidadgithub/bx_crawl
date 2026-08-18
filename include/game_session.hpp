@@ -2,7 +2,9 @@
 
 #include "game.hpp"
 #include "game_snapshot.hpp"
+#include "module_content.hpp"
 
+#include <string>
 #include <utility>
 
 // Result of one command cycle through GameSession.
@@ -16,6 +18,11 @@ struct ActionResult {
     // initiative and killed the hero first). The text frontend shows a
     // "Game over." line in this case to match its historical death text.
     bool died_before_action{false};
+};
+
+struct ModuleStartResult {
+    bool ok{false};
+    std::string error;
 };
 
 // Application-layer wrapper around the authoritative Game. GameSession owns the
@@ -50,6 +57,11 @@ public:
     // Frontend-neutral presentation state for renderers. This is the Phase 3
     // replacement seam for rendering from raw Game internals.
     GameStateSnapshot snapshot() const;
+
+    // Start a data-only module at its manifest entry location. This establishes
+    // the first runtime seam for module maps without loading encounters,
+    // treasures, traps, or mutable campaign state.
+    ModuleStartResult start_module(const ModuleContent& module, Entity hero);
 
     // Structured event stream. Frontends may consume new events by retaining a
     // cursor into this vector; Game still owns event storage for now.

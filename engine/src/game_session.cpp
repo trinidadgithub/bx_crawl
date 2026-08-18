@@ -2,6 +2,19 @@
 
 #include "game.hpp"
 
+#include <cstddef>
+#include <string>
+#include <utility>
+
+namespace {
+
+void append_log(Game& g, std::string text) {
+    g.event_log.push_back(text);
+    g.events.push_back(GameEvent{GameEventType::LogMessage, std::move(text)});
+}
+
+} // namespace
+
 void GameSession::prepare_dungeon_frame() {
     compute_visibility(game_);
 }
@@ -70,6 +83,60 @@ ActionResult GameSession::apply(const PlayerCommand& cmd) {
 
 GameStateSnapshot GameSession::snapshot() const {
     return make_game_state_snapshot(game_);
+}
+
+ModuleStartResult GameSession::start_module(const ModuleContent& module, Entity hero) {
+    const ModuleLocation* entry = module.entry_location();
+    if (entry == nullptr)
+        return {false, "module entry location not found"};
+
+    const ModuleMapDefinition* map = module.find_map(entry->map_id);
+    if (map == nullptr)
+        return {false, "module entry map not found"};
+    if (map->width <= 0 || map->height <= 0)
+        return {false, "module entry map has invalid dimensions"};
+    if (map->entry_x < 0 || map->entry_y < 0 || map->entry_x >= map->width ||
+        map->entry_y >= map->height) {
+        return {false, "module entry position is out of bounds"};
+    }
+    if (map->tiles.size() != static_cast<std::size_t>(map->width * map->height))
+        return {false, "module entry map tile count mismatch"};
+
+    const TileType* entry_tile = map->tile_at(map->entry_x, map->entry_y);
+    if (entry_tile == nullptr || *entry_tile == TileType::Wall || *entry_tile == TileType::DoorClosed ||
+        *entry_tile == TileType::SecretDoorClosed) {
+        return {false, "module entry position is blocked"};
+    }
+
+    game_ = Game{};
+    init_game_runtime(game_);
+    game_.width = map->width;
+    game_.height = map->height;
+    game_.map.assign(map->tiles.size(), Tile{});
+    for (std::size_t i = 0; i < map->tiles.size(); ++i) {
+        game_.map[i].type = map->tiles[i];
+    }
+
+    game_.hero = std::move(hero);
+    game_.hero.pos = {map->entry_x, map->entry_y};
+    game_.total_gold = game_.hero.gold_pieces;
+    game_.hero.gold_pieces = 0;
+    game_.state = GameState::Dungeon;
+    game_.previous_state = GameState::Town;
+    game_.dungeon_level = 1;
+    game_.current_location_id = entry->location_id;
+    game_.wander_counter = 0;
+    game_.tick_clock = 0;
+    game_.dungeon_peace_announced = false;
+    game_.monsters.clear();
+    game_.rooms.clear();
+
+    Tile& start = game_.map[static_cast<std::size_t>(map->entry_y * map->width + map->entry_x)];
+    start.explored = true;
+    start.visible = true;
+
+    append_log(game_, "You enter " + module.manifest.title + ".");
+    return {true, {}};
 }
 
 const std::vector<GameEvent>& GameSession::events() const {
