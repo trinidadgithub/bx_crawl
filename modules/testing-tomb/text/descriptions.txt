@@ -1,3 +1,7 @@
 [module.testing_tomb.text.entrance]
 A cold stair opens into a square stone antechamber. Dust gathers around a
 sealed door to the north, and the air smells faintly of old torch smoke.
+
+[module.testing_tomb.text.room_a]
+The chamber beyond the sealed door is bare except for cracked flagstones and
+fresh scratches leading toward deeper darkness.

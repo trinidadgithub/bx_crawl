@@ -61,6 +61,15 @@ bool extract_int(const std::string& json, const char* key, int& out) {
     return true;
 }
 
+bool extract_bool(const std::string& json, const char* key, bool& out) {
+    std::regex pattern(std::string{"\""} + key + "\"\\s*:\\s*(true|false)");
+    std::smatch match;
+    if (!std::regex_search(json, match, pattern))
+        return false;
+    out = match[1].str() == "true";
+    return true;
+}
+
 bool extract_string_array(const std::string& json, const char* key, std::vector<std::string>& out) {
     std::regex array_pattern(std::string{"\""} + key + "\"\\s*:\\s*\\[([^\\]]*)\\]");
     std::smatch array_match;
@@ -84,6 +93,14 @@ std::vector<std::string> extract_flat_objects(const std::string& json) {
     return objects;
 }
 
+std::vector<std::string> extract_flat_object_array(const std::string& json, const char* key) {
+    std::regex array_pattern(std::string{"\""} + key + "\"\\s*:\\s*\\[([^\\]]*)\\]");
+    std::smatch array_match;
+    if (!std::regex_search(json, array_match, array_pattern))
+        return {};
+    return extract_flat_objects(array_match[1].str());
+}
+
 bool valid_module_namespace(std::string_view id, const ModuleManifest& manifest,
                             std::string_view category) {
     return is_valid_content_id(id) &&
@@ -105,6 +122,11 @@ bool tile_type_from_glyph(char glyph, TileType& out) {
 bool tile_is_walkable(TileType type) {
     return type == TileType::Floor || type == TileType::DoorOpen || type == TileType::StairsUp ||
            type == TileType::StairsDown;
+}
+
+bool tile_is_door(TileType type) {
+    return type == TileType::DoorClosed || type == TileType::DoorOpen ||
+           type == TileType::SecretDoorClosed;
 }
 
 ModuleContentResult load_locations(const std::filesystem::path& module_dir,
@@ -201,6 +223,37 @@ ModuleContentResult load_map(const std::filesystem::path& module_dir, ModuleCont
     const auto entry_index = static_cast<std::size_t>(map.entry_y * map.width + map.entry_x);
     if (!tile_is_walkable(map.tiles[entry_index]))
         return fail("map entry position is blocked");
+
+    for (const std::string& object : extract_flat_object_array(json, "doors")) {
+        ModuleDoorDefinition door;
+        if (!extract_string(object, "door_id", door.door_id))
+            return fail("door missing door_id");
+        if (!extract_string(object, "from_location_id", door.from_location_id))
+            return fail("door missing from_location_id");
+        if (!extract_string(object, "to_location_id", door.to_location_id))
+            return fail("door missing to_location_id");
+        if (!extract_int(object, "x", door.x))
+            return fail("door missing x");
+        if (!extract_int(object, "y", door.y))
+            return fail("door missing y");
+        (void)extract_bool(object, "locked", door.locked);
+
+        if (!valid_module_namespace(door.door_id, module.manifest, "door"))
+            return fail("invalid door_id");
+        if (!module.locations.contains(door.from_location_id) ||
+            !module.locations.contains(door.to_location_id)) {
+            return fail("door references missing location");
+        }
+        const TileType* door_tile = map.tile_at(door.x, door.y);
+        if (door_tile == nullptr)
+            return fail("door position is out of bounds");
+        if (!tile_is_door(*door_tile))
+            return fail("door position is not a door tile");
+        if (module.doors.contains(door.door_id))
+            return fail("duplicate door_id");
+
+        module.doors.emplace(door.door_id, std::move(door));
+    }
 
     module.maps.emplace(map.map_id, std::move(map));
     for (const auto& [location_id, location] : module.locations) {
@@ -300,6 +353,13 @@ const ModuleLocation* ModuleContent::entry_location() const {
 const ModuleMapDefinition* ModuleContent::find_map(const std::string& map_id) const {
     auto it = maps.find(map_id);
     if (it == maps.end())
+        return nullptr;
+    return &it->second;
+}
+
+const ModuleDoorDefinition* ModuleContent::find_door(const std::string& door_id) const {
+    auto it = doors.find(door_id);
+    if (it == doors.end())
         return nullptr;
     return &it->second;
 }

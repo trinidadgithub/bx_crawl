@@ -10,5 +10,15 @@
     "##+##",
     "#...#",
     "##.##"
+  ],
+  "doors": [
+    {
+      "door_id": "module.testing_tomb.door.entrance_to_room_a",
+      "from_location_id": "module.testing_tomb.location.entrance",
+      "to_location_id": "module.testing_tomb.location.room_a",
+      "x": 2,
+      "y": 2,
+      "locked": true
+    }
   ]
 }
