@@ -742,9 +742,9 @@ Continue preserving current tests. Add new architecture tests alongside them. Do
 
 ## Architecture Decision Records
 
-Create a small ADR set when implementation starts.
+Implemented in `docs/adr/`:
 
-ADR: Engine / Frontend Boundary
+ADR: Engine / Frontend Boundary (`docs/adr/0001-engine-frontend-boundary.md`)
 
 ```text
 Decision: Frontends interact with gameplay through commands, action results/events,
@@ -753,7 +753,7 @@ and snapshots rather than raw Game/Entity/Tile internals.
 Rationale: Enables text, GUI, TUI, and tests to share one rules implementation.
 ```
 
-ADR: Data-First Modules
+ADR: Data-First Modules (`docs/adr/0002-data-first-modules.md`)
 
 ```text
 Decision: Adventure modules are declarative data packages and do not initially
@@ -762,7 +762,7 @@ contain executable code.
 Rationale: Avoids plugin ABI, scripting sandbox, and arbitrary-code security risks.
 ```
 
-ADR: Stable Content IDs
+ADR: Stable Content IDs (`docs/adr/0003-stable-content-ids.md`)
 
 ```text
 Decision: Rules and module content reference each other through stable textual IDs,
@@ -771,7 +771,7 @@ not array positions or implementation-specific indexes.
 Rationale: Saves and modules must survive code/data reordering.
 ```
 
-ADR: Rules vs Adventure vs Campaign State
+ADR: Rules vs Adventure vs Campaign State (`docs/adr/0004-rules-adventure-campaign-state.md`)
 
 ```text
 Decision: Immutable rules content, immutable adventure definitions, and mutable
@@ -903,4 +903,4 @@ Future evidence that would justify some of them:
 7. Move sound playback to a simple event consumer in the application/frontend layer.
 8. Define `ContentId` and canonical `bx.*` IDs with adapter lookup over existing `bx_data.hpp`.
 9. Sketch the `testing-tomb` module JSON files and validation tests before implementing a broad loader.
-10. Create the four ADRs listed above once the first boundary work begins.
+10. ~~Create the four ADRs listed above once the first boundary work begins.~~ Done in `docs/adr/`.
