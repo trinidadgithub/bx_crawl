@@ -8,6 +8,7 @@ add_library(bx_engine STATIC
     src/module_content.cpp
     src/module_manifest.cpp
     src/rules_catalog.cpp
+    src/save.cpp
     src/description.cpp
     src/chargen.cpp
     src/item_effects.cpp
