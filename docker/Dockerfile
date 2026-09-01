@@ -1,7 +1,6 @@
 FROM gcc:13-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
     cmake \
     make \
     && rm -rf /var/lib/apt/lists/*
@@ -9,16 +8,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /src
 
 COPY scripts/ scripts/
-COPY dnd-data/schemas/ dnd-data/schemas/
-COPY dnd-data/data/ dnd-data/data/
+COPY data/ data/
+COPY modules/ modules/
 COPY include/ include/
 COPY CMakeLists.txt .
+COPY Monsters.md Scrolls.md ./
 COPY engine/ engine/
 COPY frontends/ frontends/
 COPY tests/ tests/
+COPY tools/ tools/
 
-RUN python3 scripts/gen_data.py && \
-    mkdir -p build && \
+RUN mkdir -p build && \
     cmake -S . -B build && \
     make -C build -j$(nproc)
 
@@ -30,12 +30,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /game
 
-COPY --from=builder /src/build/frontends/text/bx_crawl .
+COPY --from=builder /src/build/frontends/text/bx_crawl_text .
+COPY --from=builder /src/data /data
+COPY --from=builder /src/modules /modules
 COPY --from=builder /src/Monsters.md .
 COPY --from=builder /src/Scrolls.md .
 
 RUN echo '#!/bin/bash' > /game/run.sh && \
-    echo 'cd /game && ./bx_crawl' >> /game/run.sh && \
+    echo 'cd /game && ./bx_crawl_text' >> /game/run.sh && \
     chmod +x /game/run.sh
 
 CMD ["/game/run.sh"]

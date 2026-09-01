@@ -843,7 +843,7 @@ Declarative triggers
 
 Work that can happen in parallel:
 
-- Save hardening and Docker/package cleanup.
+- Save hardening and Docker/package cleanup. Docker/package cleanup is done.
 - Documentation ADRs and content ID format design.
 - Spell dispatch design and monster trait schema design.
 - Snapshot DTO design and renderer extraction preparation.

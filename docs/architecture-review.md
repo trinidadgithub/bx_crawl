@@ -589,7 +589,7 @@ Future:
 ## Recommended Next 10 Actions
 
 1. Harden save loading against malformed input and path traversal.
-2. Fix or remove stale Docker packaging.
+2. ~~Fix or remove stale Docker packaging.~~ Done: Docker now builds the checked-in sources and packages `bx_crawl_text` plus runtime data.
 3. Move terminal rendering out of `bx_engine` into `frontends/text`.
 4. Add `GameStateSnapshot` for frontend rendering.
 5. Add structured `GameEvent` while keeping current `event_log` text as derived output.
