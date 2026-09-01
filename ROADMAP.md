@@ -1,8 +1,7 @@
 # Roadmap
 
-This file tracks the next practical work for BX Crawl. The goal is to keep
-development focused on playable B/X dungeon-crawl mechanics rather than adding
-systems at random.
+This file tracks the next practical work for BX Crawl. The current priority is
+finishing the architecture-review follow-up before expanding new gameplay.
 
 ## Current State
 
@@ -10,92 +9,117 @@ systems at random.
   equipment are playable.
 - Dungeon exploration includes light, hunger, rations, traps, searching, door
   interaction, thief skills, cleric turning, spells, scrolls, throwing weapons,
-  and procedural sound effects.
-- Monster playtest tooling exists:
-  - `tools/list_monsters` lists monsters by exact challenge level.
-  - `tools/show_monster` displays B/X stat blocks and descriptions.
-  - `tools/edit_monster` edits monster descriptions.
-- Combat mechanics added: bear hug (2d8 when both claws hit), first-contact
-  surprise with stealthy-monster modifiers (Bugbear 1-3, Crab Spider 1-4,
-  Shadow 1-5, Weretiger 1-4), paralysis (ghoul/carrion crawler/gelatinous cube/
-  thoul; 2-8 turns, Cure Light Wounds removes it, elves immune to ghouls),
-  normal bat swarm confusion (10+ bats: -2 to hit/saves, no spells, bats never
-  bite), giant vampire bats (5% of encounters; save vs. Paralysis or unconscious
-  1-10 rounds, 1-4 HP blood drain per round), and secret doors.
-- `data/monster_descriptions.txt` is being reviewed against the Basic Box PDF.
-  Some entries are confirmed, but this review should continue incrementally.
+  procedural sound effects, and secret doors.
+- Combat mechanics include bear hug, stealthy-monster surprise modifiers,
+  paralysis, normal bat swarm confusion, and giant vampire bat unconsciousness /
+  blood drain.
+- Monster playtest utilities build and smoke-test successfully:
+  `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
+  `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
+- Architecture groundwork completed through Phase 12:
+  - save/load hardening
+  - `GameSession` application boundary
+  - snapshot renderer separation
+  - structured events and frontend sound consumer
+  - stable `ContentId` and `RulesCatalog`
+  - `CampaignState` model
+  - module manifest/content loading
+  - Testing Tomb entry module, map topology, runtime session entry, and door IDs
+  - architecture decision records
+  - Docker packaging fix
 
-## Next Logical Focus
+## Architecture Review Track
 
-1. **Monster Mechanics Pass**
+Remaining architecture-review work should stay incremental and behavior-preserving
+unless a phase explicitly says otherwise.
 
-   Monster stat blocks and descriptions are now visible enough to review, so the
-   next high-value game work is making key monster traits matter in play.
+1. **Extract Persistence From `game.cpp`** — Done
 
-   Priority examples:
+   Save/load and save-path helpers now live in `engine/src/save.cpp`; the public
+   API in `include/game.hpp` remains unchanged.
 
-   - Bears: hug damage when both claw attacks hit. Done.
-   - Normal bats: confusion from groups of 10+ bats. Done: a swarm of 10+
-     normal bats within 8 tiles confuses the hero (-2 to hit, -2 on saves,
-     no spellcasting), bats never bite, and they check morale each round.
-   - Giant bats: vampire bat variant. Done: 5% of giant bat encounters are
-     vampire bats; a bite forces a save vs. Paralysis or unconsciousness for
-     1-10 rounds, and an adjacent vampire bat drains 1-4 HP/round while the
-     hero is unconscious.
-   - Goblins/orcs/kobolds: daylight penalties and leader morale effects where
-     relevant.
-   - Ghouls/carrion crawlers: paralysis duration and cure interactions. Done:
-     save vs. Paralysis or 2-8 turns, Cure Light Wounds removes it, elves are
-     immune to ghoul paralysis.
-   - Shadows/wights/wraiths: drain effects and appropriate weapon immunity.
-   - Rust monster/oozes/slimes: equipment destruction/corrosion consistency.
+2. **Extract Combat From `game.cpp`**
 
-2. **Encounter And Morale Pass**
+   Move attack resolution, surprise helpers, monster combat utilities, and morale
+   helpers into `engine/src/combat.cpp` without behavior changes.
 
-   B/X monster behavior depends heavily on morale, reaction, surprise, and group
-   behavior. The game should eventually model these clearly enough to make
-   monsters feel different.
+3. **Extract Spells From `game.cpp`**
 
-   Useful steps:
+   Move spell execution into `engine/src/spells.cpp`. Add a small dispatch table
+   only where it reduces current string-chain coupling.
 
-   - Verify current morale checks and when they happen.
-   - Add leader-based morale modifiers for humanoid lairs/groups.
-   - ~~Add surprise modifiers for stealthy monsters such as bugbears, crab spiders,
-     shadows, and weretigers.~~ Done: `monster_surprise_threshold` gives
-     Bugbear 1-3, Crab Spider 1-4, Shadow 1-5, and Weretiger 1-4; wired into
-     first-contact surprise and `tools/sim_surprise`.
-   - Decide how much lair/group behavior matters in a small roguelike dungeon.
+4. **Extract Exploration / Time / Traps**
 
-3. **Data Accuracy Pass**
+   Move visibility, hunger/light timing, searching, trap handling, and dungeon
+   movement helpers into `engine/src/exploration.cpp` behind existing tests.
 
-   Continue reviewing monster descriptions and stat data against
-   `dnd-data/dungestNdragonsBasicBox.pdf`.
+5. **Extract Town / Inventory Flow**
 
-   Rules:
+   Move town state transitions, shops, equipment handling, and inventory helpers
+   into `engine/src/town.cpp` / `engine/src/inventory.cpp`.
 
-   - Prefer Basic Box text when present.
-   - If a monster exists in `bx_data.hpp` but not in the Basic PDF extraction,
-     mark it as B/X-style rather than verified.
-   - Keep descriptions useful for play: important rules should not be hidden.
+6. **Refactor Character Generation Boundary**
 
-4. **Documentation Cleanup**
+   Continue moving character generation toward pure generation/selection helpers,
+   leaving stdin/stdout prompts in the text frontend.
 
-   `Monsters.md` is stale and still describes the old small monster set. Replace
-   it with either:
+7. **Introduce DiceRoller / RandomService**
 
-   - A short pointer to `tools/show_monster` and `data/monster_descriptions.txt`,
-     or
-   - A generated monster reference.
+   Wrap `Game::rng` usage for deterministic tests and future replay/roll-history
+   support.
+
+8. **Inventory Content IDs**
+
+   Eventually replace fixed-count weapon/armor/gear arrays with ID-based
+   inventory or validated content indexes.
+
+## Testing Tomb Track
+
+Testing Tomb remains the architectural proof that modules are data-only and do
+not require module-specific C++ logic.
+
+Already proven:
+
+- manifest loading and validation
+- stable module content IDs
+- location and description loading
+- map topology loading
+- starting a `GameSession` at a module entry location
+- stable module door object IDs
+
+Deferred until after the near-term architecture refactors:
+
+- runtime module door state and location transitions
+- Room B
+- encounter definitions and goblin instantiation from `bx.monster.goblin`
+- treasure definitions and pickup state
+- trap definitions and saving throw/damage integration
+- module flags and campaign save/reload
+
+## Gameplay Track
+
+Gameplay work can continue after the current architecture cleanup or when a
+module slice requires it.
+
+High-value gameplay items still known:
+
+- Goblins/orcs/kobolds: daylight penalties and leader morale effects where
+  relevant.
+- Shadows/wights/wraiths: drain effects and appropriate weapon immunity.
+- Rust monsters/oozes/slimes: equipment destruction/corrosion consistency.
+- Continue reviewing monster descriptions and stat data against the Basic Box PDF.
+- Replace stale `Monsters.md` with a generated reference or a pointer to the
+  monster tools and data files.
 
 ## Recommended Next Task
 
-Implement **daylight penalties and leader morale for humanoid monsters**
-(goblins, orcs, kobolds). B/X: humanoids fight worse in daylight, and when a
-leader dies the rest of a lair checks morale.
+Implement **Extract Combat From `game.cpp`**.
 
 Acceptance criteria:
 
-- Goblins/orcs/kobolds suffer a daylight penalty to attack rolls (and saves
-  where relevant) when the hero carries light into their lair.
-- A lair leader's death triggers a group morale check.
-- Logs and tests cover the daylight-penalty and leader-morale cases.
+- Attack resolution, surprise helpers, monster combat utilities, and morale
+  helpers live outside `engine/src/game.cpp`.
+- Public declarations in `include/game.hpp` remain compatible unless a dedicated
+  combat header is introduced for already-public functions.
+- Existing combat behavior and validation tests pass unchanged.
+- Full Debug and sanitizer validation pass.
