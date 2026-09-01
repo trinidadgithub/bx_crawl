@@ -794,7 +794,7 @@ Extraction order should follow responsibility boundaries, not file size alone.
 5. Add simple structured events and keep `event_log` compatibility.
 6. Move sound calls to an event consumer.
 7. ~~Extract persistence into `save.cpp` / `persistence.cpp`.~~ Done in `engine/src/save.cpp`.
-8. Extract combat into `combat.cpp` with free functions operating on `Game`.
+8. Extract combat into `combat.cpp` with free functions operating on `Game`. Started with surprise, initiative, alive checks, and peace announcement.
 9. Extract spell execution into `spells.cpp` and add a small spell dispatch table.
 10. Extract exploration/search/traps/time into `exploration.cpp`.
 11. Extract town/shop/equipment flows into `town.cpp` / `inventory.cpp`.
