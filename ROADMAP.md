@@ -38,10 +38,11 @@ unless a phase explicitly says otherwise.
    Save/load and save-path helpers now live in `engine/src/save.cpp`; the public
    API in `include/game.hpp` remains unchanged.
 
-2. **Extract Combat From `game.cpp`**
+2. **Extract Combat From `game.cpp`** — In progress
 
-   Move attack resolution, surprise helpers, monster combat utilities, and morale
-   helpers into `engine/src/combat.cpp` without behavior changes.
+   Surprise, initiative, alive checks, and peace announcement now live in
+   `engine/src/combat.cpp`. Attack resolution, morale, and fleeing combat helpers
+   still need extraction without behavior changes.
 
 3. **Extract Spells From `game.cpp`**
 
@@ -113,12 +114,12 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Implement **Extract Combat From `game.cpp`**.
+Continue **Extract Combat From `game.cpp`**.
 
 Acceptance criteria:
 
-- Attack resolution, surprise helpers, monster combat utilities, and morale
-  helpers live outside `engine/src/game.cpp`.
+- Attack resolution, morale, and fleeing combat helpers live outside
+  `engine/src/game.cpp`.
 - Public declarations in `include/game.hpp` remain compatible unless a dedicated
   combat header is introduced for already-public functions.
 - Existing combat behavior and validation tests pass unchanged.
