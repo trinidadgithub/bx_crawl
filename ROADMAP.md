@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 12:
+- Architecture groundwork completed through Phase 15:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -27,6 +27,8 @@ finishing the architecture-review follow-up before expanding new gameplay.
   - Testing Tomb entry module, map topology, runtime session entry, and door IDs
   - architecture decision records
   - Docker packaging fix
+  - persistence extraction
+  - combat helper and attack/morale extraction
 
 ## Architecture Review Track
 
@@ -38,11 +40,12 @@ unless a phase explicitly says otherwise.
    Save/load and save-path helpers now live in `engine/src/save.cpp`; the public
    API in `include/game.hpp` remains unchanged.
 
-2. **Extract Combat From `game.cpp`** — In progress
+2. **Extract Combat From `game.cpp`** — Done
 
-   Surprise, initiative, alive checks, and peace announcement now live in
-   `engine/src/combat.cpp`. Attack resolution, morale, and fleeing combat helpers
-   still need extraction without behavior changes.
+   Surprise, initiative, alive checks, peace announcement, attack resolution,
+   morale, bear attacks, and fleeing combat helpers now live in
+   `engine/src/combat.cpp`. `engine/src/game_internal.hpp` keeps the temporary
+   private helper boundary out of the public API.
 
 3. **Extract Spells From `game.cpp`**
 
@@ -114,13 +117,12 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue **Extract Combat From `game.cpp`**.
+Continue with **Extract Spells From `game.cpp`**.
 
 Acceptance criteria:
 
-- Attack resolution, morale, and fleeing combat helpers live outside
-  `engine/src/game.cpp`.
+- Spell execution lives in `engine/src/spells.cpp`.
+- Existing spell behavior and validation tests pass unchanged.
 - Public declarations in `include/game.hpp` remain compatible unless a dedicated
-  combat header is introduced for already-public functions.
-- Existing combat behavior and validation tests pass unchanged.
+  spell header is introduced for already-public functions.
 - Full Debug and sanitizer validation pass.
