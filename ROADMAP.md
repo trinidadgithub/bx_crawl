@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 15:
+- Architecture groundwork completed through Phase 16:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -29,6 +29,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
   - Docker packaging fix
   - persistence extraction
   - combat helper and attack/morale extraction
+  - spell execution extraction
 
 ## Architecture Review Track
 
@@ -47,10 +48,11 @@ unless a phase explicitly says otherwise.
    `engine/src/combat.cpp`. `engine/src/game_internal.hpp` keeps the temporary
    private helper boundary out of the public API.
 
-3. **Extract Spells From `game.cpp`**
+3. **Extract Spells From `game.cpp`** — Done
 
-   Move spell execution into `engine/src/spells.cpp`. Add a small dispatch table
-   only where it reduces current string-chain coupling.
+   Spell execution now lives in `engine/src/spells.cpp`. The current string-chain
+   dispatch is preserved to keep the extraction behavior-preserving; a table can
+   be introduced later if it reduces real coupling.
 
 4. **Extract Exploration / Time / Traps**
 
@@ -98,6 +100,7 @@ Deferred until after the near-term architecture refactors:
 - encounter definitions and goblin instantiation from `bx.monster.goblin`
 - treasure definitions and pickup state
 - trap definitions and saving throw/damage integration
+- tavern/module rumor tables and rumor delivery state
 - module flags and campaign save/reload
 
 ## Gameplay Track
@@ -112,17 +115,20 @@ High-value gameplay items still known:
 - Shadows/wights/wraiths: drain effects and appropriate weapon immunity.
 - Rust monsters/oozes/slimes: equipment destruction/corrosion consistency.
 - Continue reviewing monster descriptions and stat data against the Basic Box PDF.
+- Add Tavern rumors; the UI advertises them, but the Tavern command currently
+  only implements paid rest.
 - Replace stale `Monsters.md` with a generated reference or a pointer to the
   monster tools and data files.
 
 ## Recommended Next Task
 
-Continue with **Extract Spells From `game.cpp`**.
+Continue with **Extract Exploration / Time / Traps**.
 
 Acceptance criteria:
 
-- Spell execution lives in `engine/src/spells.cpp`.
-- Existing spell behavior and validation tests pass unchanged.
+- Visibility, hunger/light timing, searching, trap handling, and dungeon movement
+  helpers move out of `engine/src/game.cpp` in behavior-preserving slices.
+- Existing exploration and trap behavior tests pass unchanged.
 - Public declarations in `include/game.hpp` remain compatible unless a dedicated
-  spell header is introduced for already-public functions.
+  exploration header is introduced for already-public functions.
 - Full Debug and sanitizer validation pass.
