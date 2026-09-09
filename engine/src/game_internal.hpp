@@ -22,6 +22,11 @@ bool is_occupied(const Game& g, int x, int y, const Entity* ignore = nullptr);
 void move_entity(Game& g, Entity& e, int dx, int dy);
 Entity* monster_at(Game& g, int x, int y);
 
+int spawn_wandering_monsters(Game& g);
+bool resolve_first_contact_surprise(Game& g, Entity& m);
+void descend_stairs(Game& g);
+void ascend_stairs(Game& g);
+
 } // namespace game_internal
 
 void attack(Game& g, Entity& attacker, Entity& defender);
@@ -29,3 +34,8 @@ void try_morale_check(Game& g, Entity& m, Entity& attacker,
                       int& free_attacks_remaining, const std::string& reason);
 void flee_ai(Game& g, Entity& m);
 bool cast_spell(Game& g, int spell_index, int dx, int dy);
+
+// Exploration / time helpers (defined in exploration.cpp)
+void tick_wander_counter(Game& g);
+bool hero_search(Game& g);
+bool hero_move(Game& g, int dx, int dy);
