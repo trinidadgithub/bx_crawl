@@ -23,8 +23,7 @@
 // Random helper
 // ---------------------------
 int roll_d(Game& g, int sides) {
-    std::uniform_int_distribution<int> dist(1, sides);
-    return dist(g.rng);
+    return g.rng.d(sides);
 }
 
 // Check if monster spawning is disabled via environment

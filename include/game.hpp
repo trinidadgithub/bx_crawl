@@ -1,9 +1,9 @@
 #pragma once
 
 #include <filesystem>
-#include <random>
 #include <string>
 #include <vector>
+#include "dice.hpp"
 #include "entity.hpp"
 #include "game_event.hpp"
 #include "map.hpp"
@@ -26,7 +26,8 @@ struct Game {
     std::vector<Tile> map;
     Entity hero;
     std::vector<Entity> monsters;
-    std::mt19937 rng;
+    // RandomService; see dice.hpp.
+    DiceRoller rng;
 
     DescriptionStore descriptions;
     std::string current_location_id;

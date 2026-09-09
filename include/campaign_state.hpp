@@ -1,10 +1,10 @@
 #pragma once
 
+#include "dice.hpp"
 #include "entity.hpp"
 #include "game.hpp"
 #include "map.hpp"
 
-#include <random>
 #include <string>
 #include <vector>
 
@@ -30,7 +30,7 @@ struct CampaignState {
     int tick_clock{};
     bool dungeon_peace_announced{false};
 
-    std::mt19937 rng;
+    DiceRoller rng;
     Entity hero;
 
     int width{};
