@@ -27,6 +27,13 @@ bool resolve_first_contact_surprise(Game& g, Entity& m);
 void descend_stairs(Game& g);
 void ascend_stairs(Game& g);
 
+// Equipment / inventory rules (defined in inventory.cpp)
+int parse_die_size(const char* s);
+bool can_use_shield(CharacterClass cc);
+bool can_wear_heavy_armor(CharacterClass cc);
+void equip_owned_weapon(Game& g, int inventory_index);
+void equip_owned_armor(Game& g, int armor_index);
+
 } // namespace game_internal
 
 void attack(Game& g, Entity& attacker, Entity& defender);

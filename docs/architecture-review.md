@@ -113,7 +113,7 @@ Examples:
 - Visibility, time, light, hunger: `compute_visibility` in `engine/src/exploration.cpp`.
 - Terminal rendering: `render` in `engine/src/game.cpp`.
 - Binary persistence: `save_game` and `load_game` in `engine/src/game.cpp`.
-- Town menu state transitions: `apply_town_command` in `engine/src/game.cpp`.
+- Town menu state transitions: `apply_town_command` in `engine/src/town.cpp`.
 - Player dungeon command handling: `apply_player_command` in `engine/src/game.cpp`.
 
 This means the engine is currently a game implementation, not yet a reusable rules engine.

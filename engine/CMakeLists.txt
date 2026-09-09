@@ -17,6 +17,8 @@ add_library(bx_engine STATIC
     src/sound.cpp
     src/debug_log.cpp
     src/exploration.cpp
+    src/inventory.cpp
+    src/town.cpp
 )
 
 target_include_directories(bx_engine PUBLIC
