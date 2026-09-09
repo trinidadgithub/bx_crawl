@@ -3,6 +3,7 @@
 add_executable(bx_crawl_text
     src/main.cpp
     src/render_snapshot.cpp
+    src/char_session.cpp
 )
 
 target_include_directories(bx_crawl_text PRIVATE

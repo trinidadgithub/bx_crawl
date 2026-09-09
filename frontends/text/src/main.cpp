@@ -1,6 +1,7 @@
 #include "game.hpp"
 #include "game_session.hpp"
 #include "render_snapshot.hpp"
+#include "char_session.hpp"
 #include "bx_data.hpp"
 #include "sound.hpp"
 
@@ -12,6 +13,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <string>
+#include <utility>
 
 static termios original_termios;
 static bool termios_saved = false;
@@ -444,8 +446,13 @@ int main() {
         }
     }
 
-    if (!loaded)
-        init_game(g, bx_data_dir);
+    if (!loaded) {
+        // Seed the RNG and prepare fresh runtime state first, so character
+        // creation rolls and the generated dungeon share one seed stream.
+        init_game_runtime(g, bx_data_dir);
+        Entity hero = create_hero_interactive(g);
+        start_game_with_hero(g, std::move(hero), bx_data_dir);
+    }
 
     sound_init();
     sound_set_enabled(true);
