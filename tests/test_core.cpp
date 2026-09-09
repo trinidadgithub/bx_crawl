@@ -1719,6 +1719,17 @@ TEST_CASE("Movement and entity blocking") {
         CHECK(g.hero.pos.y == 3);
     }
 
+    SUBCASE("thief cannot climb into wall tile") {
+        g.hero.pos = {2, 3};
+        g.hero.char_class = CharacterClass::Thief;
+        g.hero.skill_climb = 100;
+        g.map[index_for(g, 3, 3)].type = TileType::Wall;
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK(g.hero.pos.x == 2);
+        CHECK(g.hero.pos.y == 3);
+    }
+
     SUBCASE("hero cannot walk out of bounds") {
         g.hero.pos = {0, 3};
         apply_player_command(g, {PlayerCommandType::Move, -1, 0});

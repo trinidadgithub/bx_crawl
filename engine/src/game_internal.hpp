@@ -20,6 +20,7 @@ bool make_save(Game& g, CharacterClass cc, int category);
 int sign(int v);
 bool is_occupied(const Game& g, int x, int y, const Entity* ignore = nullptr);
 void move_entity(Game& g, Entity& e, int dx, int dy);
+Entity* monster_at(Game& g, int x, int y);
 
 } // namespace game_internal
 
@@ -27,3 +28,4 @@ void attack(Game& g, Entity& attacker, Entity& defender);
 void try_morale_check(Game& g, Entity& m, Entity& attacker,
                       int& free_attacks_remaining, const std::string& reason);
 void flee_ai(Game& g, Entity& m);
+bool cast_spell(Game& g, int spell_index, int dx, int dy);
