@@ -2,7 +2,6 @@
 #include "game_internal.hpp"
 #include "game_snapshot.hpp"
 #include "map.hpp"
-#include "chargen.hpp"
 #include "bx_data.hpp"
 #include "item_effects.hpp"
 
@@ -1191,15 +1190,6 @@ const char* class_name(CharacterClass cc) {
 // ---------------------------
 // Game initialization
 // ---------------------------
-void init_game(Game& g) {
-    init_game(g, std::filesystem::path{"../data"});
-}
-
-void init_game(Game& g, const std::filesystem::path& data_dir) {
-    seed_rng(g);
-    init_game_with_hero(g, create_hero(g), data_dir, /*should_seed_rng=*/false);
-}
-
 void init_game(Game& g, Entity hero) {
     init_game(g, std::move(hero), std::filesystem::path{"../data"});
 }
@@ -1210,6 +1200,10 @@ void init_game(Game& g, Entity hero, const std::filesystem::path& data_dir) {
 
 void init_game_runtime(Game& g, const std::filesystem::path& data_dir) {
     init_runtime_state(g, data_dir, /*should_seed_rng=*/true);
+}
+
+void start_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data_dir) {
+    init_game_with_hero(g, std::move(hero), data_dir, /*should_seed_rng=*/false);
 }
 
 // ---------------------------

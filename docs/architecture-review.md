@@ -27,14 +27,14 @@ Repository
 |   +-- entity.hpp        Hero/monster/entity state
 |   +-- map.hpp           Tiles, rooms, map helpers
 |   +-- bx_data.hpp       Generated/curated constexpr B/X data
-|   +-- chargen.hpp       Interactive character creation
+|   +-- chargen.hpp       Level-1 character generation rules (non-interactive)
 |   +-- sound.hpp         Procedural sound API
 |   +-- description.hpp   Text description store
 |
 +-- engine/
 |   +-- src/game.cpp      Core game logic, rendering, persistence, rules, town flow
 |   +-- src/map.cpp       Procedural dungeon map generation
-|   +-- src/chargen.cpp   Interactive chargen with std::cin/std::cout
+|   +-- src/chargen.cpp   Character generation rules (no console I/O)
 |   +-- src/sound.cpp     Fork/exec sound backend
 |   +-- src/description.cpp
 |   +-- src/item_effects.cpp
@@ -551,7 +551,7 @@ Near-term:
 
 - Move `render()` and `render_town_screen()` out of `engine/src/game.cpp` into the text frontend.
 - Split `game.cpp` into cohesive source files without changing public behavior: combat, spells, exploration, town, persistence, rendering.
-- Move `chargen.cpp` toward a non-interactive character builder plus a text UI wrapper.
+- ~~Move `chargen.cpp` toward a non-interactive character builder plus a text UI wrapper.~~ Done in Phase 19: rules live in `chargen.hpp`/`chargen.cpp` and the text UI lives in `frontends/text/src/char_session.cpp`.
 - Introduce structured `GameEvent` while still preserving readable log strings.
 - Extract `DiceRoller` or `RandomService` around `Game::rng`.
 
@@ -594,7 +594,7 @@ Future:
 4. Add `GameStateSnapshot` for frontend rendering.
 5. Add structured `GameEvent` while keeping current `event_log` text as derived output.
 6. Split `game.cpp` into `combat.cpp`, `spells.cpp`, `exploration.cpp`, `town.cpp`, and `save.cpp` without changing APIs first.
-7. Extract character creation into non-interactive generation/selection functions, leaving prompts in the text frontend.
+7. ~~Extract character creation into non-interactive generation/selection functions, leaving prompts in the text frontend.~~ Done in Phase 19: `chargen.hpp` rules + `frontends/text/src/char_session.cpp` UI.
 8. Introduce a `DiceRoller` wrapper around `Game::rng` for deterministic tests and future replay.
 9. Define a minimal data-only module manifest and validation result type.
 10. Add a tiny sample module test that loads content and enters one room, even before full module gameplay exists.

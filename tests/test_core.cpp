@@ -8,6 +8,7 @@
 #include "module_manifest.hpp"
 #include "rules_catalog.hpp"
 #include "campaign_state.hpp"
+#include "chargen.hpp"
 
 #include <cstdint>
 #include <cstdlib>
@@ -5569,4 +5570,200 @@ TEST_CASE("GameSession rejects module entry maps that cannot become runtime maps
     CHECK_FALSE(started.ok);
     CHECK(started.error == "module entry map tile count mismatch");
     CHECK(session.game().state == GameState::Town);
+}
+
+TEST_CASE("chargen rules: ability rolls are deterministic with a seeded RNG") {
+    Game g1 = make_minimal_game(10, 6);
+    Game g2 = make_minimal_game(10, 6);
+
+    Abilities a1 = roll_abilities(g1);
+    Abilities a2 = roll_abilities(g2);
+
+    // same seed -> same abilities
+    CHECK(a1.str == a2.str);
+    CHECK(a1.dex == a2.dex);
+    CHECK(a1.con == a2.con);
+    CHECK(a1.intelligence == a2.intelligence);
+    CHECK(a1.wis == a2.wis);
+    CHECK(a1.cha == a2.cha);
+    CHECK(a1.str >= 3);
+    CHECK(a1.str <= 18);
+    CHECK(a1.dex >= 3);
+    CHECK(a1.dex <= 18);
+    CHECK(a1.con >= 3);
+    CHECK(a1.con <= 18);
+    CHECK(a1.intelligence >= 3);
+    CHECK(a1.intelligence <= 18);
+    CHECK(a1.wis >= 3);
+    CHECK(a1.wis <= 18);
+    CHECK(a1.cha >= 3);
+    CHECK(a1.cha <= 18);
+}
+
+TEST_CASE("chargen rules: class menu mapping and rule tables") {
+    CHECK(character_class_count() == 7);
+    CHECK(character_class_at(1) == CharacterClass::Fighter);
+    CHECK(character_class_at(2) == CharacterClass::MagicUser);
+    CHECK(character_class_at(3) == CharacterClass::Thief);
+    CHECK(character_class_at(4) == CharacterClass::Cleric);
+    CHECK(character_class_at(5) == CharacterClass::Dwarf);
+    CHECK(character_class_at(6) == CharacterClass::Elf);
+    CHECK(character_class_at(7) == CharacterClass::Halfling);
+    CHECK(character_class_at(0) == CharacterClass::None);
+    CHECK(character_class_at(8) == CharacterClass::None);
+
+    // XP bonus on the prime requisite.
+    CHECK(xp_bonus(18) == 15);
+    CHECK(xp_bonus(17) == 10);
+    CHECK(xp_bonus(16) == 10);
+    CHECK(xp_bonus(13) == 5);
+    CHECK(xp_bonus(12) == 0);
+
+    Abilities a;
+    a.str = 15; a.dex = 14; a.con = 13; a.intelligence = 12; a.wis = 16; a.cha = 11;
+    CHECK(prime_requisite_score(a, CharacterClass::Fighter) == 15);
+    CHECK(prime_requisite_score(a, CharacterClass::MagicUser) == 12);
+    CHECK(prime_requisite_score(a, CharacterClass::Thief) == 14);
+    CHECK(prime_requisite_score(a, CharacterClass::Cleric) == 16);
+
+    // Thieves and Magic-Users have limited armor and no shields.
+    CHECK(class_can_use_shield(CharacterClass::Fighter));
+    CHECK_FALSE(class_can_use_shield(CharacterClass::MagicUser));
+    std::vector<int> mu_armor = class_armor_options(CharacterClass::MagicUser);
+    CHECK(mu_armor.size() == 2);
+    CHECK(mu_armor[0] == 0);
+    CHECK(mu_armor[1] == 1); // leather only
+    std::vector<int> fighter_armor = class_armor_options(CharacterClass::Fighter);
+    CHECK(fighter_armor.size() == 5); // none + 4 armor items (incl. shield)
+    CHECK(fighter_armor.back() == 4);
+}
+
+TEST_CASE("chargen rules: class weapon lists") {
+    // Thief: dagger, short-sword, sling only.
+    std::vector<int> thief = class_weapon_indices(CharacterClass::Thief);
+    REQUIRE(thief.size() == 3);
+    CHECK(bx::weapons[static_cast<std::size_t>(thief[0])].id == std::string("dagger"));
+    CHECK(bx::weapons[static_cast<std::size_t>(thief[1])].id == std::string("short-sword"));
+    CHECK(bx::weapons[static_cast<std::size_t>(thief[2])].id == std::string("sling"));
+
+    // Magic-User: dagger only.
+    std::vector<int> mu = class_weapon_indices(CharacterClass::MagicUser);
+    REQUIRE(mu.size() == 1);
+    CHECK(bx::weapons[static_cast<std::size_t>(mu[0])].id == std::string("dagger"));
+
+    // Fighter: everything (16 weapons).
+    CHECK(class_weapon_indices(CharacterClass::Fighter).size() == bx::weapons.size());
+}
+
+TEST_CASE("chargen rules: starting gold and HP") {
+    Game g = make_minimal_game(10, 6);
+
+    int gold = roll_starting_gold(g);
+    CHECK(gold >= 30);
+    CHECK(gold <= 180);
+    CHECK(gold % 10 == 0);
+
+    int hp = roll_starting_hp(g, CharacterClass::Fighter, 0);
+    CHECK(hp >= 1);
+    CHECK(hp <= 8);
+    // CON modifier +2 caps at 1 at minimum.
+    CHECK(roll_starting_hp(g, CharacterClass::Thief, -100) == 1);
+}
+
+TEST_CASE("chargen rules: buying starting gear respects purse") {
+    Entity hero;
+    hero.abilities.str = 12;
+    int str_mod = strength_to_hit_modifier(hero.abilities);
+    int purse = 30;
+
+    // Sword (index 8) costs 10 gp.
+    CHECK(buy_starting_weapon(hero, 8, purse, str_mod));
+    CHECK(purse == 20);
+    CHECK(hero.weapon_id == std::string("sword"));
+    CHECK(hero.damage_die == 8);
+    CHECK(hero.damage_bonus == str_mod);
+    CHECK(hero.weapon_counts[8] == 1);
+
+    // Can't afford a long bow (40 gp) with only 20 gp left.
+    CHECK_FALSE(buy_starting_weapon(hero, 3, purse, str_mod));
+    CHECK(purse == 20);
+    CHECK(hero.weapon_id == std::string("sword"));
+}
+
+TEST_CASE("chargen rules: buying starting armor applies AC with DEX modifier") {
+    Entity hero;
+    hero.abilities.dex = 14; // DEX 14 -> -1 AC (descending) -> +1 ascending
+    int dex_mod = dexterity_ac_modifier(hero.abilities);
+    int purse = 50;
+
+    // Chain mail (index 1) costs 40 gp.
+    CHECK(buy_starting_armor(hero, 1, purse, dex_mod));
+    CHECK(purse == 10);
+    CHECK(hero.armor_id == std::string("chain-mail"));
+    CHECK(hero.armor_counts[1] == 1);
+    CHECK(hero.ac == 5 + dex_mod);
+
+    CHECK_FALSE(buy_starting_armor(hero, 2, purse, dex_mod)); // plate 60 gp
+    CHECK(purse == 10);
+}
+
+TEST_CASE("chargen rules: shield purchase") {
+    Entity hero;
+    int purse = 10;
+    CHECK(buy_starting_shield(hero, purse));
+    CHECK(purse == 0);
+    CHECK(hero.has_shield);
+    CHECK(hero.armor_counts[3] == 1);
+    CHECK(hero.ac == -1);
+
+    CHECK_FALSE(buy_starting_shield(hero, purse)); // no money left
+}
+
+TEST_CASE("chargen rules: starting spells") {
+    CHECK(class_starting_spells(CharacterClass::Fighter).empty());
+    CHECK(class_starting_spells(CharacterClass::MagicUser).size() == 10);
+    CHECK(class_starting_spells(CharacterClass::Elf).size() == 10);
+    CHECK(class_starting_spells(CharacterClass::Cleric).size() == 7);
+
+    // Magic-User: Read Magic always first, then requested spells, sorted and unique.
+    Entity mu;
+    mu.char_class = CharacterClass::MagicUser;
+    grant_starting_spells(mu, CharacterClass::MagicUser, {6, 2}, false);
+    CHECK(mu.spell_slots[1] == 1);
+    CHECK(mu.max_spell_slots[1] == 1);
+    REQUIRE(mu.spells.size() == 3);
+    CHECK(mu.spells[0] == "Read Magic");
+    CHECK(mu.spells[1] == "Detect Magic");
+    CHECK(mu.spells[2] == "Magic Missile");
+
+    // Cleric 'all' grants the full list without Read Magic.
+    Entity cleric;
+    cleric.char_class = CharacterClass::Cleric;
+    grant_starting_spells(cleric, CharacterClass::Cleric, {}, true);
+    CHECK(cleric.spell_slots[1] == 1);
+    REQUIRE(cleric.spells.size() == 7);
+    CHECK(cleric.spells[0] == "Cure Light Wounds");
+    CHECK(cleric.spells.back() == "Resist Cold");
+}
+
+TEST_CASE("chargen rules: finalize applies thief skills and gear defaults") {
+    Entity thief;
+    thief.char_class = CharacterClass::Thief;
+    finalize_level_1_hero(thief, 25);
+    CHECK(thief.gold_pieces == 25);
+    CHECK(thief.alive);
+    CHECK(thief.knives == 3);
+    CHECK(thief.darts == 3);
+    CHECK(thief.skill_hide == 10);
+    CHECK(thief.skill_pick_locks == 15);
+    CHECK(thief.skill_find_traps == 10);
+    CHECK(thief.skill_climb == 85);
+    CHECK(thief.skill_move_silent == 20);
+    CHECK(thief.skill_hear_noise == 33);
+
+    Entity fighter;
+    fighter.char_class = CharacterClass::Fighter;
+    finalize_level_1_hero(fighter, 0);
+    CHECK(fighter.skill_climb == 0);
+    CHECK(fighter.gold_pieces == 0);
 }

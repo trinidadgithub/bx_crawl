@@ -64,10 +64,17 @@ struct Game {
 int roll_d(Game& g, int sides);
 
 // Game lifecycle / logic
-void init_game(Game& g);
-void init_game(Game& g, const std::filesystem::path& data_dir);
+// Interactive character creation lives in the text frontend
+// (frontends/text/src/char_session.cpp); start a game with the finished hero.
 void init_game(Game& g, Entity hero);
 void init_game(Game& g, Entity hero, const std::filesystem::path& data_dir);
+
+// Attach a finished hero (e.g. from frontend character creation) to an
+// already-initialized Game and build the starting dungeon. The RNG is assumed
+// to have been seeded already (e.g. via init_game_runtime), so the character
+// creation rolls and the dungeon generation share one seed stream.
+void start_game_with_hero(Game& g, Entity hero, const std::filesystem::path& data_dir);
+
 void init_game_runtime(Game& g, const std::filesystem::path& data_dir = std::filesystem::path{"../data"});
 void render(const Game& g);
 void monsters_turn(Game& g);

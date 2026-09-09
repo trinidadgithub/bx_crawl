@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 18:
+- Architecture groundwork completed through Phase 19:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -32,6 +32,8 @@ finishing the architecture-review follow-up before expanding new gameplay.
   - spell execution extraction
   - exploration, time, and trap handling extraction
   - town flow and inventory/equipment helper extraction
+  - character generation boundary (pure rules in the engine, prompts in the text
+    frontend)
 
 ## Architecture Review Track
 
@@ -69,10 +71,13 @@ unless a phase explicitly says otherwise.
    in `engine/src/inventory.cpp`. Public declarations in `include/game.hpp`
    remain unchanged.
 
-6. **Refactor Character Generation Boundary**
+6. **Refactor Character Generation Boundary** — Done
 
-   Continue moving character generation toward pure generation/selection helpers,
-   leaving stdin/stdout prompts in the text frontend.
+   Level-1 character generation is now a set of non-interactive rule helpers in
+   `include/chargen.hpp` / `engine/src/chargen.cpp`, and the text menus and
+   prompts live in `frontends/text/src/char_session.cpp`. The engine no longer
+   has an interactive init entry; new games start with a hero built by the
+   frontend.
 
 7. **Introduce DiceRoller / RandomService**
 
@@ -127,13 +132,13 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue with **Refactor Character Generation Boundary**.
+Continue with **Introduce DiceRoller / RandomService**.
 
 Acceptance criteria:
 
-- Continue moving character generation toward pure generation/selection helpers,
-  leaving stdin/stdout prompts in the text frontend.
-- Keep `engine/src/chargen.cpp` and the text frontend free of new
-  game-state/`Game` coupling beyond what already exists.
-- Existing character generation tests pass unchanged.
-- Full Debug and sanitizer validation pass.
+- Wrap `Game::rng` behind a small engine rule API (plain `roll_d`-style calls)
+  so deterministic tests and future replay/roll-history support have one place
+  to hook.
+- All gameplay paths (combat, spells, exploration, town, chargen) keep their
+  current observable behavior.
+- Existing tests pass unchanged; full Debug and sanitizer validation pass.
