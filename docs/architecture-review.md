@@ -110,7 +110,7 @@ Examples:
 
 - Rules and combat: `attack_internal` in `engine/src/game.cpp`.
 - Monster AI: `monsters_turn` in `engine/src/game.cpp`.
-- Visibility, time, light, hunger: `compute_visibility` in `engine/src/game.cpp`.
+- Visibility, time, light, hunger: `compute_visibility` in `engine/src/exploration.cpp`.
 - Terminal rendering: `render` in `engine/src/game.cpp`.
 - Binary persistence: `save_game` and `load_game` in `engine/src/game.cpp`.
 - Town menu state transitions: `apply_town_command` in `engine/src/game.cpp`.

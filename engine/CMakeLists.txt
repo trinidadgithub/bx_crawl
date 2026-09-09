@@ -16,6 +16,7 @@ add_library(bx_engine STATIC
     src/item_effects.cpp
     src/sound.cpp
     src/debug_log.cpp
+    src/exploration.cpp
 )
 
 target_include_directories(bx_engine PUBLIC

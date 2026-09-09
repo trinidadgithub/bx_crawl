@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 16:
+- Architecture groundwork completed through Phase 17:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -30,6 +30,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
   - persistence extraction
   - combat helper and attack/morale extraction
   - spell execution extraction
+  - exploration, time, and trap handling extraction
 
 ## Architecture Review Track
 
@@ -54,10 +55,11 @@ unless a phase explicitly says otherwise.
    dispatch is preserved to keep the extraction behavior-preserving; a table can
    be introduced later if it reduces real coupling.
 
-4. **Extract Exploration / Time / Traps**
+4. **Extract Exploration / Time / Traps** — Done
 
-   Move visibility, hunger/light timing, searching, trap handling, and dungeon
-   movement helpers into `engine/src/exploration.cpp` behind existing tests.
+   Visibility, hunger/light timing, walking-monster timing, trap triggering,
+   searching, and hero dungeon movement now live in `engine/src/exploration.cpp`.
+   Public declarations in `include/game.hpp` remain unchanged.
 
 5. **Extract Town / Inventory Flow**
 
@@ -122,13 +124,13 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue with **Extract Exploration / Time / Traps**.
+Continue with **Extract Town / Inventory Flow**.
 
 Acceptance criteria:
 
-- Visibility, hunger/light timing, searching, trap handling, and dungeon movement
-  helpers move out of `engine/src/game.cpp` in behavior-preserving slices.
-- Existing exploration and trap behavior tests pass unchanged.
+- Town state transitions, shop behavior, equipment handling, and inventory helpers
+  move out of `engine/src/game.cpp` in behavior-preserving slices.
+- Existing town, shop, and equipment tests pass unchanged.
 - Public declarations in `include/game.hpp` remain compatible unless a dedicated
-  exploration header is introduced for already-public functions.
+  town/inventory header is introduced for already-public functions.
 - Full Debug and sanitizer validation pass.
