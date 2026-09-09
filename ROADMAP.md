@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 17:
+- Architecture groundwork completed through Phase 18:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -31,6 +31,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
   - combat helper and attack/morale extraction
   - spell execution extraction
   - exploration, time, and trap handling extraction
+  - town flow and inventory/equipment helper extraction
 
 ## Architecture Review Track
 
@@ -61,10 +62,12 @@ unless a phase explicitly says otherwise.
    searching, and hero dungeon movement now live in `engine/src/exploration.cpp`.
    Public declarations in `include/game.hpp` remain unchanged.
 
-5. **Extract Town / Inventory Flow**
+5. **Extract Town / Inventory Flow** — Done
 
-   Move town state transitions, shops, equipment handling, and inventory helpers
-   into `engine/src/town.cpp` / `engine/src/inventory.cpp`.
+   Town/menu state transitions and shop flows now live in
+   `engine/src/town.cpp`; weapon/armor/gear rules and equipment helpers now live
+   in `engine/src/inventory.cpp`. Public declarations in `include/game.hpp`
+   remain unchanged.
 
 6. **Refactor Character Generation Boundary**
 
@@ -124,13 +127,13 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue with **Extract Town / Inventory Flow**.
+Continue with **Refactor Character Generation Boundary**.
 
 Acceptance criteria:
 
-- Town state transitions, shop behavior, equipment handling, and inventory helpers
-  move out of `engine/src/game.cpp` in behavior-preserving slices.
-- Existing town, shop, and equipment tests pass unchanged.
-- Public declarations in `include/game.hpp` remain compatible unless a dedicated
-  town/inventory header is introduced for already-public functions.
+- Continue moving character generation toward pure generation/selection helpers,
+  leaving stdin/stdout prompts in the text frontend.
+- Keep `engine/src/chargen.cpp` and the text frontend free of new
+  game-state/`Game` coupling beyond what already exists.
+- Existing character generation tests pass unchanged.
 - Full Debug and sanitizer validation pass.
