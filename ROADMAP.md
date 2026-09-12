@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 24:
+- Architecture groundwork completed through Phase 25:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -127,12 +127,15 @@ Already proven:
   by stable content id at fixed tiles; `GameSession` seeds the runtime map and
   the core Get command resolves pickup, coins, XP, sound, and logging
   unchanged)
+- trap definitions and trigger state (`traps.json` names pit/dart/poison_dart
+  traps by stable content id at fixed tiles; `GameSession` plants the tile
+  trap state and the core move/search rules resolve trigger, saving throw,
+  damage, and disarming unchanged)
 
 Deferred until after the near-term architecture refactors:
 
 - runtime module door state and location transitions
 - Room B
-- trap definitions and saving throw/damage integration
 - tavern/module rumor tables and rumor delivery state
 - module flags and campaign save/reload
 
@@ -155,18 +158,22 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue with **Testing Tomb: scripted traps** — `traps.json` defines traps by
-stable content id on room tiles, `GameSession` plants their trigger state on
-the runtime map at module start, and the trap/saving-throw mechanics from the
-core game resolve when the hero enters the tile.
+Continue with **Testing Tomb: door state and location transitions** — the
+module already declares `module.testing_tomb.door.entrance_to_room_a` as a
+locked door between the Entrance and Room A locations; make `GameSession`
+plant that locked/open state on the runtime door tile and route the core
+open/close interactions, so traversing the door moves the session's
+`current_location_id` between the declared locations.
 
 Acceptance criteria:
 
-- `traps.json` defines placements by stable rule ids (trap type and tile).
-- `GameSession` seeds trap state from the data at module start; entering the
-  tile triggers the same saving throw/damage resolution as the core game.
+- `GameSession` applies module door definitions (locked state) to the runtime
+  map at module start and the core open/close commands interact with them.
+- Crossing a door tile updates the session location to the matching declared
+  location (`room_a`), proving module-defined location transitions.
 - Keep existing gameplay behavior; existing tests pass; full Debug and
   sanitizer validation pass.
 
-(Continues the module proof: monster spawning and treasure now work, so traps
-round out the data-only tomb's interaction surface.)
+(Continues the module proof: encounters, treasure, and traps are live, so the
+remaining interaction surface is door state, location transitions, Room B, and
+rumors/flags.)

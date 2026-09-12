@@ -45,6 +45,14 @@ struct ModuleTreasure {
     int count{1};
 };
 
+struct ModuleTrap {
+    std::string trap_id;
+    // "pit", "dart", or "poison_dart" — maps onto TrapType.
+    std::string type;
+    int x{};
+    int y{};
+};
+
 struct ModuleLocation {
     std::string location_id;
     std::string title;
@@ -59,6 +67,7 @@ struct ModuleContent {
     std::map<std::string, ModuleDoorDefinition> doors;
     std::vector<ModuleEncounter> encounters;
     std::vector<ModuleTreasure> treasures;
+    std::vector<ModuleTrap> traps;
     std::map<std::string, std::string> descriptions;
 
     const ModuleLocation* find_location(const std::string& location_id) const;

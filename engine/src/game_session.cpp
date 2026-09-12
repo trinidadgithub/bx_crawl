@@ -19,6 +19,15 @@ void append_log(Game& g, std::string text) {
     g.events.push_back(GameEvent{GameEventType::LogMessage, std::move(text)});
 }
 
+// "pit" | "dart" | "poison_dart" — callers validate the string first.
+TrapType trap_type_from_module_type(const std::string& type) {
+    if (type == "dart")
+        return TrapType::Dart;
+    if (type == "poison_dart")
+        return TrapType::PoisonDart;
+    return TrapType::Pit;
+}
+
 bool walkable_tile(const Game& g, int x, int y) {
     if (x < 0 || y < 0 || x >= g.width || y >= g.height)
         return false;
@@ -201,6 +210,16 @@ ModuleStartResult GameSession::start_module(const ModuleContent& module, Entity 
         const ItemType item = treasure.type == "gold" ? ItemType::Gold : ItemType::Gem;
         for (int i = 0; i < treasure.count; ++i)
             tile.items.push_back(item);
+    }
+
+    // Seed scripted traps onto the runtime map. The core hero_move / search
+    // rules read only the tile trap state, so trigger, saving throw, damage,
+    // and disarming resolution match the procedural dungeon unchanged.
+    for (const ModuleTrap& trap : module.traps) {
+        Tile& tile = game_
+            .map[static_cast<std::size_t>(trap.y * game_.width + trap.x)];
+        tile.has_trap = true;
+        tile.trap_type = trap_type_from_module_type(trap.type);
     }
 
     append_log(game_, "You enter " + module.manifest.title + ".");
