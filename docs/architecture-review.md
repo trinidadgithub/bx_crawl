@@ -573,6 +573,10 @@ Testing Tomb slices delivered (data-only, no module-specific C++):
 - ~~Scripted encounters spawning `bx.monster.goblin` via the content catalog.~~ Phase 23.
 - ~~Scripted treasures seeding tile piles consumed by the core Get rules.~~ Phase 24.
 - ~~Scripted traps seeding tile trap state resolved by the core move/search rules.~~ Phase 25.
+- ~~Module door state planted on the runtime tile (locked) with core open/close
+  commands driving pick/force/close unchanged, and door-crossing routing the
+  session's `current_location_id` between the declared `from`/`to`
+  locations.~~ Phase 26.
 
 Before module support:
 

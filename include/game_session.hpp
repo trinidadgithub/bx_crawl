@@ -68,5 +68,18 @@ public:
     const std::vector<GameEvent>& events() const;
 
 private:
+    // Module-backed runtime state: the declared door routes (tile position and
+    // both endpoint locations).
+    bool module_mode_{false};
+    struct ModuleDoorRoute {
+        int x{};
+        int y{};
+        std::string from_location_id;
+        std::string to_location_id;
+    };
+    std::vector<ModuleDoorRoute> module_door_routes_;
+
+    void resolve_module_location(const std::string& prev_location);
+
     Game game_;
 };
