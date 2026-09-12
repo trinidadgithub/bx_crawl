@@ -243,6 +243,19 @@ ModuleStartResult GameSession::start_module(const ModuleContent& module, Entity 
     }
     module_mode_ = true;
 
+    // Bind the module's tavern rumor table. Rumor text resolves from the
+    // declared module descriptions; heard/not-heard remains session state the
+    // tavern tracks (saving that state is a later campaign-save slice).
+    game_.module_rumors.clear();
+    for (const ModuleRumor& rumor : module.rumors) {
+        const std::string* text = module.find_description(rumor.description_id);
+        if (text == nullptr) {
+            game_ = Game{};
+            return {false, "rumor references missing description"};
+        }
+        game_.module_rumors.push_back(GameRumor{rumor.rumor_id, *text});
+    }
+
     append_log(game_, "You enter " + module.manifest.title + ".");
     return {true, {}};
 }

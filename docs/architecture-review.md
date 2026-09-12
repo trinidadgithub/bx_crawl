@@ -580,6 +580,11 @@ Testing Tomb slices delivered (data-only, no module-specific C++):
 - ~~Room B: a second tomb envelope reached through a second locked door, with
   the new location, skeleton guard, gold pile, and pit all resolved by the
   existing loader/seeding/door-route machinery (no new engine logic).~~ Phase 27.
+- ~~Tavern/module rumor tables and rumor delivery state: `rumors.json` declares
+  rumor content ids bound to module text blocks, `start_module` binds the
+  resolved texts to `Game`, and the tavern `Listen` command (formerly the
+  no-op `Help` stub on tavern key 2) serves each rumor once with heard ids
+  tracked as session state.~~ Phase 28.
 
 Before module support:
 

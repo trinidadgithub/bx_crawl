@@ -60,6 +60,12 @@ struct ModuleLocation {
     std::string map_id;
 };
 
+struct ModuleRumor {
+    std::string rumor_id;
+    // Rumor text is delivered from a module text description block.
+    std::string description_id;
+};
+
 struct ModuleContent {
     ModuleManifest manifest;
     std::map<std::string, ModuleLocation> locations;
@@ -68,12 +74,14 @@ struct ModuleContent {
     std::vector<ModuleEncounter> encounters;
     std::vector<ModuleTreasure> treasures;
     std::vector<ModuleTrap> traps;
+    std::vector<ModuleRumor> rumors;
     std::map<std::string, std::string> descriptions;
 
     const ModuleLocation* find_location(const std::string& location_id) const;
     const ModuleLocation* entry_location() const;
     const ModuleMapDefinition* find_map(const std::string& map_id) const;
     const ModuleDoorDefinition* find_door(const std::string& door_id) const;
+    const ModuleRumor* find_rumor(const std::string& rumor_id) const;
     const std::string* find_description(const std::string& description_id) const;
 };
 

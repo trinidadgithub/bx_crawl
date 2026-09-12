@@ -274,7 +274,7 @@ static PlayerCommand read_town_command(const Game& g) {
 
         case GameState::Tavern:
             if (c == '1') return PlayerCommand{PlayerCommandType::Rest, 0, 0};
-            if (c == '2') return PlayerCommand{PlayerCommandType::Help, 0, 0}; // rumors
+            if (c == '2') return PlayerCommand{PlayerCommandType::Listen, 0, 0}; // rumors
             if (c == 't') return PlayerCommand{PlayerCommandType::Move, 2, 0}; // return to town
             if (c == 'c') return PlayerCommand{PlayerCommandType::Move, 0, 1};
             break;
