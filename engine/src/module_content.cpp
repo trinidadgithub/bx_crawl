@@ -389,6 +389,66 @@ ModuleContentResult load_encounters(const std::filesystem::path& module_dir,
     return result;
 }
 
+ModuleContentResult load_treasures(const std::filesystem::path& module_dir,
+                                   ModuleContent module) {
+    auto it = module.manifest.files.find("treasures");
+    if (it == module.manifest.files.end()) {
+        // Module opts out of scripted treasures.
+        ModuleContentResult result;
+        result.ok = true;
+        result.module = std::move(module);
+        return result;
+    }
+
+    std::string error;
+    std::string json = read_text_file(module_dir / it->second, "treasures", error);
+    if (!error.empty())
+        return fail(std::move(error));
+
+    const ModuleLocation* entry = module.entry_location();
+    if (entry == nullptr)
+        return fail("module entry location not found");
+    const ModuleMapDefinition* entry_map = module.find_map(entry->map_id);
+    if (entry_map == nullptr)
+        return fail("treasure entry map not found");
+
+    for (const std::string& object : extract_flat_objects(json)) {
+        ModuleTreasure treasure;
+        if (!extract_string(object, "treasure_id", treasure.treasure_id))
+            return fail("treasure missing treasure_id");
+        if (!extract_string(object, "type", treasure.type))
+            return fail("treasure missing type");
+        if (!extract_int(object, "x", treasure.x))
+            return fail("treasure missing x");
+        if (!extract_int(object, "y", treasure.y))
+            return fail("treasure missing y");
+        (void)extract_int(object, "count", treasure.count);
+
+        if (!valid_module_namespace(treasure.treasure_id, module.manifest, "treasure"))
+            return fail("invalid treasure_id");
+        if (treasure.type != "gold" && treasure.type != "gem")
+            return fail("invalid treasure type");
+        if (treasure.count < 1)
+            return fail("invalid treasure count");
+        for (const ModuleTreasure& existing : module.treasures)
+            if (existing.treasure_id == treasure.treasure_id)
+                return fail("duplicate treasure_id");
+
+        const TileType* tile = entry_map->tile_at(treasure.x, treasure.y);
+        if (tile == nullptr)
+            return fail("treasure position is out of bounds");
+        if (!tile_is_walkable(*tile))
+            return fail("treasure tile is not walkable");
+
+        module.treasures.push_back(std::move(treasure));
+    }
+
+    ModuleContentResult result;
+    result.ok = true;
+    result.module = std::move(module);
+    return result;
+}
+
 } // namespace
 
 const TileType* ModuleMapDefinition::tile_at(int x, int y) const {
@@ -452,5 +512,9 @@ ModuleContentResult load_module_content(const std::filesystem::path& module_dir)
     if (!descriptions.ok)
         return descriptions;
 
-    return load_encounters(module_dir, std::move(descriptions.module));
+    ModuleContentResult encounters = load_encounters(module_dir, std::move(descriptions.module));
+    if (!encounters.ok)
+        return encounters;
+
+    return load_treasures(module_dir, std::move(encounters.module));
 }

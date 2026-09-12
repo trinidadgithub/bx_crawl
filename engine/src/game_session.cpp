@@ -192,6 +192,17 @@ ModuleStartResult GameSession::start_module(const ModuleContent& module, Entity 
         }
     }
 
+    // Seed scripted treasures onto the runtime map. Only tile items are laid
+    // down; pickup state matches the core game, which resolves coin/gem value
+    // and logging at the Get command.
+    for (const ModuleTreasure& treasure : module.treasures) {
+        Tile& tile = game_
+            .map[static_cast<std::size_t>(treasure.y * game_.width + treasure.x)];
+        const ItemType item = treasure.type == "gold" ? ItemType::Gold : ItemType::Gem;
+        for (int i = 0; i < treasure.count; ++i)
+            tile.items.push_back(item);
+    }
+
     append_log(game_, "You enter " + module.manifest.title + ".");
     return {true, {}};
 }

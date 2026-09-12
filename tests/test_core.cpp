@@ -5565,6 +5565,29 @@ TEST_CASE("Testing Tomb module loads its scripted encounters") {
     CHECK(watch.count == 3);
 }
 
+TEST_CASE("Testing Tomb module loads its scripted treasures") {
+    const auto module_dir = std::filesystem::path{"modules/testing-tomb"};
+
+    ModuleContentResult result = load_module_content(module_dir);
+
+    REQUIRE(result.ok);
+    REQUIRE(result.module.treasures.size() == 2);
+
+    const ModuleTreasure& gold = result.module.treasures[0];
+    CHECK(gold.treasure_id == "module.testing_tomb.treasure.antechamber_gold");
+    CHECK(gold.type == "gold");
+    CHECK(gold.x == 2);
+    CHECK(gold.y == 3);
+    CHECK(gold.count == 2);
+
+    const ModuleTreasure& gem = result.module.treasures[1];
+    CHECK(gem.treasure_id == "module.testing_tomb.treasure.antechamber_gems");
+    CHECK(gem.type == "gem");
+    CHECK(gem.x == 3);
+    CHECK(gem.y == 3);
+    CHECK(gem.count == 1);
+}
+
 TEST_CASE("Module content loader rejects invalid encounters") {
     auto dir = make_manifest_test_dir("bx_module_content_bad_encounters");
     std::filesystem::create_directories(dir / "maps");
@@ -5708,6 +5731,219 @@ TEST_CASE("Module content loader rejects invalid encounters") {
         ModuleContentResult result = load_module_content(dir);
         CHECK_FALSE(result.ok);
         CHECK(result.error == "could not open encounters");
+    }
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("Module content loader rejects invalid treasures") {
+    auto dir = make_manifest_test_dir("bx_module_content_bad_treasures");
+    std::filesystem::create_directories(dir / "maps");
+    std::filesystem::create_directories(dir / "text");
+    write_module_json(dir, valid_module_manifest_json());
+    write_save_file(R"json([
+  {
+    "location_id": "module.testing_tomb.location.entrance",
+    "title": "Entrance",
+    "description_id": "module.testing_tomb.text.entrance",
+    "map_id": "module.testing_tomb.map.tomb"
+  },
+  {
+    "location_id": "module.testing_tomb.location.room_a",
+    "title": "Room A",
+    "description_id": "module.testing_tomb.text.room_a",
+    "map_id": "module.testing_tomb.map.tomb"
+  }
+])json", dir / "locations.json");
+    write_save_file(R"json({
+  "map_id": "module.testing_tomb.map.tomb",
+  "width": 5,
+  "height": 5,
+  "entry_x": 2,
+  "entry_y": 4,
+  "tiles": [
+    "#####",
+    "#...#",
+    "##+##",
+    "#...#",
+    "##.##"
+  ],
+  "doors": [
+    {
+      "door_id": "module.testing_tomb.door.entrance_to_room_a",
+      "from_location_id": "module.testing_tomb.location.entrance",
+      "to_location_id": "module.testing_tomb.location.room_a",
+      "x": 2,
+      "y": 2,
+      "locked": true
+    }
+  ]
+})json", dir / "maps/tomb.json");
+    write_save_file("[module.testing_tomb.text.entrance]\nEntrance text.\n"
+                    "[module.testing_tomb.text.room_a]\nRoom A text.\n",
+                    dir / "text/descriptions.txt");
+    write_save_file(R"json([
+  {
+    "encounter_id": "module.testing_tomb.encounter.goblin_watch",
+    "monster": "bx.monster.goblin",
+    "x": 2,
+    "y": 1,
+    "count": 3
+  }
+])json", dir / "encounters.json");
+    write_save_file(R"json([
+  {
+    "treasure_id": "module.testing_tomb.treasure.gold_pile",
+    "type": "gold",
+    "x": 2,
+    "y": 3,
+    "count": 1
+  }
+])json", dir / "treasures.json");
+
+    SUBCASE("valid treasures load") {
+        ModuleContentResult result = load_module_content(dir);
+        REQUIRE(result.ok);
+        REQUIRE(result.module.treasures.size() == 1);
+        const ModuleTreasure& treasure = result.module.treasures[0];
+        CHECK(treasure.treasure_id == "module.testing_tomb.treasure.gold_pile");
+        CHECK(treasure.type == "gold");
+        CHECK(treasure.x == 2);
+        CHECK(treasure.y == 3);
+        CHECK(treasure.count == 1);
+    }
+
+    SUBCASE("missing treasure id") {
+        write_save_file(R"json([
+  {
+    "type": "gold",
+    "x": 2,
+    "y": 3
+  }
+])json", dir / "treasures.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "treasure missing treasure_id");
+    }
+
+    SUBCASE("missing type") {
+        write_save_file(R"json([
+  {
+    "treasure_id": "module.testing_tomb.treasure.bad",
+    "x": 2,
+    "y": 3
+  }
+])json", dir / "treasures.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "treasure missing type");
+    }
+
+    SUBCASE("invalid type") {
+        write_save_file(R"json([
+  {
+    "treasure_id": "module.testing_tomb.treasure.bad",
+    "type": "coins",
+    "x": 2,
+    "y": 3
+  }
+])json", dir / "treasures.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "invalid treasure type");
+    }
+
+    SUBCASE("invalid treasure_id") {
+        write_save_file(R"json([
+  {
+    "treasure_id": "spaces are bad",
+    "type": "gold",
+    "x": 2,
+    "y": 3
+  }
+])json", dir / "treasures.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "invalid treasure_id");
+    }
+
+    SUBCASE("zero count") {
+        write_save_file(R"json([
+  {
+    "treasure_id": "module.testing_tomb.treasure.bad",
+    "type": "gold",
+    "x": 2,
+    "y": 3,
+    "count": 0
+  }
+])json", dir / "treasures.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "invalid treasure count");
+    }
+
+    SUBCASE("duplicate treasure_id") {
+        write_save_file(R"json([
+  {
+    "treasure_id": "module.testing_tomb.treasure.dup",
+    "type": "gold",
+    "x": 2,
+    "y": 3
+  },
+  {
+    "treasure_id": "module.testing_tomb.treasure.dup",
+    "type": "gem",
+    "x": 3,
+    "y": 3
+  }
+])json", dir / "treasures.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "duplicate treasure_id");
+    }
+
+    SUBCASE("out of bounds position") {
+        write_save_file(R"json([
+  {
+    "treasure_id": "module.testing_tomb.treasure.bad",
+    "type": "gold",
+    "x": 9,
+    "y": 9
+  }
+])json", dir / "treasures.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "treasure position is out of bounds");
+    }
+
+    SUBCASE("tile is not walkable") {
+        write_save_file(R"json([
+  {
+    "treasure_id": "module.testing_tomb.treasure.bad",
+    "type": "gold",
+    "x": 0,
+    "y": 0
+  }
+])json", dir / "treasures.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "treasure tile is not walkable");
+    }
+
+    SUBCASE("missing treasure file that the manifest declares") {
+        std::filesystem::remove(dir / "treasures.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "could not open treasures");
     }
 
     std::filesystem::remove_all(dir);
@@ -5965,6 +6201,50 @@ TEST_CASE("GameSession starts at the Testing Tomb module entry location") {
     CHECK(snapshot.height == 5);
     CHECK(snapshot.hero.pos.x == 2);
     CHECK(snapshot.hero.pos.y == 4);
+}
+
+TEST_CASE("GameSession seeds tomb treasures and reuses the core Get rules") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+    REQUIRE_FALSE(loaded.module.treasures.empty());
+
+    Entity hero = make_hero(0, 0, 2, 6, 14);
+    hero.gold_pieces = 12;
+
+    GameSession session;
+    ModuleStartResult started = session.start_module(loaded.module, hero);
+    REQUIRE(started.ok);
+
+    Game& game = session.game();
+    Tile& gold_tile = game.map[static_cast<std::size_t>(3 * game.width + 2)];
+    REQUIRE(gold_tile.items.size() == 2);
+    CHECK(gold_tile.items[0] == ItemType::Gold);
+    CHECK(gold_tile.items[1] == ItemType::Gold);
+    Tile& gem_tile = game.map[static_cast<std::size_t>(3 * game.width + 3)];
+    REQUIRE(gem_tile.items.size() == 1);
+    CHECK(gem_tile.items[0] == ItemType::Gem);
+
+    // The goblin watch is sealed behind the closed door, so the hero can safely
+    // stand on the antechamber treasure tiles and use the core Get command.
+    const int base = game.total_gold;
+    game.hero.pos = {2, 3};
+    ActionResult picked = session.apply(PlayerCommand{PlayerCommandType::Get, 0, 0, 0});
+    CHECK(picked.keep_playing);
+    CHECK(game.hero.alive);
+    CHECK(gold_tile.items.empty());
+    CHECK(game.total_gold >= base + 2 * 11);
+    CHECK(game.total_gold <= base + 2 * 30);
+
+    game.hero.pos = {3, 3};
+    session.apply(PlayerCommand{PlayerCommandType::Get, 0, 0, 0});
+    CHECK(gem_tile.items.empty());
+    CHECK(game.total_gold >= base + 2 * 11 + 51);
+    CHECK(game.total_gold <= base + 2 * 30 + 150);
+
+    bool found_log = false;
+    for (const auto& msg : game.event_log)
+        if (msg.find("Found") != std::string::npos) found_log = true;
+    CHECK(found_log);
 }
 
 TEST_CASE("GameSession rejects module entry maps that cannot become runtime maps") {

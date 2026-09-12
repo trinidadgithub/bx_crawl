@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 23:
+- Architecture groundwork completed through Phase 24:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -123,12 +123,15 @@ Already proven:
 - encounter definitions and goblin instantiation from `bx.monster.goblin`
   (`encounters.json` names monsters by stable content id; the engine resolves
   them through the rules catalog and spawns them at module start)
+- treasure definitions and pickup state (`treasures.json` places gold/gem piles
+  by stable content id at fixed tiles; `GameSession` seeds the runtime map and
+  the core Get command resolves pickup, coins, XP, sound, and logging
+  unchanged)
 
 Deferred until after the near-term architecture refactors:
 
 - runtime module door state and location transitions
 - Room B
-- treasure definitions and pickup state
 - trap definitions and saving throw/damage integration
 - tavern/module rumor tables and rumor delivery state
 - module flags and campaign save/reload
@@ -152,19 +155,18 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue with **Testing Tomb: scripted treasures** — the module declares
-treasure by stable content id (e.g. `bx.treasure.*` or per-table entries) and
-the engine scatters/places it; pickup state and the module treasure file
-(`treasures.json`) become live data.
+Continue with **Testing Tomb: scripted traps** — `traps.json` defines traps by
+stable content id on room tiles, `GameSession` plants their trigger state on
+the runtime map at module start, and the trap/saving-throw mechanics from the
+core game resolve when the hero enters the tile.
 
 Acceptance criteria:
 
-- `treasures.json` defines placements by stable rule ids (content id or
-  treasure-table reference).
-- `GameSession` seeds treasure from the data at module start; picking it up
-  updates the hero the same way the core game does.
+- `traps.json` defines placements by stable rule ids (trap type and tile).
+- `GameSession` seeds trap state from the data at module start; entering the
+  tile triggers the same saving throw/damage resolution as the core game.
 - Keep existing gameplay behavior; existing tests pass; full Debug and
   sanitizer validation pass.
 
-(Continues the module proof: monster spawning now works, so treasure and traps
-round out the data-only tomb.)
+(Continues the module proof: monster spawning and treasure now work, so traps
+round out the data-only tomb's interaction surface.)

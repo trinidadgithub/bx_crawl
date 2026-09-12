@@ -566,6 +566,13 @@ Near-term:
   `Game::rng` is a `DiceRoller` (`dice.hpp`/`dice.cpp`); all draws flow through its
   rule API.
 
+Testing Tomb slices delivered (data-only, no module-specific C++):
+
+- ~~Map, location, description, and door-object loading.~~ Phases 8-11.
+- ~~`start_module` entry plus runtime map construction.~~ Phase 10.
+- ~~Scripted encounters spawning `bx.monster.goblin` via the content catalog.~~ Phase 23.
+- ~~Scripted treasures seeding tile piles consumed by the core Get rules.~~ Phase 24.
+
 Before module support:
 
 - Define module manifest and validation errors.
