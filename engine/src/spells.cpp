@@ -3,6 +3,7 @@
 #include "map.hpp"
 #include "bx_data.hpp"
 #include "item_effects.hpp"
+#include "item_catalog.hpp"
 
 #include <algorithm>
 #include <sstream>
@@ -41,18 +42,11 @@ bool is_undead(const Entity& e) {
 }
 
 int spell_level_by_name(const std::string& name) {
-    for (const auto& s : bx::spells) {
-        if (name == s.name) return s.level;
-    }
-    return 0;
+    return bx::spell_level_by_name(name);
 }
 
 bool is_cleric_spell_name(const std::string& name) {
-    for (const auto& s : bx::spells) {
-        if (name == s.name && std::string_view(s.class_name) == "Cleric")
-            return true;
-    }
-    return false;
+    return bx::is_class_spell("Cleric", name);
 }
 
 } // namespace

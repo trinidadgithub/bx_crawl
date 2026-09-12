@@ -289,6 +289,69 @@ TEST_CASE("ID-based inventory: item_count / give / set / consume across all tabl
     }
 }
 
+TEST_CASE("Monster and spell catalog lookups") {
+    SUBCASE("spell_index resolves known spell names") {
+        auto idx = bx::spell_index("Cure Light Wounds");
+        REQUIRE(idx.has_value());
+        CHECK(std::string_view(bx::spells[*idx].name) == "Cure Light Wounds");
+        CHECK(std::string_view(bx::spells[*idx].class_name) == "Cleric");
+    }
+
+    SUBCASE("spell_index matches case-insensitively") {
+        auto idx = bx::spell_index("sLeEp");
+        REQUIRE(idx.has_value());
+        CHECK(std::string_view(bx::spells[*idx].name) == "Sleep");
+        CHECK(std::string_view(bx::spells[*idx].class_name) == "Magic-User");
+    }
+
+    SUBCASE("spell_index rejects unknown spells") {
+        CHECK_FALSE(bx::spell_index("no-such-spell").has_value());
+        CHECK_FALSE(bx::spell_index("").has_value());
+    }
+
+    SUBCASE("spell_index first-match preserves bx_data order for duplicate names") {
+        auto first = bx::spell_index("Light");
+        REQUIRE(first.has_value());
+        CHECK(std::string_view(bx::spells[*first].name) == "Light");
+        CHECK(std::string_view(bx::spells[*first].class_name) == "Cleric");
+    }
+
+    SUBCASE("spell_level_by_name resolves through the catalog") {
+        CHECK(bx::spell_level_by_name("Sleep") == 1);
+        CHECK(bx::spell_level_by_name("Cure Light Wounds") == 1);
+        CHECK(bx::spell_level_by_name("no-such-spell") == 0);
+    }
+
+    SUBCASE("is_class_spell uses the first match's class") {
+        CHECK(bx::is_class_spell("Cleric", "Cure Light Wounds"));
+        CHECK_FALSE(bx::is_class_spell("Magic-User", "Cure Light Wounds"));
+        CHECK(bx::is_class_spell("Magic-User", "Sleep"));
+        CHECK_FALSE(bx::is_class_spell("Cleric", "Sleep"));
+        CHECK(bx::is_class_spell("Cleric", "Light"));
+        CHECK_FALSE(bx::is_class_spell("Magic-User", "Light"));
+        CHECK_FALSE(bx::is_class_spell("no-such-class", "Sleep"));
+        CHECK_FALSE(bx::is_class_spell("Cleric", "no-such-spell"));
+    }
+
+    SUBCASE("monster_index resolves names case-insensitively") {
+        auto goblin = bx::monster_index("goblin");
+        REQUIRE(goblin.has_value());
+        CHECK(std::string_view(bx::monsters[*goblin].name) == "Goblin");
+        CHECK(bx::monster_index("GOBLIN") == goblin);
+    }
+
+    SUBCASE("monster_index matches multi-word names") {
+        auto bat = bx::monster_index("bat, normal");
+        REQUIRE(bat.has_value());
+        CHECK(std::string_view(bx::monsters[*bat].name) == "Bat, Normal");
+    }
+
+    SUBCASE("monster_index rejects unknown names") {
+        CHECK_FALSE(bx::monster_index("no-such-monster").has_value());
+        CHECK_FALSE(bx::monster_index("").has_value());
+    }
+}
+
 // ── Dungeon generation tests ────────────────────────────
 
 TEST_CASE("Dungeon generation: init_map") {

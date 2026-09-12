@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 21:
+- Architecture groundwork completed through Phase 22:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -37,6 +37,8 @@ finishing the architecture-review follow-up before expanding new gameplay.
   - DiceRoller / RandomService (`Game::rng` wrapped behind a dedicated dice rule
     API)
   - inventory content IDs (validated item catalog + ID-based inventory access)
+  - monster and spell content lookups (`bx::monster_index` / `bx::spell_index`
+    from the catalog; catalog-backed spell level/class rules)
 
 ## Architecture Review Track
 
@@ -145,15 +147,17 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue with **ContentCatalog: rules lookup by stable content IDs**.
+Continue with **Testing Tomb: encounter definitions** — the sample module
+declares encounters by stable monster content id (e.g. `bx.monster.goblin`)
+and the engine instantiates them through the validated catalog.
 
 Acceptance criteria:
 
-- Extend the Phase 21 item catalog to monsters and spells: stable content-id
-  lookup (`bx_monster_index` / spell ids) so rules stop relying on `bx_data`
-  array positions there too.
-- Keep observable gameplay behavior; existing tests pass; full Debug and
+- Module data (JSON) can define encounter spawns by monster content id.
+- `bx::monster_index` resolves the id, and spawning at a tomb tile uses that
+  catalog lookup instead of name-grep/index math.
+- Keep existing gameplay behavior; existing tests pass; full Debug and
   sanitizer validation pass.
 
-(Prerequisite for data-only modules that instantiate monsters and spells by
-id.)
+(Proves the ground truth of the Phase 21/22 content catalog: module data stays
+data-only, and the engine maps ids to rules via validated lookups.)
