@@ -36,6 +36,15 @@ struct ModuleEncounter {
     int count{1};
 };
 
+struct ModuleTreasure {
+    std::string treasure_id;
+    // "gold" or "gem" — maps onto the core tile ItemType pile rules.
+    std::string type;
+    int x{};
+    int y{};
+    int count{1};
+};
+
 struct ModuleLocation {
     std::string location_id;
     std::string title;
@@ -49,6 +58,7 @@ struct ModuleContent {
     std::map<std::string, ModuleMapDefinition> maps;
     std::map<std::string, ModuleDoorDefinition> doors;
     std::vector<ModuleEncounter> encounters;
+    std::vector<ModuleTreasure> treasures;
     std::map<std::string, std::string> descriptions;
 
     const ModuleLocation* find_location(const std::string& location_id) const;
