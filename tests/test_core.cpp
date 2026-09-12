@@ -114,6 +114,94 @@ TEST_CASE("roll_d always returns values in [1, sides]") {
     }
 }
 
+// ── DiceRoller tests ─────────────────────────────────────
+
+TEST_CASE("DiceRoller: same seed reproduces the same sequence") {
+    DiceRoller a;
+    DiceRoller b;
+    a.seed(4242u);
+    b.seed(4242u);
+
+    for (int i = 0; i < 500; ++i) {
+        CHECK(a() == b());
+    }
+}
+
+TEST_CASE("DiceRoller: d draws stay within [1, sides]") {
+    DiceRoller r;
+    r.seed(7u);
+    const int sides = 20;
+    const int iterations = 2000;
+
+    for (int i = 0; i < iterations; ++i) {
+        int val = r.d(sides);
+        CHECK(val >= 1);
+        CHECK(val <= sides);
+    }
+}
+
+TEST_CASE("DiceRoller: range draws stay within [lo, hi]") {
+    DiceRoller r;
+    r.seed(9u);
+    const int iterations = 2000;
+
+    for (int i = 0; i < iterations; ++i) {
+        int val = r.range(3, 7);
+        CHECK(val >= 3);
+        CHECK(val <= 7);
+    }
+}
+
+TEST_CASE("DiceRoller: copying branches an independent stream") {
+    DiceRoller r;
+    r.seed(321u);
+
+    DiceRoller branch = r;
+
+    // Both streams draw in parallel identical values but neither affects the
+    // other's engine state.
+    CHECK(branch.d(6) == r.d(6));
+    CHECK(branch.d(6) == r.d(6));
+}
+
+TEST_CASE("DiceRoller: rule draws advance the same engine as operator()") {
+    DiceRoller r;
+    r.seed(555u);
+
+    DiceRoller::result_type raw = r();
+    DiceRoller::result_type raw2 = r();
+    int via_d = r.d(6);
+    int via_d2 = r.d(6);
+
+    // Interleaving operator() and d() just advances one shared engine; the
+    // combined stream is identical to another roller making the same calls.
+    DiceRoller replay;
+    replay.seed(555u);
+    CHECK(replay() == raw);
+    CHECK(replay() == raw2);
+    CHECK(replay.d(6) == via_d);
+    CHECK(replay.d(6) == via_d2);
+}
+
+TEST_CASE("DiceRoller: Game::rng snapshots and replays roll_d streams") {
+    Game g1 = make_minimal_game();
+    Game g2 = make_minimal_game();
+
+    // Existing snapshot idiom: copy the RNG and compare draws via operator().
+    g1.rng.seed(31337u);
+    DiceRoller snapshot = g1.rng;
+    CHECK(snapshot() == g1.rng());
+    CHECK(snapshot() == g1.rng());
+
+    // Same seed => identical gameplay roll stream. Reseeded after the snapshot
+    // draws above so both games start the replay loop from the same state.
+    g1.rng.seed(31337u);
+    g2.rng.seed(31337u);
+    for (int i = 0; i < 500; ++i) {
+        CHECK(roll_d(g1, 20) == roll_d(g2, 20));
+    }
+}
+
 // ── Dungeon generation tests ────────────────────────────
 
 TEST_CASE("Dungeon generation: init_map") {

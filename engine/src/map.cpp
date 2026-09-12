@@ -62,8 +62,7 @@ void carve_v_tunnel(Game& g, int y1, int y2, int x) {
 }
 
 int rand_range(Game& g, int lo, int hi) {
-    std::uniform_int_distribution<int> dist(lo, hi);
-    return dist(g.rng);
+    return g.rng.range(lo, hi);
 }
 
 // Helper: check if a tile is inside any room

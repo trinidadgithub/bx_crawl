@@ -28,6 +28,7 @@ Repository
 |   +-- map.hpp           Tiles, rooms, map helpers
 |   +-- bx_data.hpp       Generated/curated constexpr B/X data
 |   +-- chargen.hpp       Level-1 character generation rules (non-interactive)
+|   +-- dice.hpp          DiceRoller: wraps the game RNG behind rule calls
 |   +-- sound.hpp         Procedural sound API
 |   +-- description.hpp   Text description store
 |
@@ -35,6 +36,7 @@ Repository
 |   +-- src/game.cpp      Core game logic, rendering, persistence, rules, town flow
 |   +-- src/map.cpp       Procedural dungeon map generation
 |   +-- src/chargen.cpp   Character generation rules (no console I/O)
+|   +-- src/dice.cpp      DiceRoller rule draws (d / range)
 |   +-- src/sound.cpp     Fork/exec sound backend
 |   +-- src/description.cpp
 |   +-- src/item_effects.cpp
@@ -93,7 +95,8 @@ It does not yet have a separate application layer, stable rules-service boundary
 ## Strengths
 
 - `Game` is an explicit authoritative state object, not hidden global game state. This is worth preserving.
-- Randomness is mostly centralized through `Game::rng` and `roll_d(Game&, int)`.
+- Randomness funnels through the `DiceRoller` (`Game::rng`) and the
+  `roll_d(Game&, int)` / `rand_range` rule calls.
 - `PlayerCommand` exists, which is a good seed for frontend-independent command input.
 - `bx_engine` is already a library target separate from `bx_crawl_text`.
 - Tests directly exercise rules behavior through the engine API rather than through terminal input.
@@ -553,7 +556,9 @@ Near-term:
 - Split `game.cpp` into cohesive source files without changing public behavior: combat, spells, exploration, town, persistence, rendering.
 - ~~Move `chargen.cpp` toward a non-interactive character builder plus a text UI wrapper.~~ Done in Phase 19: rules live in `chargen.hpp`/`chargen.cpp` and the text UI lives in `frontends/text/src/char_session.cpp`.
 - Introduce structured `GameEvent` while still preserving readable log strings.
-- Extract `DiceRoller` or `RandomService` around `Game::rng`.
+- ~~Extract `DiceRoller` or `RandomService` around `Game::rng`.~~ Done in Phase 20:
+  `Game::rng` is a `DiceRoller` (`dice.hpp`/`dice.cpp`); all draws flow through its
+  rule API.
 
 Before module support:
 
@@ -581,7 +586,7 @@ Future:
 | Rules extensibility | New spells/monster traits require editing central conditionals | Medium | `cast_spell` string chain; monster name predicates | Add trait data and spell dispatch table |
 | Module readiness | External adventures cannot load without hard-coded engine edits | High | No module loader/catalog/runtime state separation | Add data-only module manifest and content catalog |
 | Persistence completeness | Save/load does not preserve full dungeon/world state | Medium | Save stores hero/meta, not full map/monsters/module flags | Define campaign save model before modules |
-| Randomness | Mostly good, but not abstracted for replay | Low | `Game::rng` is explicit; sound uses separate `rand` | Keep game RNG, add roll history/seed service later |
+| Randomness | Mostly good, but not abstracted for replay | Low | `Game::rng` is a `DiceRoller`; sound uses separate `rand` | Keep game RNG in `DiceRoller`; add roll history/seed service there later |
 | Sound coupling | Engine calls POSIX sound backend | Medium | `sound_*` calls inside rules; `fork/exec` in `sound.cpp` | Move sound to event consumer/frontend |
 | Build packaging | Docker likely broken | Medium | Docker copies wrong target name | Fix Dockerfile or remove stale docker support |
 | Public API stability | Internals exposed as API | Medium | Public mutable `Game` and `Entity` fields | Add wrapper APIs before modules depend on internals |
@@ -595,6 +600,6 @@ Future:
 5. Add structured `GameEvent` while keeping current `event_log` text as derived output.
 6. Split `game.cpp` into `combat.cpp`, `spells.cpp`, `exploration.cpp`, `town.cpp`, and `save.cpp` without changing APIs first.
 7. ~~Extract character creation into non-interactive generation/selection functions, leaving prompts in the text frontend.~~ Done in Phase 19: `chargen.hpp` rules + `frontends/text/src/char_session.cpp` UI.
-8. Introduce a `DiceRoller` wrapper around `Game::rng` for deterministic tests and future replay.
+8. ~~Introduce a `DiceRoller` wrapper around `Game::rng` for deterministic tests and future replay.~~ Done in Phase 20: `Game::rng` is a `DiceRoller`; `roll_d` and `rand_range` delegate to its `d()` / `range()` rule calls.
 9. Define a minimal data-only module manifest and validation result type.
 10. Add a tiny sample module test that loads content and enters one room, even before full module gameplay exists.

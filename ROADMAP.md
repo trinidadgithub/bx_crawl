@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 19:
+- Architecture groundwork completed through Phase 20:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -34,6 +34,8 @@ finishing the architecture-review follow-up before expanding new gameplay.
   - town flow and inventory/equipment helper extraction
   - character generation boundary (pure rules in the engine, prompts in the text
     frontend)
+  - DiceRoller / RandomService (`Game::rng` wrapped behind a dedicated dice rule
+    API)
 
 ## Architecture Review Track
 
@@ -79,10 +81,14 @@ unless a phase explicitly says otherwise.
    has an interactive init entry; new games start with a hero built by the
    frontend.
 
-7. **Introduce DiceRoller / RandomService**
+7. **Introduce DiceRoller / RandomService** — Done
 
-   Wrap `Game::rng` usage for deterministic tests and future replay/roll-history
-   support.
+   `DiceRoller` (`include/dice.hpp` / `engine/src/dice.cpp`) now owns `Game::rng`
+   and every random draw funnels through its `d()` / `range()` rule calls
+   (`roll_d` and the map generator's `rand_range` are thin wrappers). It keeps
+   the `std::mt19937` surface (seed / operator() / result_type), so existing
+   seeding, snapshot, and save code is unchanged. This is the single hook point
+   for future replay / roll-history support.
 
 8. **Inventory Content IDs**
 
@@ -132,13 +138,15 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue with **Introduce DiceRoller / RandomService**.
+Continue with **Inventory Content IDs**.
 
 Acceptance criteria:
 
-- Wrap `Game::rng` behind a small engine rule API (plain `roll_d`-style calls)
-  so deterministic tests and future replay/roll-history support have one place
-  to hook.
-- All gameplay paths (combat, spells, exploration, town, chargen) keep their
-  current observable behavior.
-- Existing tests pass unchanged; full Debug and sanitizer validation pass.
+- Replace fixed-count weapon/armor/gear arrays with ID-based inventory or
+  validated content indexes so `Entity::weapon_counts` / `armor_counts` /
+  `gear_counts` stop depending on implicit `bx_data` array indexes.
+- Keep observable gameplay behavior; existing tests pass; full Debug and
+  sanitizer validation pass.
+
+(Behavior-preserving, and a prerequisite for data-only modules that define
+their own items.)
