@@ -5588,6 +5588,21 @@ TEST_CASE("Testing Tomb module loads its scripted treasures") {
     CHECK(gem.count == 1);
 }
 
+TEST_CASE("Testing Tomb module loads its scripted traps") {
+    const auto module_dir = std::filesystem::path{"modules/testing-tomb"};
+
+    ModuleContentResult result = load_module_content(module_dir);
+
+    REQUIRE(result.ok);
+    REQUIRE(result.module.traps.size() == 1);
+
+    const ModuleTrap& pit = result.module.traps[0];
+    CHECK(pit.trap_id == "module.testing_tomb.trap.antechamber_pit");
+    CHECK(pit.type == "pit");
+    CHECK(pit.x == 1);
+    CHECK(pit.y == 3);
+}
+
 TEST_CASE("Module content loader rejects invalid encounters") {
     auto dir = make_manifest_test_dir("bx_module_content_bad_encounters");
     std::filesystem::create_directories(dir / "maps");
@@ -5802,6 +5817,14 @@ TEST_CASE("Module content loader rejects invalid treasures") {
 ])json", dir / "treasures.json");
 
     SUBCASE("valid treasures load") {
+        write_save_file(R"json([
+  {
+    "trap_id": "module.testing_tomb.trap.antechamber_pit",
+    "type": "pit",
+    "x": 1,
+    "y": 3
+  }
+])json", dir / "traps.json");
         ModuleContentResult result = load_module_content(dir);
         REQUIRE(result.ok);
         REQUIRE(result.module.treasures.size() == 1);
@@ -5944,6 +5967,229 @@ TEST_CASE("Module content loader rejects invalid treasures") {
         ModuleContentResult result = load_module_content(dir);
         CHECK_FALSE(result.ok);
         CHECK(result.error == "could not open treasures");
+    }
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("Module content loader rejects invalid traps") {
+    auto dir = make_manifest_test_dir("bx_module_content_bad_traps");
+    std::filesystem::create_directories(dir / "maps");
+    std::filesystem::create_directories(dir / "text");
+    write_module_json(dir, valid_module_manifest_json());
+    write_save_file(R"json([
+  {
+    "location_id": "module.testing_tomb.location.entrance",
+    "title": "Entrance",
+    "description_id": "module.testing_tomb.text.entrance",
+    "map_id": "module.testing_tomb.map.tomb"
+  },
+  {
+    "location_id": "module.testing_tomb.location.room_a",
+    "title": "Room A",
+    "description_id": "module.testing_tomb.text.room_a",
+    "map_id": "module.testing_tomb.map.tomb"
+  }
+])json", dir / "locations.json");
+    write_save_file(R"json({
+  "map_id": "module.testing_tomb.map.tomb",
+  "width": 5,
+  "height": 5,
+  "entry_x": 2,
+  "entry_y": 4,
+  "tiles": [
+    "#####",
+    "#...#",
+    "##+##",
+    "#...#",
+    "##.##"
+  ],
+  "doors": [
+    {
+      "door_id": "module.testing_tomb.door.entrance_to_room_a",
+      "from_location_id": "module.testing_tomb.location.entrance",
+      "to_location_id": "module.testing_tomb.location.room_a",
+      "x": 2,
+      "y": 2,
+      "locked": true
+    }
+  ]
+})json", dir / "maps/tomb.json");
+    write_save_file("[module.testing_tomb.text.entrance]\nEntrance text.\n"
+                    "[module.testing_tomb.text.room_a]\nRoom A text.\n",
+                    dir / "text/descriptions.txt");
+    write_save_file(R"json([
+  {
+    "encounter_id": "module.testing_tomb.encounter.goblin_watch",
+    "monster": "bx.monster.goblin",
+    "x": 2,
+    "y": 1,
+    "count": 3
+  }
+])json", dir / "encounters.json");
+    write_save_file(R"json([
+  {
+    "treasure_id": "module.testing_tomb.treasure.gold_pile",
+    "type": "gold",
+    "x": 2,
+    "y": 3,
+    "count": 1
+  }
+])json", dir / "treasures.json");
+    write_save_file(R"json([
+  {
+    "trap_id": "module.testing_tomb.trap.antechamber_pit",
+    "type": "pit",
+    "x": 1,
+    "y": 3
+  }
+])json", dir / "traps.json");
+
+    SUBCASE("all trap types load") {
+        write_save_file(R"json([
+  {
+    "trap_id": "module.testing_tomb.trap.pit",
+    "type": "pit",
+    "x": 1,
+    "y": 3
+  },
+  {
+    "trap_id": "module.testing_tomb.trap.dart",
+    "type": "dart",
+    "x": 2,
+    "y": 3
+  },
+  {
+    "trap_id": "module.testing_tomb.trap.poison_dart",
+    "type": "poison_dart",
+    "x": 3,
+    "y": 3
+  }
+])json", dir / "traps.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        REQUIRE(result.ok);
+        REQUIRE(result.module.traps.size() == 3);
+        CHECK(result.module.traps[0].type == "pit");
+        CHECK(result.module.traps[1].type == "dart");
+        CHECK(result.module.traps[2].type == "poison_dart");
+    }
+
+    SUBCASE("missing trap id") {
+        write_save_file(R"json([
+  {
+    "type": "pit",
+    "x": 1,
+    "y": 3
+  }
+])json", dir / "traps.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "trap missing trap_id");
+    }
+
+    SUBCASE("missing type") {
+        write_save_file(R"json([
+  {
+    "trap_id": "module.testing_tomb.trap.bad",
+    "x": 1,
+    "y": 3
+  }
+])json", dir / "traps.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "trap missing type");
+    }
+
+    SUBCASE("invalid type") {
+        write_save_file(R"json([
+  {
+    "trap_id": "module.testing_tomb.trap.bad",
+    "type": "spikes",
+    "x": 1,
+    "y": 3
+  }
+])json", dir / "traps.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "invalid trap type");
+    }
+
+    SUBCASE("invalid trap_id") {
+        write_save_file(R"json([
+  {
+    "trap_id": "spaces are bad",
+    "type": "pit",
+    "x": 1,
+    "y": 3
+  }
+])json", dir / "traps.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "invalid trap_id");
+    }
+
+    SUBCASE("duplicate trap_id") {
+        write_save_file(R"json([
+  {
+    "trap_id": "module.testing_tomb.trap.dup",
+    "type": "pit",
+    "x": 1,
+    "y": 3
+  },
+  {
+    "trap_id": "module.testing_tomb.trap.dup",
+    "type": "dart",
+    "x": 3,
+    "y": 3
+  }
+])json", dir / "traps.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "duplicate trap_id");
+    }
+
+    SUBCASE("out of bounds position") {
+        write_save_file(R"json([
+  {
+    "trap_id": "module.testing_tomb.trap.bad",
+    "type": "pit",
+    "x": 9,
+    "y": 9
+  }
+])json", dir / "traps.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "trap position is out of bounds");
+    }
+
+    SUBCASE("tile is not walkable") {
+        write_save_file(R"json([
+  {
+    "trap_id": "module.testing_tomb.trap.bad",
+    "type": "pit",
+    "x": 0,
+    "y": 0
+  }
+])json", dir / "traps.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "trap tile is not walkable");
+    }
+
+    SUBCASE("missing trap file that the manifest declares") {
+        std::filesystem::remove(dir / "traps.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "could not open traps");
     }
 
     std::filesystem::remove_all(dir);
@@ -6245,6 +6491,45 @@ TEST_CASE("GameSession seeds tomb treasures and reuses the core Get rules") {
     for (const auto& msg : game.event_log)
         if (msg.find("Found") != std::string::npos) found_log = true;
     CHECK(found_log);
+}
+
+TEST_CASE("GameSession seeds tomb traps and reuses the core trigger rules") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+    REQUIRE_FALSE(loaded.module.traps.empty());
+
+    // Prove the other trap types seed too (data is one pit); a poison dart on
+    // the gold tile is a fit "guarded treasure" addition in this throwaway copy.
+    loaded.module.traps.push_back(ModuleTrap{
+        "module.testing_tomb.trap.temp_poison_dart", "poison_dart", 2, 3});
+
+    GameSession session;
+    ModuleStartResult started = session.start_module(loaded.module, make_hero(0, 0, 2, 6, 14));
+    REQUIRE(started.ok);
+
+    Game& game = session.game();
+    Tile& pit_tile = game.map[static_cast<std::size_t>(3 * game.width + 1)];
+    CHECK(pit_tile.has_trap);
+    CHECK(pit_tile.trap_type == TrapType::Pit);
+    Tile& dart_tile = game.map[static_cast<std::size_t>(3 * game.width + 2)];
+    CHECK(dart_tile.has_trap);
+    CHECK(dart_tile.trap_type == TrapType::PoisonDart);
+
+    // Step onto the pit from the adjacent tile. The goblin watch is sealed
+    // behind the closed door, so the hero reaches the pit unharmed.
+    const int hp_before = game.hero.hp;
+    game.hero.pos = {2, 3};
+    ActionResult moved = session.apply(PlayerCommand{PlayerCommandType::Move, /*dx=*/-1, /*dy=*/0, 0});
+    CHECK(moved.keep_playing);
+    CHECK(game.hero.alive);
+    CHECK(game.hero.hp < hp_before);
+    CHECK_FALSE(pit_tile.has_trap);
+    CHECK(pit_tile.trap_type == TrapType::None);
+
+    bool fell_log = false;
+    for (const auto& msg : game.event_log)
+        if (msg.find("You fall into a pit!") != std::string::npos) fell_log = true;
+    CHECK(fell_log);
 }
 
 TEST_CASE("GameSession rejects module entry maps that cannot become runtime maps") {

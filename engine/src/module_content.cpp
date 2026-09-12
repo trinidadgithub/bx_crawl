@@ -449,6 +449,63 @@ ModuleContentResult load_treasures(const std::filesystem::path& module_dir,
     return result;
 }
 
+ModuleContentResult load_traps(const std::filesystem::path& module_dir,
+                               ModuleContent module) {
+    auto it = module.manifest.files.find("traps");
+    if (it == module.manifest.files.end()) {
+        // Module opts out of scripted traps.
+        ModuleContentResult result;
+        result.ok = true;
+        result.module = std::move(module);
+        return result;
+    }
+
+    std::string error;
+    std::string json = read_text_file(module_dir / it->second, "traps", error);
+    if (!error.empty())
+        return fail(std::move(error));
+
+    const ModuleLocation* entry = module.entry_location();
+    if (entry == nullptr)
+        return fail("module entry location not found");
+    const ModuleMapDefinition* entry_map = module.find_map(entry->map_id);
+    if (entry_map == nullptr)
+        return fail("trap entry map not found");
+
+    for (const std::string& object : extract_flat_objects(json)) {
+        ModuleTrap trap;
+        if (!extract_string(object, "trap_id", trap.trap_id))
+            return fail("trap missing trap_id");
+        if (!extract_string(object, "type", trap.type))
+            return fail("trap missing type");
+        if (!extract_int(object, "x", trap.x))
+            return fail("trap missing x");
+        if (!extract_int(object, "y", trap.y))
+            return fail("trap missing y");
+
+        if (!valid_module_namespace(trap.trap_id, module.manifest, "trap"))
+            return fail("invalid trap_id");
+        if (trap.type != "pit" && trap.type != "dart" && trap.type != "poison_dart")
+            return fail("invalid trap type");
+        for (const ModuleTrap& existing : module.traps)
+            if (existing.trap_id == trap.trap_id)
+                return fail("duplicate trap_id");
+
+        const TileType* tile = entry_map->tile_at(trap.x, trap.y);
+        if (tile == nullptr)
+            return fail("trap position is out of bounds");
+        if (!tile_is_walkable(*tile))
+            return fail("trap tile is not walkable");
+
+        module.traps.push_back(std::move(trap));
+    }
+
+    ModuleContentResult result;
+    result.ok = true;
+    result.module = std::move(module);
+    return result;
+}
+
 } // namespace
 
 const TileType* ModuleMapDefinition::tile_at(int x, int y) const {
@@ -516,5 +573,9 @@ ModuleContentResult load_module_content(const std::filesystem::path& module_dir)
     if (!encounters.ok)
         return encounters;
 
-    return load_treasures(module_dir, std::move(encounters.module));
+    ModuleContentResult treasures = load_treasures(module_dir, std::move(encounters.module));
+    if (!treasures.ok)
+        return treasures;
+
+    return load_traps(module_dir, std::move(treasures.module));
 }

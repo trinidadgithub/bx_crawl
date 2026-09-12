@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "trap_id": "module.testing_tomb.trap.antechamber_pit",
+    "type": "pit",
+    "x": 1,
+    "y": 3
+  }
+]
