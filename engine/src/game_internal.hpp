@@ -24,6 +24,7 @@ Entity* monster_at(Game& g, int x, int y);
 
 int spawn_wandering_monsters(Game& g);
 bool resolve_first_contact_surprise(Game& g, Entity& m);
+Entity spawn_bx_monster_by_index(Game& g, int idx);
 void descend_stairs(Game& g);
 void ascend_stairs(Game& g);
 

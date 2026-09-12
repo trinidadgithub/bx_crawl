@@ -5550,6 +5550,169 @@ TEST_CASE("Testing Tomb module loads and exposes its entry location") {
     CHECK(description->find("stone antechamber") != std::string::npos);
 }
 
+TEST_CASE("Testing Tomb module loads its scripted encounters") {
+    const auto module_dir = std::filesystem::path{"modules/testing-tomb"};
+
+    ModuleContentResult result = load_module_content(module_dir);
+
+    REQUIRE(result.ok);
+    REQUIRE(result.module.encounters.size() == 1);
+    const ModuleEncounter& watch = result.module.encounters[0];
+    CHECK(watch.encounter_id == "module.testing_tomb.encounter.goblin_watch");
+    CHECK(watch.monster_content_id == "bx.monster.goblin");
+    CHECK(watch.x == 2);
+    CHECK(watch.y == 1);
+    CHECK(watch.count == 3);
+}
+
+TEST_CASE("Module content loader rejects invalid encounters") {
+    auto dir = make_manifest_test_dir("bx_module_content_bad_encounters");
+    std::filesystem::create_directories(dir / "maps");
+    std::filesystem::create_directories(dir / "text");
+    write_module_json(dir, valid_module_manifest_json());
+    write_save_file(R"json([
+  {
+    "location_id": "module.testing_tomb.location.entrance",
+    "title": "Entrance",
+    "description_id": "module.testing_tomb.text.entrance",
+    "map_id": "module.testing_tomb.map.tomb"
+  },
+  {
+    "location_id": "module.testing_tomb.location.room_a",
+    "title": "Room A",
+    "description_id": "module.testing_tomb.text.room_a",
+    "map_id": "module.testing_tomb.map.tomb"
+  }
+])json", dir / "locations.json");
+    write_save_file(R"json({
+  "map_id": "module.testing_tomb.map.tomb",
+  "width": 5,
+  "height": 5,
+  "entry_x": 2,
+  "entry_y": 4,
+  "tiles": [
+    "#####",
+    "#...#",
+    "##+##",
+    "#...#",
+    "##.##"
+  ],
+  "doors": [
+    {
+      "door_id": "module.testing_tomb.door.entrance_to_room_a",
+      "from_location_id": "module.testing_tomb.location.entrance",
+      "to_location_id": "module.testing_tomb.location.room_a",
+      "x": 2,
+      "y": 2,
+      "locked": true
+    }
+  ]
+})json", dir / "maps/tomb.json");
+    write_save_file("[module.testing_tomb.text.entrance]\nEntrance text.\n"
+                    "[module.testing_tomb.text.room_a]\nRoom A text.\n",
+                    dir / "text/descriptions.txt");
+
+    write_save_file(R"json([
+  {
+    "encounter_id": "module.testing_tomb.encounter.goblin_watch",
+    "monster": "bx.monster.goblin",
+    "x": 2,
+    "y": 1,
+    "count": 3
+  }
+])json", dir / "encounters.json");
+
+    SUBCASE("missing monster id") {
+        write_save_file(R"json([
+  {
+    "encounter_id": "module.testing_tomb.encounter.bad",
+    "x": 2,
+    "y": 1
+  }
+])json", dir / "encounters.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "encounter missing monster");
+    }
+
+    SUBCASE("invalid monster content id") {
+        write_save_file(R"json([
+  {
+    "encounter_id": "module.testing_tomb.encounter.bad",
+    "monster": "spaces are bad",
+    "x": 2,
+    "y": 1
+  }
+])json", dir / "encounters.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "invalid monster content id");
+    }
+
+    SUBCASE("out of bounds position") {
+        write_save_file(R"json([
+  {
+    "encounter_id": "module.testing_tomb.encounter.bad",
+    "monster": "bx.monster.goblin",
+    "x": 9,
+    "y": 9
+  }
+])json", dir / "encounters.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "encounter position is out of bounds");
+    }
+
+    SUBCASE("position is not walkable") {
+        write_save_file(R"json([
+  {
+    "encounter_id": "module.testing_tomb.encounter.bad",
+    "monster": "bx.monster.goblin",
+    "x": 0,
+    "y": 0
+  }
+])json", dir / "encounters.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "encounter tile is not walkable");
+    }
+
+    SUBCASE("duplicate encounter_id") {
+        write_save_file(R"json([
+  {
+    "encounter_id": "module.testing_tomb.encounter.dup",
+    "monster": "bx.monster.goblin",
+    "x": 2,
+    "y": 1
+  },
+  {
+    "encounter_id": "module.testing_tomb.encounter.dup",
+    "monster": "bx.monster.goblin",
+    "x": 2,
+    "y": 3
+  }
+])json", dir / "encounters.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "duplicate encounter_id");
+    }
+
+    SUBCASE("missing encounter file that the manifest declares") {
+        std::filesystem::remove(dir / "encounters.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "could not open encounters");
+    }
+
+    std::filesystem::remove_all(dir);
+}
+
 TEST_CASE("Module content loader rejects invalid door definitions") {
     auto dir = make_manifest_test_dir("bx_module_content_bad_doors");
     std::filesystem::create_directories(dir / "maps");
@@ -5777,7 +5940,14 @@ TEST_CASE("GameSession starts at the Testing Tomb module entry location") {
     CHECK(game.current_location_id == "module.testing_tomb.location.entrance");
     CHECK(game.total_gold == 12);
     CHECK(game.hero.gold_pieces == 0);
-    CHECK(game.monsters.empty());
+    CHECK(game.monsters.size() == 3);
+    const std::array<std::pair<int, int>, 3> expected_spawns = {{{2, 1}, {3, 1}, {1, 1}}};
+    for (std::size_t i = 0; i < game.monsters.size(); ++i) {
+        const Entity& m = game.monsters[i];
+        CHECK(m.name == "Goblin");
+        CHECK(m.pos.x == expected_spawns[i].first);
+        CHECK(m.pos.y == expected_spawns[i].second);
+    }
     CHECK(game.rooms.empty());
     CHECK(game.map[static_cast<std::size_t>(4 * game.width + 2)].type == TileType::Floor);
     CHECK(game.map[static_cast<std::size_t>(2 * game.width + 2)].type == TileType::DoorClosed);
@@ -5807,6 +5977,20 @@ TEST_CASE("GameSession rejects module entry maps that cannot become runtime maps
 
     CHECK_FALSE(started.ok);
     CHECK(started.error == "module entry map tile count mismatch");
+    CHECK(session.game().state == GameState::Town);
+}
+
+TEST_CASE("GameSession rejects encounters that reference unknown monsters") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+    REQUIRE_FALSE(loaded.module.encounters.empty());
+    loaded.module.encounters[0].monster_content_id = "bx.monster.no_such_monster";
+
+    GameSession session;
+    ModuleStartResult started = session.start_module(loaded.module, make_hero(0, 0, 2, 6, 14));
+
+    CHECK_FALSE(started.ok);
+    CHECK(started.error == "encounter references unknown monster bx.monster.no_such_monster");
     CHECK(session.game().state == GameState::Town);
 }
 

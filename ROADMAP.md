@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 22:
+- Architecture groundwork completed through Phase 23:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -39,6 +39,9 @@ finishing the architecture-review follow-up before expanding new gameplay.
   - inventory content IDs (validated item catalog + ID-based inventory access)
   - monster and spell content lookups (`bx::monster_index` / `bx::spell_index`
     from the catalog; catalog-backed spell level/class rules)
+  - module scripted encounters: `encounters.json` binds tile positions to
+    monster content ids; `GameSession::start_module` instantiates them through
+    the rules catalog
 
 ## Architecture Review Track
 
@@ -117,12 +120,14 @@ Already proven:
 - map topology loading
 - starting a `GameSession` at a module entry location
 - stable module door object IDs
+- encounter definitions and goblin instantiation from `bx.monster.goblin`
+  (`encounters.json` names monsters by stable content id; the engine resolves
+  them through the rules catalog and spawns them at module start)
 
 Deferred until after the near-term architecture refactors:
 
 - runtime module door state and location transitions
 - Room B
-- encounter definitions and goblin instantiation from `bx.monster.goblin`
 - treasure definitions and pickup state
 - trap definitions and saving throw/damage integration
 - tavern/module rumor tables and rumor delivery state
@@ -147,17 +152,19 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue with **Testing Tomb: encounter definitions** — the sample module
-declares encounters by stable monster content id (e.g. `bx.monster.goblin`)
-and the engine instantiates them through the validated catalog.
+Continue with **Testing Tomb: scripted treasures** — the module declares
+treasure by stable content id (e.g. `bx.treasure.*` or per-table entries) and
+the engine scatters/places it; pickup state and the module treasure file
+(`treasures.json`) become live data.
 
 Acceptance criteria:
 
-- Module data (JSON) can define encounter spawns by monster content id.
-- `bx::monster_index` resolves the id, and spawning at a tomb tile uses that
-  catalog lookup instead of name-grep/index math.
+- `treasures.json` defines placements by stable rule ids (content id or
+  treasure-table reference).
+- `GameSession` seeds treasure from the data at module start; picking it up
+  updates the hero the same way the core game does.
 - Keep existing gameplay behavior; existing tests pass; full Debug and
   sanitizer validation pass.
 
-(Proves the ground truth of the Phase 21/22 content catalog: module data stays
-data-only, and the engine maps ids to rules via validated lookups.)
+(Continues the module proof: monster spawning now works, so treasure and traps
+round out the data-only tomb.)

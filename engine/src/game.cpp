@@ -36,6 +36,11 @@ static bool monsters_disabled() {
 // ---------------------------
 // Internal helpers
 // ---------------------------
+
+// Spawned from bx_data by table position. Defined at global scope later in
+// this TU (after the anonymous namespace) so the module session can reuse it.
+Entity spawn_bx_monster_by_index(Game& g, int idx);
+
 namespace {
 
 void log_event(Game& g, const std::string& msg) {
@@ -762,58 +767,6 @@ static int effective_morale(const Game& g, const Entity& m) {
     return m.morale;
 }
 
-// Spawn a monster from bx_data. Returns the populated Entity.
-static Entity spawn_bx_monster_by_index(Game& g, int idx) {
-    if (idx < 0 || idx >= static_cast<int>(bx::monsters.size())) {
-        idx = choose_monster_index(g, 1);
-    }
-    const auto& m = bx::monsters[idx];
-
-    Entity e;
-    e.name       = m.name;
-    e.type       = EntityType::Monster;
-    e.glyph      = monster_glyph(m.name);
-    e.ac         = m.ac;
-
-    auto hd = parse_hit_dice(m.hit_dice);
-    e.max_hp     = hd.avg_hp;
-    e.hp         = hd.avg_hp;
-    e.attack_bonus = hd.hd_count; // rough: atk bonus ≈ HD
-    e.damage_die = parse_damage_die(m.damage);
-    e.morale     = m.morale;
-    e.xp_value   = compute_xp_value(m.hit_dice);
-    e.undead     = is_name_undead(m.name);
-    e.has_poison = is_name_poison(m.name);
-    e.has_disease = is_name_disease(m.name);
-    e.has_paralysis = is_name_paralysis(m.name);
-    e.fleeing    = false;
-    e.alive      = true;
-    e.attacks_per_turn = 1;
-
-    // Normal bats appear as swarms: a single entity represents a flock.
-    // B/X No. Appearing is 1-100; use 2-16 so confusion (10+) is possible.
-    if (is_name_normal_bat(m.name)) {
-        e.count = roll_d(g, 8) + roll_d(g, 8);
-    }
-
-    // Giant bats: 5% of all giant bat encounters are giant vampire bats.
-    // A vampire bat's bite causes unconsciousness and lets it drain blood.
-    if (is_name_giant_bat(m.name) && roll_d(g, 100) <= 5) {
-        e.is_vampire_bat = true;
-    }
-
-    // Gold: some monsters carry treasure
-    int gold_chance = roll_d(g, 6);
-    if (gold_chance <= 2) {
-        // 1-2 on 1d6: carries gold based on HD
-        e.gold_pieces = roll_d(g, 6) * 10 * std::max(1, hd.hd_count);
-    } else {
-        e.gold_pieces = 0;
-    }
-
-    return e;
-}
-
 static Entity spawn_bx_monster(Game& g, int dungeon_level) {
     return spawn_bx_monster_by_index(g, choose_monster_index(g, dungeon_level));
 }
@@ -1073,6 +1026,59 @@ void ascend_stairs(Game& g) {
 
 } // end anonymous namespace
 
+// Spawn a monster from bx_data. Returns the populated Entity. The helper
+// functions it calls live in the anonymous namespace above.
+Entity spawn_bx_monster_by_index(Game& g, int idx) {
+    if (idx < 0 || idx >= static_cast<int>(bx::monsters.size())) {
+        idx = choose_monster_index(g, 1);
+    }
+    const auto& m = bx::monsters[idx];
+
+    Entity e;
+    e.name       = m.name;
+    e.type       = EntityType::Monster;
+    e.glyph      = monster_glyph(m.name);
+    e.ac         = m.ac;
+
+    auto hd = parse_hit_dice(m.hit_dice);
+    e.max_hp     = hd.avg_hp;
+    e.hp         = hd.avg_hp;
+    e.attack_bonus = hd.hd_count; // rough: atk bonus ≈ HD
+    e.damage_die = parse_damage_die(m.damage);
+    e.morale     = m.morale;
+    e.xp_value   = compute_xp_value(m.hit_dice);
+    e.undead     = is_name_undead(m.name);
+    e.has_poison = is_name_poison(m.name);
+    e.has_disease = is_name_disease(m.name);
+    e.has_paralysis = is_name_paralysis(m.name);
+    e.fleeing    = false;
+    e.alive      = true;
+    e.attacks_per_turn = 1;
+
+    // Normal bats appear as swarms: a single entity represents a flock.
+    // B/X No. Appearing is 1-100; use 2-16 so confusion (10+) is possible.
+    if (is_name_normal_bat(m.name)) {
+        e.count = roll_d(g, 8) + roll_d(g, 8);
+    }
+
+    // Giant bats: 5% of all giant bat encounters are giant vampire bats.
+    // A vampire bat's bite causes unconsciousness and lets it drain blood.
+    if (is_name_giant_bat(m.name) && roll_d(g, 100) <= 5) {
+        e.is_vampire_bat = true;
+    }
+
+    // Gold: some monsters carry treasure
+    int gold_chance = roll_d(g, 6);
+    if (gold_chance <= 2) {
+        // 1-2 on 1d6: carries gold based on HD
+        e.gold_pieces = roll_d(g, 6) * 10 * std::max(1, hd.hd_count);
+    } else {
+        e.gold_pieces = 0;
+    }
+
+    return e;
+}
+
 // Defined later in this TU (wandering monster spawner).
 static int spawn_wandering_monsters(Game& g);
 
@@ -1128,6 +1134,10 @@ Entity* monster_at(Game& g, int x, int y) {
 
 int spawn_wandering_monsters(Game& g) {
     return ::spawn_wandering_monsters(g);
+}
+
+Entity spawn_bx_monster_by_index(Game& g, int idx) {
+    return ::spawn_bx_monster_by_index(g, idx);
 }
 
 bool resolve_first_contact_surprise(Game& g, Entity& m) {

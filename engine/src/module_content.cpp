@@ -328,6 +328,67 @@ ModuleContentResult load_descriptions(const std::filesystem::path& module_dir,
     return result;
 }
 
+ModuleContentResult load_encounters(const std::filesystem::path& module_dir,
+                                    ModuleContent module) {
+    auto it = module.manifest.files.find("encounters");
+    if (it == module.manifest.files.end()) {
+        // Module opts out of scripted encounters.
+        ModuleContentResult result;
+        result.ok = true;
+        result.module = std::move(module);
+        return result;
+    }
+
+    std::string error;
+    std::string json = read_text_file(module_dir / it->second, "encounters", error);
+    if (!error.empty())
+        return fail(std::move(error));
+
+    const ModuleMapDefinition* entry_map = nullptr;
+    const ModuleLocation* entry = module.entry_location();
+    if (entry == nullptr)
+        return fail("module entry location not found");
+    entry_map = module.find_map(entry->map_id);
+    if (entry_map == nullptr)
+        return fail("encounter entry map not found");
+
+    for (const std::string& object : extract_flat_objects(json)) {
+        ModuleEncounter encounter;
+        if (!extract_string(object, "encounter_id", encounter.encounter_id))
+            return fail("encounter missing encounter_id");
+        if (!extract_string(object, "monster", encounter.monster_content_id))
+            return fail("encounter missing monster");
+        if (!extract_int(object, "x", encounter.x))
+            return fail("encounter missing x");
+        if (!extract_int(object, "y", encounter.y))
+            return fail("encounter missing y");
+        (void)extract_int(object, "count", encounter.count);
+
+        if (!valid_module_namespace(encounter.encounter_id, module.manifest, "encounter"))
+            return fail("invalid encounter_id");
+        if (!is_valid_content_id(encounter.monster_content_id))
+            return fail("invalid monster content id");
+        if (encounter.count < 1)
+            return fail("invalid encounter count");
+        for (const ModuleEncounter& existing : module.encounters)
+            if (existing.encounter_id == encounter.encounter_id)
+                return fail("duplicate encounter_id");
+
+        const TileType* tile = entry_map->tile_at(encounter.x, encounter.y);
+        if (tile == nullptr)
+            return fail("encounter position is out of bounds");
+        if (!tile_is_walkable(*tile))
+            return fail("encounter tile is not walkable");
+
+        module.encounters.push_back(std::move(encounter));
+    }
+
+    ModuleContentResult result;
+    result.ok = true;
+    result.module = std::move(module);
+    return result;
+}
+
 } // namespace
 
 const TileType* ModuleMapDefinition::tile_at(int x, int y) const {
@@ -387,5 +448,9 @@ ModuleContentResult load_module_content(const std::filesystem::path& module_dir)
     if (!map.ok)
         return map;
 
-    return load_descriptions(module_dir, std::move(map.module));
+    ModuleContentResult descriptions = load_descriptions(module_dir, std::move(map.module));
+    if (!descriptions.ok)
+        return descriptions;
+
+    return load_encounters(module_dir, std::move(descriptions.module));
 }

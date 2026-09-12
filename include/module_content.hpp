@@ -28,6 +28,14 @@ struct ModuleDoorDefinition {
     bool locked{false};
 };
 
+struct ModuleEncounter {
+    std::string encounter_id;
+    std::string monster_content_id;
+    int x{};
+    int y{};
+    int count{1};
+};
+
 struct ModuleLocation {
     std::string location_id;
     std::string title;
@@ -40,6 +48,7 @@ struct ModuleContent {
     std::map<std::string, ModuleLocation> locations;
     std::map<std::string, ModuleMapDefinition> maps;
     std::map<std::string, ModuleDoorDefinition> doors;
+    std::vector<ModuleEncounter> encounters;
     std::map<std::string, std::string> descriptions;
 
     const ModuleLocation* find_location(const std::string& location_id) const;
