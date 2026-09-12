@@ -1,5 +1,7 @@
 #include "game.hpp"
 #include "game_internal.hpp"
+#include "inventory.hpp"
+#include "item_catalog.hpp"
 #include "bx_data.hpp"
 
 #include <cctype>
@@ -112,6 +114,59 @@ void equip_owned_armor(Game& g, int armor_index) {
 }
 
 } // namespace game_internal
+
+// ── ID-based inventory access ─────────────────────────────
+
+int item_count(const Entity& e, std::string_view item_id) {
+    if (auto slot = bx::weapon_index(item_id))
+        return e.weapon_counts[*slot];
+    if (auto slot = bx::armor_index(item_id))
+        return e.armor_counts[*slot];
+    if (auto slot = bx::gear_index(item_id))
+        return e.gear_counts[*slot];
+    return 0;
+}
+
+void give_item(Entity& e, std::string_view item_id, int amount) {
+    if (amount <= 0) return;
+    if (auto slot = bx::weapon_index(item_id))
+        e.weapon_counts[*slot] += amount;
+    else if (auto slot = bx::armor_index(item_id))
+        e.armor_counts[*slot] += amount;
+    else if (auto slot = bx::gear_index(item_id))
+        e.gear_counts[*slot] += amount;
+}
+
+void set_item_count(Entity& e, std::string_view item_id, int count) {
+    if (auto slot = bx::weapon_index(item_id))
+        e.weapon_counts[*slot] = count;
+    else if (auto slot = bx::armor_index(item_id))
+        e.armor_counts[*slot] = count;
+    else if (auto slot = bx::gear_index(item_id))
+        e.gear_counts[*slot] = count;
+}
+
+bool consume_owned_item(Entity& e, std::string_view item_id, int amount) {
+    if (amount <= 0) return true;
+    if (auto slot = bx::weapon_index(item_id)) {
+        if (e.weapon_counts[*slot] < amount) return false;
+        e.weapon_counts[*slot] -= amount;
+        return true;
+    }
+    if (auto slot = bx::armor_index(item_id)) {
+        if (e.armor_counts[*slot] < amount) return false;
+        e.armor_counts[*slot] -= amount;
+        return true;
+    }
+    if (auto slot = bx::gear_index(item_id)) {
+        if (e.gear_counts[*slot] < amount) return false;
+        e.gear_counts[*slot] -= amount;
+        return true;
+    }
+    return false;
+}
+
+// ── Weapon/armor rules ────────────────────────────────────
 
 // Check if a weapon is allowed for a given class using bx_data::class_info.
 bool is_weapon_allowed(CharacterClass cc, const char* weapon_id) {

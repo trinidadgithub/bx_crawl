@@ -19,6 +19,7 @@ add_library(bx_engine STATIC
     src/debug_log.cpp
     src/exploration.cpp
     src/inventory.cpp
+    src/item_catalog.cpp
     src/town.cpp
 )
 

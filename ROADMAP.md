@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 20:
+- Architecture groundwork completed through Phase 21:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -36,6 +36,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
     frontend)
   - DiceRoller / RandomService (`Game::rng` wrapped behind a dedicated dice rule
     API)
+  - inventory content IDs (validated item catalog + ID-based inventory access)
 
 ## Architecture Review Track
 
@@ -90,10 +91,16 @@ unless a phase explicitly says otherwise.
    seeding, snapshot, and save code is unchanged. This is the single hook point
    for future replay / roll-history support.
 
-8. **Inventory Content IDs**
+8. **Inventory Content IDs** — Done
 
-   Eventually replace fixed-count weapon/armor/gear arrays with ID-based
-   inventory or validated content indexes.
+   `bx::weapon_index` / `armor_index` / `gear_index` / `inventory_item_by_id`
+   (`include/item_catalog.hpp` / `engine/src/item_catalog.cpp`) are the single
+   validated mapping from stable item content ids to the `bx_data` table
+   positions, pinned against `Entity`'s count arrays by `static_assert`. New
+   `include/inventory.hpp` adds ID-based access (`item_count`, `give_item`,
+   `set_item_count`, `consume_owned_item`) for all three tables. Kit-writing
+   call sites (chargen shield buy, torch lighting, gear shop purchase, save
+   migration, pregen generator) no longer use magic array positions.
 
 ## Testing Tomb Track
 
@@ -138,15 +145,15 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue with **Inventory Content IDs**.
+Continue with **ContentCatalog: rules lookup by stable content IDs**.
 
 Acceptance criteria:
 
-- Replace fixed-count weapon/armor/gear arrays with ID-based inventory or
-  validated content indexes so `Entity::weapon_counts` / `armor_counts` /
-  `gear_counts` stop depending on implicit `bx_data` array indexes.
+- Extend the Phase 21 item catalog to monsters and spells: stable content-id
+  lookup (`bx_monster_index` / spell ids) so rules stop relying on `bx_data`
+  array positions there too.
 - Keep observable gameplay behavior; existing tests pass; full Debug and
   sanitizer validation pass.
 
-(Behavior-preserving, and a prerequisite for data-only modules that define
-their own items.)
+(Prerequisite for data-only modules that instantiate monsters and spells by
+id.)

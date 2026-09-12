@@ -1,4 +1,5 @@
 #include "game.hpp"
+#include "item_catalog.hpp"
 
 #include "bx_data.hpp"
 
@@ -285,7 +286,7 @@ bool read_game_from(std::istream& in, Game& out) {
             if (bx::weapons[i].id == h.weapon_id) h.weapon_counts[i] = 1;
         for (std::size_t i = 0; i < bx::armor_items.size(); ++i)
             if (bx::armor_items[i].id == h.armor_id) h.armor_counts[i] = 1;
-        if (h.has_shield) h.armor_counts[3] = 1;
+        if (h.has_shield) h.armor_counts[*bx::armor_index("shield")] = 1;
     }
 
     // Restore runtime-only fields

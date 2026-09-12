@@ -1,6 +1,7 @@
 #include "bx_data.hpp"
 #include "game.hpp"
 #include "entity.hpp"
+#include "item_catalog.hpp"
 #include <iostream>
 #include <random>
 #include <filesystem>
@@ -19,35 +20,19 @@ static int roll_hp(int hd_sides, int con_mod, std::mt19937& rng) {
     return std::max(1, d(rng) + con_mod);
 }
 
-// Find weapon index by ID
-static int weapon_index(const char* id) {
-    for (std::size_t i = 0; i < bx::weapons.size(); ++i)
-        if (std::string_view(bx::weapons[i].id) == id)
-            return static_cast<int>(i);
-    return -1;
-}
-
-// Find armor index by ID
-static int armor_index(const char* id) {
-    for (std::size_t i = 0; i < bx::armor_items.size(); ++i)
-        if (std::string_view(bx::armor_items[i].id) == id)
-            return static_cast<int>(i);
-    return -1;
-}
-
 // Standard B/X starting gear
 static void give_starting_gear(Entity& e) {
-    e.gear_counts[0]  = 1; // backpack
-    e.gear_counts[15] = 1; // torches (6)
-    e.gear_counts[14] = 1; // tinder box
-    e.gear_counts[10] = 1; // rope
+    e.gear_counts[*bx::gear_index("backpack")]  = 1;
+    e.gear_counts[*bx::gear_index("torches")]   = 1; // torches (6)
+    e.gear_counts[*bx::gear_index("tinder-box")] = 1;
+    e.gear_counts[*bx::gear_index("rope")]      = 1;
     e.rations = 21; // one standard ration = 21 units (21 × 48 = 1008 turns ≈ 1 week)
-    e.gear_counts[16] = 1; // waterskin
+    e.gear_counts[*bx::gear_index("waterskin")] = 1;
     e.oil_flasks = 1;
-    e.gear_counts[1] = 1;  // oil-flask
+    e.gear_counts[*bx::gear_index("oil-flask")] = 1;
     // small sack, iron spikes
-    e.gear_counts[11] = 1; // small sack
-    e.gear_counts[5]  = 1; // iron spikes
+    e.gear_counts[*bx::gear_index("sack-small")] = 1;
+    e.gear_counts[*bx::gear_index("iron-spikes")] = 1;
 }
 
 // Generate and save a pregenerated character
@@ -88,19 +73,17 @@ static bool generate_and_save(
 
     // Weapon
     h.weapon_id = weapon_id;
-    int wi = weapon_index(weapon_id);
-    if (wi >= 0) h.weapon_counts[wi] = 1;
+    if (auto wi = bx::weapon_index(weapon_id)) h.weapon_counts[*wi] = 1;
 
     // Armor
     if (armor_id && std::string_view(armor_id) != "none") {
         h.armor_id = armor_id;
-        int ai = armor_index(armor_id);
-        if (ai >= 0) h.armor_counts[ai] = 1;
+        if (auto ai = bx::armor_index(armor_id)) h.armor_counts[*ai] = 1;
     } else {
         h.armor_id = "none";
     }
     h.has_shield = has_shield;
-    if (has_shield) h.armor_counts[3] = 1;
+    if (has_shield) h.armor_counts[*bx::armor_index("shield")] = 1;
 
     // Starting gear
     give_starting_gear(h);
