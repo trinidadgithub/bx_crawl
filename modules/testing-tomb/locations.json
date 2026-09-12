@@ -10,5 +10,11 @@
     "title": "Room A",
     "description_id": "module.testing_tomb.text.room_a",
     "map_id": "module.testing_tomb.map.tomb"
+  },
+  {
+    "location_id": "module.testing_tomb.location.room_b",
+    "title": "Room B",
+    "description_id": "module.testing_tomb.text.room_b",
+    "map_id": "module.testing_tomb.map.tomb"
   }
 ]

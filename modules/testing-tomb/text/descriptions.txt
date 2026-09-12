@@ -5,3 +5,7 @@ sealed door to the north, and the air smells faintly of old torch smoke.
 [module.testing_tomb.text.room_a]
 The chamber beyond the sealed door is bare except for cracked flagstones and
 fresh scratches leading toward deeper darkness.
+
+[module.testing_tomb.text.room_b]
+A low burial chamber packed with dusty niche alcoves. A skeleton in rusted
+mail stands guard across the treasure ledge, and a narrow pit yawns before it.

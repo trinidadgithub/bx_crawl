@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 26:
+- Architecture groundwork completed through Phase 27:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -46,6 +46,10 @@ finishing the architecture-review follow-up before expanding new gameplay.
     declared `locked` state on the runtime door tile and the core open/close
     commands drive it unchanged; crossing the door routes the session's
     `current_location_id` between the declared `from`/`to` locations
+  - Room B envelope: the tomb map grows to 10x5 with a second locked door and
+    the Room B location, skeleton guard, gold pile, and pit — all resolved by
+    the same loader, seeding, and door-route machinery with no new engine
+    logic
 
 ## Architecture Review Track
 
@@ -139,10 +143,12 @@ Already proven:
   the runtime door tile at module start; the core open/close commands drive
   pick/force/close behavior unchanged, and crossing the door tile moves
   `current_location_id` between the declared endpoint locations)
+- Room B (a second tomb envelope reached through a second locked door; the
+  Room B location, skeleton guard, gold pile, and pit are resolved by the
+  same loader, seeding, and door-route machinery with no new engine logic)
 
 Deferred until after the near-term architecture refactors:
 
-- Room B
 - tavern/module rumor tables and rumor delivery state
 - module flags and campaign save/reload
 
@@ -165,22 +171,22 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue with **Testing Tomb: Room B** — door state and location transitions
-are proven (the locked `entrance_to_room_a` door is planted at module start,
-the core open/close commands drive it, and crossing it routes the session
-between the Entrance and Room A). Add a second tomb map envelope that extends
-the proof into a two-room layout: another door definition routes into Room B
-(guarded, trapped, and with its own treasure) resolved by the same loader,
-seeding, and transition paths — no new engine logic.
+Continue with **Testing Tomb: tavern/module rumor tables and rumor delivery
+state** — the two-room tomb now proves multi-location data routing with no new
+engine logic. Add a module `rumors.json` (a table of rumor content ids), bind
+it to the tavern, and deliver and track which rumors each campaign has heard,
+mirroring the existing "content is data, runtime state is session" split that
+encounters/treasures/traps/doors proved.
 
 Acceptance criteria:
 
-- A second module map (or extended tomb map) with its own declared door routes
-  the session into Room B via the existing door/location-transition machinery.
-- Room B reuses the existing modules for encounters, treasures, traps, and
-  doors without new C++.
+- The module declares a rumor table and the tavern serves a distinct, tracked
+  rumor; heard rumors stay heard across the session.
+- Rumor content ids validate against the module namespace like every other
+  declared object.
 - Keep existing gameplay behavior; existing tests pass; full Debug and
   sanitizer validation pass.
 
-(Continues the module proof: encounters, treasure, traps, and doors are live,
-so the remaining surface is Room B, rumors/flags, and campaign save/reload.)
+(Continues the module proof: encounters, treasure, traps, doors, and a two-room
+layout are live, so the remaining surface is rumors/flags and campaign
+save/reload.)

@@ -5519,11 +5519,11 @@ TEST_CASE("Testing Tomb module loads and exposes its entry location") {
 
     const ModuleMapDefinition* map = result.module.find_map(entry->map_id);
     REQUIRE(map != nullptr);
-    CHECK(map->width == 5);
+    CHECK(map->width == 10);
     CHECK(map->height == 5);
     CHECK(map->entry_x == 2);
     CHECK(map->entry_y == 4);
-    REQUIRE(map->tiles.size() == 25);
+    REQUIRE(map->tiles.size() == 50);
     REQUIRE(map->tile_at(2, 4) != nullptr);
     CHECK(*map->tile_at(2, 4) == TileType::Floor);
     REQUIRE(map->tile_at(2, 2) != nullptr);
@@ -5536,6 +5536,11 @@ TEST_CASE("Testing Tomb module loads and exposes its entry location") {
     REQUIRE(room_a != nullptr);
     CHECK(room_a->title == "Room A");
 
+    const ModuleLocation* room_b = result.module.find_location("module.testing_tomb.location.room_b");
+    REQUIRE(room_b != nullptr);
+    CHECK(room_b->title == "Room B");
+    CHECK(room_b->map_id == "module.testing_tomb.map.tomb");
+
     const ModuleDoorDefinition* door = result.module.find_door(
         "module.testing_tomb.door.entrance_to_room_a");
     REQUIRE(door != nullptr);
@@ -5544,6 +5549,15 @@ TEST_CASE("Testing Tomb module loads and exposes its entry location") {
     CHECK(door->x == 2);
     CHECK(door->y == 2);
     CHECK(door->locked);
+
+    const ModuleDoorDefinition* room_b_door = result.module.find_door(
+        "module.testing_tomb.door.room_a_to_room_b");
+    REQUIRE(room_b_door != nullptr);
+    CHECK(room_b_door->from_location_id == "module.testing_tomb.location.room_a");
+    CHECK(room_b_door->to_location_id == "module.testing_tomb.location.room_b");
+    CHECK(room_b_door->x == 4);
+    CHECK(room_b_door->y == 1);
+    CHECK(room_b_door->locked);
 
     const std::string* description = result.module.find_description(entry->description_id);
     REQUIRE(description != nullptr);
@@ -5556,13 +5570,20 @@ TEST_CASE("Testing Tomb module loads its scripted encounters") {
     ModuleContentResult result = load_module_content(module_dir);
 
     REQUIRE(result.ok);
-    REQUIRE(result.module.encounters.size() == 1);
+    REQUIRE(result.module.encounters.size() == 2);
     const ModuleEncounter& watch = result.module.encounters[0];
     CHECK(watch.encounter_id == "module.testing_tomb.encounter.goblin_watch");
     CHECK(watch.monster_content_id == "bx.monster.goblin");
     CHECK(watch.x == 2);
     CHECK(watch.y == 1);
     CHECK(watch.count == 3);
+
+    const ModuleEncounter& guard = result.module.encounters[1];
+    CHECK(guard.encounter_id == "module.testing_tomb.encounter.room_b_guard");
+    CHECK(guard.monster_content_id == "bx.monster.skeleton");
+    CHECK(guard.x == 6);
+    CHECK(guard.y == 1);
+    CHECK(guard.count == 2);
 }
 
 TEST_CASE("Testing Tomb module loads its scripted treasures") {
@@ -5571,7 +5592,7 @@ TEST_CASE("Testing Tomb module loads its scripted treasures") {
     ModuleContentResult result = load_module_content(module_dir);
 
     REQUIRE(result.ok);
-    REQUIRE(result.module.treasures.size() == 2);
+    REQUIRE(result.module.treasures.size() == 3);
 
     const ModuleTreasure& gold = result.module.treasures[0];
     CHECK(gold.treasure_id == "module.testing_tomb.treasure.antechamber_gold");
@@ -5586,6 +5607,13 @@ TEST_CASE("Testing Tomb module loads its scripted treasures") {
     CHECK(gem.x == 3);
     CHECK(gem.y == 3);
     CHECK(gem.count == 1);
+
+    const ModuleTreasure& room_b_gold = result.module.treasures[2];
+    CHECK(room_b_gold.treasure_id == "module.testing_tomb.treasure.room_b_gold");
+    CHECK(room_b_gold.type == "gold");
+    CHECK(room_b_gold.x == 7);
+    CHECK(room_b_gold.y == 3);
+    CHECK(room_b_gold.count == 2);
 }
 
 TEST_CASE("Testing Tomb module loads its scripted traps") {
@@ -5594,13 +5622,19 @@ TEST_CASE("Testing Tomb module loads its scripted traps") {
     ModuleContentResult result = load_module_content(module_dir);
 
     REQUIRE(result.ok);
-    REQUIRE(result.module.traps.size() == 1);
+    REQUIRE(result.module.traps.size() == 2);
 
     const ModuleTrap& pit = result.module.traps[0];
     CHECK(pit.trap_id == "module.testing_tomb.trap.antechamber_pit");
     CHECK(pit.type == "pit");
     CHECK(pit.x == 1);
     CHECK(pit.y == 3);
+
+    const ModuleTrap& room_b_pit = result.module.traps[1];
+    CHECK(room_b_pit.trap_id == "module.testing_tomb.trap.room_b_pit");
+    CHECK(room_b_pit.type == "pit");
+    CHECK(room_b_pit.x == 6);
+    CHECK(room_b_pit.y == 3);
 }
 
 TEST_CASE("Module content loader rejects invalid encounters") {
@@ -6414,22 +6448,28 @@ TEST_CASE("GameSession starts at the Testing Tomb module entry location") {
     const Game& game = session.game();
     CHECK(game.state == GameState::Dungeon);
     CHECK(game.previous_state == GameState::Town);
-    CHECK(game.width == 5);
+    CHECK(game.width == 10);
     CHECK(game.height == 5);
-    REQUIRE(game.map.size() == 25);
+    REQUIRE(game.map.size() == 50);
     CHECK(game.hero.pos.x == 2);
     CHECK(game.hero.pos.y == 4);
     CHECK(game.current_location_id == "module.testing_tomb.location.entrance");
     CHECK(game.total_gold == 12);
     CHECK(game.hero.gold_pieces == 0);
-    CHECK(game.monsters.size() == 3);
+    REQUIRE(game.monsters.size() == 5);
     const std::array<std::pair<int, int>, 3> expected_spawns = {{{2, 1}, {3, 1}, {1, 1}}};
-    for (std::size_t i = 0; i < game.monsters.size(); ++i) {
+    for (std::size_t i = 0; i < 3; ++i) {
         const Entity& m = game.monsters[i];
         CHECK(m.name == "Goblin");
         CHECK(m.pos.x == expected_spawns[i].first);
         CHECK(m.pos.y == expected_spawns[i].second);
     }
+    CHECK(game.monsters[3].name == "Skeleton");
+    CHECK(game.monsters[3].pos.x == 6);
+    CHECK(game.monsters[3].pos.y == 1);
+    CHECK(game.monsters[4].name == "Skeleton");
+    CHECK(game.monsters[4].pos.x == 6);
+    CHECK(game.monsters[4].pos.y == 2);
     CHECK(game.rooms.empty());
     CHECK(game.map[static_cast<std::size_t>(4 * game.width + 2)].type == TileType::Floor);
     CHECK(game.map[static_cast<std::size_t>(2 * game.width + 2)].type == TileType::DoorClosed);
@@ -6443,7 +6483,7 @@ TEST_CASE("GameSession starts at the Testing Tomb module entry location") {
 
     GameStateSnapshot snapshot = session.snapshot();
     CHECK(snapshot.state == GameState::Dungeon);
-    CHECK(snapshot.width == 5);
+    CHECK(snapshot.width == 10);
     CHECK(snapshot.height == 5);
     CHECK(snapshot.hero.pos.x == 2);
     CHECK(snapshot.hero.pos.y == 4);
@@ -6852,5 +6892,122 @@ TEST_CASE("GameSession module door routes drive location transitions") {
     session.apply(PlayerCommand{PlayerCommandType::Move, 0, 1, 0});
     CHECK(game.hero.pos.x == 2);
     CHECK(game.hero.pos.y == 3);
+    CHECK(game.current_location_id == entrance);
+}
+
+TEST_CASE("GameSession seeds the Room B envelope from module data") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+
+    GameSession session;
+    REQUIRE(session.start_module(loaded.module, make_hero(0, 0, 2, 6, 14)).ok);
+
+    Game& game = session.game();
+    const auto idx = [&game](int x, int y) {
+        return static_cast<std::size_t>(y * game.width + x);
+    };
+
+    // The second locked door, trap, and treasure are planted on the runtime map.
+    CHECK(game.map[idx(4, 1)].type == TileType::DoorClosed);
+    CHECK(game.map[idx(4, 1)].locked);
+    CHECK(game.map[idx(6, 3)].has_trap);
+    CHECK(game.map[idx(6, 3)].trap_type == TrapType::Pit);
+    REQUIRE_FALSE(game.map[idx(7, 3)].items.empty());
+    CHECK(game.map[idx(7, 3)].items[0] == ItemType::Gold);
+
+    // The skeleton guard spawns behind the second locked door.
+    REQUIRE(game.monsters.size() == 5);
+    bool saw_skeleton_in_room_b = false;
+    for (const Entity& m : game.monsters) {
+        if (m.name == "Skeleton" && m.pos.x >= 5 && m.pos.y <= 3) saw_skeleton_in_room_b = true;
+    }
+    CHECK(saw_skeleton_in_room_b);
+}
+
+TEST_CASE("GameSession module door routes trail into Room B and back") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+    loaded.module.encounters.clear();
+
+    Entity hero = make_hero(0, 0, 2, 6, 14);
+    hero.char_class = CharacterClass::Thief;
+    hero.skill_pick_locks = 100;
+    hero.gear_counts[13] = 1; // thieves-tools
+
+    GameSession session;
+    REQUIRE(session.start_module(loaded.module, hero).ok);
+    Game& game = session.game();
+    const std::string entrance = "module.testing_tomb.location.entrance";
+    const std::string room_a = "module.testing_tomb.location.room_a";
+    const std::string room_b = "module.testing_tomb.location.room_b";
+    Tile& entrance_door = game.map[static_cast<std::size_t>(2 * game.width + 2)];
+    Tile& room_b_door = game.map[static_cast<std::size_t>(1 * game.width + 4)];
+
+    // The walkthrough takes more than a wandering-counter period; keep the
+    // counter pinned below its roll threshold so the test is deterministic.
+    auto apply_turn = [&](PlayerCommand cmd) {
+        session.apply(cmd);
+        game.wander_counter = 0;
+    };
+    auto at = [&](int x, int y) {
+        return game.hero.pos.x == x && game.hero.pos.y == y;
+    };
+
+    // Entrance corridor -> pick -> Room A.
+    apply_turn(PlayerCommand{PlayerCommandType::Move, 0, -1, 0});
+    CHECK(at(2, 3));
+    CHECK(game.current_location_id == entrance);
+    apply_turn(PlayerCommand{PlayerCommandType::Open, 0, 0, 0});
+    CHECK(entrance_door.type == TileType::DoorOpen);
+    apply_turn(PlayerCommand{PlayerCommandType::Move, 0, -1, 0});
+    CHECK(at(2, 2));
+    CHECK(game.current_location_id == room_a);
+
+    // Across Room A to the east door, pick it, and step into Room B.
+    apply_turn(PlayerCommand{PlayerCommandType::Move, 0, -1, 0});
+    CHECK(at(2, 1));
+    CHECK(game.current_location_id == room_a);
+    apply_turn(PlayerCommand{PlayerCommandType::Move, 1, 0, 0});
+    CHECK(at(3, 1));
+    CHECK(game.current_location_id == room_a);
+    CHECK(room_b_door.type == TileType::DoorClosed);
+    CHECK(room_b_door.locked);
+    apply_turn(PlayerCommand{PlayerCommandType::Open, 0, 0, 0});
+    CHECK(room_b_door.type == TileType::DoorOpen);
+    apply_turn(PlayerCommand{PlayerCommandType::Move, 1, 0, 0});
+    CHECK(at(4, 1));
+    CHECK(game.current_location_id == room_b);
+
+    // Roam Room B (skirting the pit at (6,3)), then route back through both
+    // doors to the entrance.
+    apply_turn(PlayerCommand{PlayerCommandType::Move, 1, 0, 0});
+    CHECK(at(5, 1));
+    CHECK(game.current_location_id == room_b);
+    apply_turn(PlayerCommand{PlayerCommandType::Move, 1, 0, 0});
+    CHECK(at(6, 1));
+    CHECK(game.current_location_id == room_b);
+    apply_turn(PlayerCommand{PlayerCommandType::Move, 0, 1, 0});
+    CHECK(at(6, 2));
+    CHECK(game.current_location_id == room_b);
+    apply_turn(PlayerCommand{PlayerCommandType::Move, -1, 0, 0});
+    CHECK(at(5, 2));
+    CHECK(game.current_location_id == room_b);
+    apply_turn(PlayerCommand{PlayerCommandType::Move, 0, -1, 0});
+    CHECK(at(5, 1));
+    CHECK(game.current_location_id == room_b);
+    apply_turn(PlayerCommand{PlayerCommandType::Move, -1, 0, 0});
+    CHECK(at(4, 1));
+    CHECK(game.current_location_id == room_a);
+    apply_turn(PlayerCommand{PlayerCommandType::Move, -1, 0, 0});
+    CHECK(at(3, 1));
+    CHECK(game.current_location_id == room_a);
+    apply_turn(PlayerCommand{PlayerCommandType::Move, -1, 0, 0});
+    CHECK(at(2, 1));
+    CHECK(game.current_location_id == room_a);
+    apply_turn(PlayerCommand{PlayerCommandType::Move, 0, 1, 0});
+    CHECK(at(2, 2));
+    CHECK(game.current_location_id == entrance);
+    apply_turn(PlayerCommand{PlayerCommandType::Move, 0, 1, 0});
+    CHECK(at(2, 3));
     CHECK(game.current_location_id == entrance);
 }
