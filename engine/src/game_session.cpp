@@ -1,6 +1,12 @@
 #include "game_session.hpp"
 
 #include "game.hpp"
+#include "game_internal.hpp"
+#include "map.hpp"
+#include "bx_data.hpp"
+#include "content_id.hpp"
+#include "item_catalog.hpp"
+#include "rules_catalog.hpp"
 
 #include <cstddef>
 #include <string>
@@ -11,6 +17,32 @@ namespace {
 void append_log(Game& g, std::string text) {
     g.event_log.push_back(text);
     g.events.push_back(GameEvent{GameEventType::LogMessage, std::move(text)});
+}
+
+bool walkable_tile(const Game& g, int x, int y) {
+    if (x < 0 || y < 0 || x >= g.width || y >= g.height)
+        return false;
+    const TileType type =
+        g.map[static_cast<std::size_t>(y * g.width + x)].type;
+    return type == TileType::Floor || type == TileType::DoorOpen ||
+           type == TileType::StairsUp || type == TileType::StairsDown;
+}
+
+// Place a monster near (x, y), preferring the requested tile and then the
+// adjacent tiles. Fails when every candidate is blocked.
+bool place_module_monster(Game& g, Entity& e, int x, int y) {
+    const int offsets[][2] = {{0, 0}, {0, 1}, {0, -1}, {1, 0}, {-1, 0}};
+    for (const auto& off : offsets) {
+        const int px = x + off[0];
+        const int py = y + off[1];
+        if (!walkable_tile(g, px, py))
+            continue;
+        if (game_internal::is_occupied(g, px, py))
+            continue;
+        e.pos = {px, py};
+        return true;
+    }
+    return false;
 }
 
 } // namespace
@@ -134,6 +166,31 @@ ModuleStartResult GameSession::start_module(const ModuleContent& module, Entity 
     Tile& start = game_.map[static_cast<std::size_t>(map->entry_y * map->width + map->entry_x)];
     start.explored = true;
     start.visible = true;
+
+    // Spawn scripted encounters. Module data stays data-only: encounters name
+    // monsters by stable content id, resolved here through the rules catalog.
+    for (const ModuleEncounter& encounter : module.encounters) {
+        const bx::Monster* monster =
+            RulesCatalog::core().find_monster(ContentId{encounter.monster_content_id});
+        if (monster == nullptr) {
+            game_ = Game{};
+            return {false, "encounter references unknown monster " + encounter.monster_content_id};
+        }
+        const auto slot = bx::monster_index(monster->name);
+        if (!slot) {
+            game_ = Game{};
+            return {false, "encounter monster not found in rules catalog"};
+        }
+
+        for (int i = 0; i < encounter.count; ++i) {
+            Entity e = game_internal::spawn_bx_monster_by_index(game_, static_cast<int>(*slot));
+            if (!place_module_monster(game_, e, encounter.x, encounter.y)) {
+                game_ = Game{};
+                return {false, "encounter is blocked: " + encounter.encounter_id};
+            }
+            game_.monsters.push_back(std::move(e));
+        }
+    }
 
     append_log(game_, "You enter " + module.manifest.title + ".");
     return {true, {}};
