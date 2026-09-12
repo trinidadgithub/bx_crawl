@@ -577,6 +577,9 @@ Testing Tomb slices delivered (data-only, no module-specific C++):
   commands driving pick/force/close unchanged, and door-crossing routing the
   session's `current_location_id` between the declared `from`/`to`
   locations.~~ Phase 26.
+- ~~Room B: a second tomb envelope reached through a second locked door, with
+  the new location, skeleton guard, gold pile, and pit all resolved by the
+  existing loader/seeding/door-route machinery (no new engine logic).~~ Phase 27.
 
 Before module support:
 
