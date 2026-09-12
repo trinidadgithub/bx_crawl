@@ -93,6 +93,7 @@ ActionResult GameSession::apply(const PlayerCommand& cmd) {
         }
     }
 
+    const std::string prev_location = g.current_location_id;
     result.keep_playing = apply_player_command(g, cmd);
     if (!result.keep_playing)
         return result;
@@ -107,6 +108,12 @@ ActionResult GameSession::apply(const PlayerCommand& cmd) {
         result.hero_died = true;
         return result;
     }
+
+    // Module maps have no north/south location split: the module door routes
+    // drive location transitions, so re-apply them after each move. The core's
+    // procedural update has already run inside the move by this point.
+    if (module_mode_ && cmd.type == PlayerCommandType::Move)
+        resolve_module_location(prev_location);
 
     if (!any_monsters_alive(g))
         announce_dungeon_at_peace(g);
@@ -222,10 +229,40 @@ ModuleStartResult GameSession::start_module(const ModuleContent& module, Entity 
         tile.trap_type = trap_type_from_module_type(trap.type);
     }
 
+    // Plant module door state and remember the declared door routes. The core
+    // Open/Close commands and movement blocking read the tile state; the routes
+    // drive module location transitions when the hero crosses a door.
+    module_door_routes_.clear();
+    for (const auto& [door_id, door] : module.doors) {
+        (void)door_id;
+        Tile& tile = game_
+            .map[static_cast<std::size_t>(door.y * game_.width + door.x)];
+        tile.locked = door.locked;
+        module_door_routes_.push_back(
+            ModuleDoorRoute{door.x, door.y, door.from_location_id, door.to_location_id});
+    }
+    module_mode_ = true;
+
     append_log(game_, "You enter " + module.manifest.title + ".");
     return {true, {}};
 }
 
 const std::vector<GameEvent>& GameSession::events() const {
     return game_.events;
+}
+
+void GameSession::resolve_module_location(const std::string& prev_location) {
+    for (const ModuleDoorRoute& door : module_door_routes_) {
+        if (game_.hero.pos.x != door.x || game_.hero.pos.y != door.y)
+            continue;
+        if (prev_location == door.from_location_id) {
+            game_.current_location_id = door.to_location_id;
+            return;
+        }
+        if (prev_location == door.to_location_id) {
+            game_.current_location_id = door.from_location_id;
+            return;
+        }
+    }
+    game_.current_location_id = prev_location;
 }

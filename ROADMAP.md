@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 25:
+- Architecture groundwork completed through Phase 26:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -42,6 +42,10 @@ finishing the architecture-review follow-up before expanding new gameplay.
   - module scripted encounters: `encounters.json` binds tile positions to
     monster content ids; `GameSession::start_module` instantiates them through
     the rules catalog
+  - module door state and location transitions: `start_module` plants the
+    declared `locked` state on the runtime door tile and the core open/close
+    commands drive it unchanged; crossing the door routes the session's
+    `current_location_id` between the declared `from`/`to` locations
 
 ## Architecture Review Track
 
@@ -131,10 +135,13 @@ Already proven:
   traps by stable content id at fixed tiles; `GameSession` plants the tile
   trap state and the core move/search rules resolve trigger, saving throw,
   damage, and disarming unchanged)
+- door state and location transitions (the declared locked door is planted on
+  the runtime door tile at module start; the core open/close commands drive
+  pick/force/close behavior unchanged, and crossing the door tile moves
+  `current_location_id` between the declared endpoint locations)
 
 Deferred until after the near-term architecture refactors:
 
-- runtime module door state and location transitions
 - Room B
 - tavern/module rumor tables and rumor delivery state
 - module flags and campaign save/reload
@@ -158,22 +165,22 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue with **Testing Tomb: door state and location transitions** — the
-module already declares `module.testing_tomb.door.entrance_to_room_a` as a
-locked door between the Entrance and Room A locations; make `GameSession`
-plant that locked/open state on the runtime door tile and route the core
-open/close interactions, so traversing the door moves the session's
-`current_location_id` between the declared locations.
+Continue with **Testing Tomb: Room B** — door state and location transitions
+are proven (the locked `entrance_to_room_a` door is planted at module start,
+the core open/close commands drive it, and crossing it routes the session
+between the Entrance and Room A). Add a second tomb map envelope that extends
+the proof into a two-room layout: another door definition routes into Room B
+(guarded, trapped, and with its own treasure) resolved by the same loader,
+seeding, and transition paths — no new engine logic.
 
 Acceptance criteria:
 
-- `GameSession` applies module door definitions (locked state) to the runtime
-  map at module start and the core open/close commands interact with them.
-- Crossing a door tile updates the session location to the matching declared
-  location (`room_a`), proving module-defined location transitions.
+- A second module map (or extended tomb map) with its own declared door routes
+  the session into Room B via the existing door/location-transition machinery.
+- Room B reuses the existing modules for encounters, treasures, traps, and
+  doors without new C++.
 - Keep existing gameplay behavior; existing tests pass; full Debug and
   sanitizer validation pass.
 
-(Continues the module proof: encounters, treasure, and traps are live, so the
-remaining interaction surface is door state, location transitions, Room B, and
-rumors/flags.)
+(Continues the module proof: encounters, treasure, traps, and doors are live,
+so the remaining surface is Room B, rumors/flags, and campaign save/reload.)

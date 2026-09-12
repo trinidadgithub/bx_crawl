@@ -6754,3 +6754,103 @@ TEST_CASE("chargen rules: finalize applies thief skills and gear defaults") {
     CHECK(fighter.skill_climb == 0);
     CHECK(fighter.gold_pieces == 0);
 }
+
+TEST_CASE("GameSession plants module door state on the runtime map") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+
+    GameSession session;
+    ModuleStartResult started = session.start_module(loaded.module, make_hero(0, 0, 2, 6, 14));
+    REQUIRE(started.ok);
+
+    Game& game = session.game();
+    Tile& door = game.map[static_cast<std::size_t>(2 * game.width + 2)];
+    CHECK(door.type == TileType::DoorClosed);
+    CHECK(door.locked);
+    CHECK(game.current_location_id == "module.testing_tomb.location.entrance");
+}
+
+TEST_CASE("GameSession module doors reuse the core locked-open rules") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+
+    Entity hero = make_hero(0, 0, 2, 6, 14);
+    hero.char_class = CharacterClass::Thief;
+    hero.skill_pick_locks = 100;
+    hero.gear_counts[13] = 1; // thieves-tools
+
+    GameSession session;
+    REQUIRE(session.start_module(loaded.module, hero).ok);
+    Game& game = session.game();
+    Tile& door = game.map[static_cast<std::size_t>(2 * game.width + 2)];
+    REQUIRE(door.type == TileType::DoorClosed);
+    REQUIRE(door.locked);
+
+    // Adjacent to the door, facing it.
+    game.hero.pos = {2, 3};
+    session.apply(PlayerCommand{PlayerCommandType::Open, 0, 0, 0});
+    CHECK(door.type == TileType::DoorOpen);
+    CHECK_FALSE(door.locked);
+
+    bool picked_log = false;
+    for (const auto& msg : game.event_log)
+        if (msg.find("You pick the lock and open the door.") != std::string::npos) picked_log = true;
+    CHECK(picked_log);
+
+    session.apply(PlayerCommand{PlayerCommandType::Close, 0, 0, 0});
+    CHECK(door.type == TileType::DoorClosed);
+    CHECK_FALSE(door.locked);
+}
+
+TEST_CASE("GameSession module door routes drive location transitions") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+    loaded.module.encounters.clear();
+
+    Entity hero = make_hero(0, 0, 2, 6, 14);
+    hero.char_class = CharacterClass::Thief;
+    hero.skill_pick_locks = 100;
+    hero.gear_counts[13] = 1; // thieves-tools
+
+    GameSession session;
+    REQUIRE(session.start_module(loaded.module, hero).ok);
+    Game& game = session.game();
+    const std::string entrance = "module.testing_tomb.location.entrance";
+    const std::string room_a = "module.testing_tomb.location.room_a";
+    Tile& door = game.map[static_cast<std::size_t>(2 * game.width + 2)];
+
+    // From the entry tile heading north through the entrance corridor.
+    session.apply(PlayerCommand{PlayerCommandType::Move, 0, -1, 0});
+    CHECK(game.hero.pos.x == 2);
+    CHECK(game.hero.pos.y == 3);
+    CHECK(game.current_location_id == entrance);
+
+    // The closed door blocks movement before it is unlocked.
+    session.apply(PlayerCommand{PlayerCommandType::Move, 0, -1, 0});
+    CHECK(game.hero.pos.x == 2);
+    CHECK(game.hero.pos.y == 3);
+    CHECK(door.type == TileType::DoorClosed);
+    CHECK(game.current_location_id == entrance);
+
+    // Pick the lock, then step through the door into Room A.
+    session.apply(PlayerCommand{PlayerCommandType::Open, 0, 0, 0});
+    CHECK(door.type == TileType::DoorOpen);
+    session.apply(PlayerCommand{PlayerCommandType::Move, 0, -1, 0});
+    CHECK(game.hero.pos.x == 2);
+    CHECK(game.hero.pos.y == 2);
+    CHECK(game.current_location_id == room_a);
+
+    // Deeper into Room A, then back through the door to the entrance.
+    session.apply(PlayerCommand{PlayerCommandType::Move, 0, -1, 0});
+    CHECK(game.hero.pos.x == 2);
+    CHECK(game.hero.pos.y == 1);
+    CHECK(game.current_location_id == room_a);
+    session.apply(PlayerCommand{PlayerCommandType::Move, 0, 1, 0});
+    CHECK(game.hero.pos.x == 2);
+    CHECK(game.hero.pos.y == 2);
+    CHECK(game.current_location_id == entrance);
+    session.apply(PlayerCommand{PlayerCommandType::Move, 0, 1, 0});
+    CHECK(game.hero.pos.x == 2);
+    CHECK(game.hero.pos.y == 3);
+    CHECK(game.current_location_id == entrance);
+}
