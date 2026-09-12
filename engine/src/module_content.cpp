@@ -506,6 +506,48 @@ ModuleContentResult load_traps(const std::filesystem::path& module_dir,
     return result;
 }
 
+ModuleContentResult load_rumors(const std::filesystem::path& module_dir,
+                                ModuleContent module) {
+    auto it = module.manifest.files.find("rumors");
+    if (it == module.manifest.files.end()) {
+        // Module opts out of tavern rumors.
+        ModuleContentResult result;
+        result.ok = true;
+        result.module = std::move(module);
+        return result;
+    }
+
+    std::string error;
+    std::string json = read_text_file(module_dir / it->second, "rumors", error);
+    if (!error.empty())
+        return fail(std::move(error));
+
+    for (const std::string& object : extract_flat_objects(json)) {
+        ModuleRumor rumor;
+        if (!extract_string(object, "rumor_id", rumor.rumor_id))
+            return fail("rumor missing rumor_id");
+        if (!extract_string(object, "description_id", rumor.description_id))
+            return fail("rumor missing description_id");
+
+        if (!valid_module_namespace(rumor.rumor_id, module.manifest, "rumor"))
+            return fail("invalid rumor_id");
+        if (!valid_module_namespace(rumor.description_id, module.manifest, "text"))
+            return fail("invalid rumor description_id");
+        for (const ModuleRumor& existing : module.rumors)
+            if (existing.rumor_id == rumor.rumor_id)
+                return fail("duplicate rumor_id");
+        if (!module.descriptions.contains(rumor.description_id))
+            return fail("rumor references missing description");
+
+        module.rumors.push_back(std::move(rumor));
+    }
+
+    ModuleContentResult result;
+    result.ok = true;
+    result.module = std::move(module);
+    return result;
+}
+
 } // namespace
 
 const TileType* ModuleMapDefinition::tile_at(int x, int y) const {
@@ -540,6 +582,13 @@ const ModuleDoorDefinition* ModuleContent::find_door(const std::string& door_id)
     if (it == doors.end())
         return nullptr;
     return &it->second;
+}
+
+const ModuleRumor* ModuleContent::find_rumor(const std::string& rumor_id) const {
+    for (const ModuleRumor& rumor : rumors)
+        if (rumor.rumor_id == rumor_id)
+            return &rumor;
+    return nullptr;
 }
 
 const std::string* ModuleContent::find_description(const std::string& description_id) const {
@@ -577,5 +626,9 @@ ModuleContentResult load_module_content(const std::filesystem::path& module_dir)
     if (!treasures.ok)
         return treasures;
 
-    return load_traps(module_dir, std::move(treasures.module));
+    ModuleContentResult traps = load_traps(module_dir, std::move(treasures.module));
+    if (!traps.ok)
+        return traps;
+
+    return load_rumors(module_dir, std::move(traps.module));
 }

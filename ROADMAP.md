@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 27:
+- Architecture groundwork completed through Phase 28:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -50,6 +50,9 @@ finishing the architecture-review follow-up before expanding new gameplay.
     the Room B location, skeleton guard, gold pile, and pit — all resolved by
     the same loader, seeding, and door-route machinery with no new engine
     logic
+  - module rumor tables and tavern delivery state: `rumors.json` declares
+    rumor content ids bound to module text blocks; the tavern `Listen` command
+    serves each rumor once and tracks the heard ids as session state
 
 ## Architecture Review Track
 
@@ -146,10 +149,14 @@ Already proven:
 - Room B (a second tomb envelope reached through a second locked door; the
   Room B location, skeleton guard, gold pile, and pit are resolved by the
   same loader, seeding, and door-route machinery with no new engine logic)
+- tavern/module rumor tables and rumor delivery state (`rumors.json` declares
+  rumor content ids bound to module text blocks; `GameSession::start_module`
+  binds the resolved texts to `Game`, the tavern `Listen` command (tavern key
+  2, replacing the old `Help` stub) serves each rumor exactly once, and the
+  heard rumor ids are tracked as session state per campaign)
 
 Deferred until after the near-term architecture refactors:
 
-- tavern/module rumor tables and rumor delivery state
 - module flags and campaign save/reload
 
 ## Gameplay Track
@@ -164,29 +171,28 @@ High-value gameplay items still known:
 - Shadows/wights/wraiths: drain effects and appropriate weapon immunity.
 - Rust monsters/oozes/slimes: equipment destruction/corrosion consistency.
 - Continue reviewing monster descriptions and stat data against the Basic Box PDF.
-- Add Tavern rumors; the UI advertises them, but the Tavern command currently
-  only implements paid rest.
 - Replace stale `Monsters.md` with a generated reference or a pointer to the
   monster tools and data files.
 
 ## Recommended Next Task
 
-Continue with **Testing Tomb: tavern/module rumor tables and rumor delivery
-state** — the two-room tomb now proves multi-location data routing with no new
-engine logic. Add a module `rumors.json` (a table of rumor content ids), bind
-it to the tavern, and deliver and track which rumors each campaign has heard,
-mirroring the existing "content is data, runtime state is session" split that
-encounters/treasures/traps/doors proved.
+Continue with **Testing Tomb: module flags and campaign save/reload** — rumor
+delivery state currently lives only for the session; make the campaign model
+carry module runtime state so a replayed hero keeps it. Fold the module-flag
+(mirroring the three-tier merit: a saved seth) into `CampaignState`/save, and
+persist the same session fields (current module, heard rumors, open doors)
+that this slice proved are mutable campaign state.
 
 Acceptance criteria:
 
-- The module declares a rumor table and the tavern serves a distinct, tracked
-  rumor; heard rumors stay heard across the session.
-- Rumor content ids validate against the module namespace like every other
-  declared object.
+- `CampaignState` captures module runtime state (current module identity,
+  heard rumors, and the door/platform flags the tomb proves), and save/load
+  round-trips it.
+- Restoring a campaign restores that module session state, keeping heard
+  rumors heard and opening previously reached doors/locations.
 - Keep existing gameplay behavior; existing tests pass; full Debug and
   sanitizer validation pass.
 
-(Continues the module proof: encounters, treasure, traps, doors, and a two-room
-layout are live, so the remaining surface is rumors/flags and campaign
-save/reload.)
+(Continues the module proof: encounters, treasure, traps, doors, a two-room
+layout, and rumor delivery are live; the remaining surface is campaign
+save/reload and module flags.)

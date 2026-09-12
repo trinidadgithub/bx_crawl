@@ -20,6 +20,12 @@ enum class GameState {
     CharacterSheet
 };
 
+// A rumor the tavern can serve: a module rumor id and its resolved text.
+struct GameRumor {
+    std::string rumor_id;
+    std::string text;
+};
+
 struct Game {
     int width{};
     int height{};
@@ -59,6 +65,11 @@ struct Game {
     GameState state{GameState::Town};
     GameState previous_state{GameState::Town};
     int town_submenu{0};
+
+    // Module rumor table bound to the tavern (resolved text) and the rumor ids
+    // the tavern has already served this session.
+    std::vector<GameRumor> module_rumors;
+    std::vector<std::string> heard_rumors;
 };
 
 // Random helper
@@ -161,7 +172,8 @@ enum class PlayerCommandType {
     Get,
     Use,
     Hide,
-    Search
+    Search,
+    Listen
 };
 
 struct PlayerCommand {

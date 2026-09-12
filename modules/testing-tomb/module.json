@@ -13,6 +13,7 @@
     "encounters": "encounters.json",
     "treasures": "treasures.json",
     "traps": "traps.json",
+    "rumors": "rumors.json",
     "descriptions": "text/descriptions.txt"
   }
 }

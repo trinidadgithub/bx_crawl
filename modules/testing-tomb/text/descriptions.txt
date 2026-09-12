@@ -9,3 +9,11 @@ fresh scratches leading toward deeper darkness.
 [module.testing_tomb.text.room_b]
 A low burial chamber packed with dusty niche alcoves. A skeleton in rusted
 mail stands guard across the treasure ledge, and a narrow pit yawns before it.
+
+[module.testing_tomb.text.rumor_hidden_passage]
+They say a passage behind the tomb's sealed door only opens for one who
+carries the warden's iron key.
+
+[module.testing_tomb.text.rumor_buried_gold]
+The tax collector's ledger claims the tribute was never recovered; the dead
+still guard it somewhere in the east chamber.

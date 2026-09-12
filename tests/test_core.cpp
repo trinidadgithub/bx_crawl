@@ -5637,6 +5637,30 @@ TEST_CASE("Testing Tomb module loads its scripted traps") {
     CHECK(room_b_pit.y == 3);
 }
 
+TEST_CASE("Testing Tomb module loads its scripted rumors") {
+    const auto module_dir = std::filesystem::path{"modules/testing-tomb"};
+
+    ModuleContentResult result = load_module_content(module_dir);
+
+    REQUIRE(result.ok);
+    REQUIRE(result.module.rumors.size() == 2);
+
+    const ModuleRumor& hidden = result.module.rumors[0];
+    CHECK(hidden.rumor_id == "module.testing_tomb.rumor.hidden_passage");
+    CHECK(hidden.description_id == "module.testing_tomb.text.rumor_hidden_passage");
+
+    const ModuleRumor& gold = result.module.rumors[1];
+    CHECK(gold.rumor_id == "module.testing_tomb.rumor.buried_gold");
+    CHECK(gold.description_id == "module.testing_tomb.text.rumor_buried_gold");
+
+    // Rumor content ids resolve against the module namespace and their text
+    // blocks load with the descriptions.
+    CHECK(result.module.find_rumor("module.testing_tomb.rumor.hidden_passage") != nullptr);
+    const std::string* text = result.module.find_description(hidden.description_id);
+    REQUIRE(text != nullptr);
+    CHECK(text->find("passage") != std::string::npos);
+}
+
 TEST_CASE("Module content loader rejects invalid encounters") {
     auto dir = make_manifest_test_dir("bx_module_content_bad_encounters");
     std::filesystem::create_directories(dir / "maps");
@@ -6224,6 +6248,215 @@ TEST_CASE("Module content loader rejects invalid traps") {
         ModuleContentResult result = load_module_content(dir);
         CHECK_FALSE(result.ok);
         CHECK(result.error == "could not open traps");
+    }
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("Module content loader rejects invalid rumors") {
+    auto dir = make_manifest_test_dir("bx_module_content_bad_rumors");
+    std::filesystem::create_directories(dir / "maps");
+    std::filesystem::create_directories(dir / "text");
+    write_module_json(dir, R"json({
+  "module_id": "testing_tomb",
+  "title": "Testing Tomb",
+  "version": "0.1.0",
+  "author": "BX Crawl",
+  "ruleset": "bx.moldvay_basic",
+  "engine_min_version": "0.1.0",
+  "content_schema_version": 1,
+  "entry_location_id": "module.testing_tomb.location.entrance",
+  "files": {
+    "locations": "locations.json",
+    "map": "maps/tomb.json",
+    "encounters": "encounters.json",
+    "treasures": "treasures.json",
+    "traps": "traps.json",
+    "rumors": "rumors.json",
+    "descriptions": "text/descriptions.txt"
+  }
+})json");
+    write_save_file(R"json([
+  {
+    "location_id": "module.testing_tomb.location.entrance",
+    "title": "Entrance",
+    "description_id": "module.testing_tomb.text.entrance",
+    "map_id": "module.testing_tomb.map.tomb"
+  },
+  {
+    "location_id": "module.testing_tomb.location.room_a",
+    "title": "Room A",
+    "description_id": "module.testing_tomb.text.room_a",
+    "map_id": "module.testing_tomb.map.tomb"
+  }
+])json", dir / "locations.json");
+    write_save_file(R"json({
+  "map_id": "module.testing_tomb.map.tomb",
+  "width": 5,
+  "height": 5,
+  "entry_x": 2,
+  "entry_y": 4,
+  "tiles": [
+    "#####",
+    "#...#",
+    "##+##",
+    "#...#",
+    "##.##"
+  ],
+  "doors": [
+    {
+      "door_id": "module.testing_tomb.door.entrance_to_room_a",
+      "from_location_id": "module.testing_tomb.location.entrance",
+      "to_location_id": "module.testing_tomb.location.room_a",
+      "x": 2,
+      "y": 2,
+      "locked": true
+    }
+  ]
+})json", dir / "maps/tomb.json");
+    write_save_file("[module.testing_tomb.text.entrance]\nEntrance text.\n"
+                    "[module.testing_tomb.text.room_a]\nRoom A text.\n"
+                    "[module.testing_tomb.text.rumor_test]\nRumor text.\n",
+                    dir / "text/descriptions.txt");
+    write_save_file(R"json([
+  {
+    "encounter_id": "module.testing_tomb.encounter.goblin_watch",
+    "monster": "bx.monster.goblin",
+    "x": 2,
+    "y": 1,
+    "count": 3
+  }
+])json", dir / "encounters.json");
+    write_save_file(R"json([
+  {
+    "treasure_id": "module.testing_tomb.treasure.gold_pile",
+    "type": "gold",
+    "x": 2,
+    "y": 3,
+    "count": 1
+  }
+])json", dir / "treasures.json");
+    write_save_file(R"json([
+  {
+    "trap_id": "module.testing_tomb.trap.antechamber_pit",
+    "type": "pit",
+    "x": 1,
+    "y": 3
+  }
+])json", dir / "traps.json");
+    write_save_file(R"json([
+  {
+    "rumor_id": "module.testing_tomb.rumor.test",
+    "description_id": "module.testing_tomb.text.rumor_test"
+  }
+])json", dir / "rumors.json");
+
+    SUBCASE("all rumors load") {
+        write_save_file(R"json([
+  {
+    "rumor_id": "module.testing_tomb.rumor.one",
+    "description_id": "module.testing_tomb.text.rumor_test"
+  },
+  {
+    "rumor_id": "module.testing_tomb.rumor.two",
+    "description_id": "module.testing_tomb.text.rumor_test"
+  }
+])json", dir / "rumors.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK(result.error.empty());
+        REQUIRE(result.ok);
+        REQUIRE(result.module.rumors.size() == 2);
+        CHECK(result.module.rumors[0].rumor_id == "module.testing_tomb.rumor.one");
+        CHECK(result.module.rumors[1].rumor_id == "module.testing_tomb.rumor.two");
+    }
+
+    SUBCASE("missing rumor id") {
+        write_save_file(R"json([
+  {
+    "description_id": "module.testing_tomb.text.rumor_test"
+  }
+])json", dir / "rumors.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "rumor missing rumor_id");
+    }
+
+    SUBCASE("missing description id") {
+        write_save_file(R"json([
+  {
+    "rumor_id": "module.testing_tomb.rumor.test"
+  }
+])json", dir / "rumors.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "rumor missing description_id");
+    }
+
+    SUBCASE("invalid rumor_id") {
+        write_save_file(R"json([
+  {
+    "rumor_id": "spaces are bad",
+    "description_id": "module.testing_tomb.text.rumor_test"
+  }
+])json", dir / "rumors.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "invalid rumor_id");
+    }
+
+    SUBCASE("duplicate rumor_id") {
+        write_save_file(R"json([
+  {
+    "rumor_id": "module.testing_tomb.rumor.dup",
+    "description_id": "module.testing_tomb.text.rumor_test"
+  },
+  {
+    "rumor_id": "module.testing_tomb.rumor.dup",
+    "description_id": "module.testing_tomb.text.rumor_test"
+  }
+])json", dir / "rumors.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "duplicate rumor_id");
+    }
+
+    SUBCASE("description id outside the text namespace") {
+        write_save_file(R"json([
+  {
+    "rumor_id": "module.testing_tomb.rumor.test",
+    "description_id": "module.testing_tomb.door.entrance_to_room_a"
+  }
+])json", dir / "rumors.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "invalid rumor description_id");
+    }
+
+    SUBCASE("description id not declared") {
+        write_save_file(R"json([
+  {
+    "rumor_id": "module.testing_tomb.rumor.test",
+    "description_id": "module.testing_tomb.text.nope"
+  }
+])json", dir / "rumors.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "rumor references missing description");
+    }
+
+    SUBCASE("missing rumors file that the manifest declares") {
+        std::filesystem::remove(dir / "rumors.json");
+
+        ModuleContentResult result = load_module_content(dir);
+        CHECK_FALSE(result.ok);
+        CHECK(result.error == "could not open rumors");
     }
 
     std::filesystem::remove_all(dir);
@@ -7010,4 +7243,73 @@ TEST_CASE("GameSession module door routes trail into Room B and back") {
     apply_turn(PlayerCommand{PlayerCommandType::Move, 0, 1, 0});
     CHECK(at(2, 3));
     CHECK(game.current_location_id == entrance);
+}
+
+TEST_CASE("GameSession binds the module rumor table to the tavern") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+    REQUIRE(loaded.module.rumors.size() == 2);
+
+    GameSession session;
+    REQUIRE(session.start_module(loaded.module, make_hero(0, 0, 2, 6, 14)).ok);
+
+    const Game& game = session.game();
+    REQUIRE(game.module_rumors.size() == 2);
+    CHECK(game.module_rumors[0].rumor_id == "module.testing_tomb.rumor.hidden_passage");
+    CHECK(game.module_rumors[1].rumor_id == "module.testing_tomb.rumor.buried_gold");
+    CHECK(game.heard_rumors.empty());
+
+    // Runtime text is the resolved module description, not a content id.
+    const std::string* hidden =
+        loaded.module.find_description("module.testing_tomb.text.rumor_hidden_passage");
+    REQUIRE(hidden != nullptr);
+    CHECK(game.module_rumors[0].text == *hidden);
+    CHECK(game.module_rumors[0].text.find("passage") != std::string::npos);
+}
+
+TEST_CASE("GameSession tavern serves each module rumor exactly once") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+
+    GameSession session;
+    REQUIRE(session.start_module(loaded.module, make_hero(0, 0, 2, 6, 14)).ok);
+    Game& game = session.game();
+
+    // Return to town and walk into the tavern (clears the event log on entry).
+    game.state = GameState::Town;
+    game.event_log.clear();
+    REQUIRE(session.apply(PlayerCommand{PlayerCommandType::Move, 0, -1, 0}).keep_playing);
+    CHECK(game.state == GameState::Tavern);
+    CHECK(game.event_log.empty());
+
+    const PlayerCommand listen{PlayerCommandType::Listen, 0, 0, 0};
+
+    CHECK(session.apply(listen).keep_playing);
+    REQUIRE(game.heard_rumors.size() == 1);
+    CHECK(game.heard_rumors[0] == "module.testing_tomb.rumor.hidden_passage");
+    REQUIRE_FALSE(game.event_log.empty());
+    CHECK(game.event_log.back() == game.module_rumors[0].text);
+
+    CHECK(session.apply(listen).keep_playing);
+    REQUIRE(game.heard_rumors.size() == 2);
+    CHECK(game.heard_rumors[1] == "module.testing_tomb.rumor.buried_gold");
+    CHECK(game.event_log.back() == game.module_rumors[1].text);
+
+    // A third listen finds no new rumors and stays a no-op.
+    CHECK(session.apply(listen).keep_playing);
+    REQUIRE(game.heard_rumors.size() == 2);
+    CHECK(game.event_log.back() == "The barkeep has no rumors to share with you.");
+}
+
+TEST_CASE("GameSession tavern serves no rumors before the module is loaded") {
+    Game g = make_minimal_game();
+    g.state = GameState::Tavern;
+    g.hero = make_hero(1, 1, 0, 1, 9);
+    GameSession session{std::move(g)};
+
+    const PlayerCommand listen{PlayerCommandType::Listen, 0, 0, 0};
+    CHECK(session.apply(listen).keep_playing);
+    CHECK(session.game().heard_rumors.empty());
+    REQUIRE_FALSE(session.game().event_log.empty());
+    CHECK(session.game().event_log.back() == "The barkeep has no rumors to share with you.");
 }

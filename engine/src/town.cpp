@@ -126,6 +126,24 @@ bool apply_town_command(Game& g, const PlayerCommand& cmd) {
                 }
                 return true;
             }
+            case PlayerCommandType::Listen: {
+                // Serve the next module rumor the campaign has not heard yet, in
+                // declaration order; once every rumor is out, the barkeep has
+                // nothing new to share.
+                const auto next = std::find_if(
+                    g.module_rumors.begin(), g.module_rumors.end(),
+                    [&g](const GameRumor& rumor) {
+                        return std::find(g.heard_rumors.begin(), g.heard_rumors.end(),
+                                         rumor.rumor_id) == g.heard_rumors.end();
+                    });
+                if (next == g.module_rumors.end()) {
+                    log_event(g, "The barkeep has no rumors to share with you.");
+                } else {
+                    g.heard_rumors.push_back(next->rumor_id);
+                    log_event(g, next->text);
+                }
+                return true;
+            }
             default: break;
         }
         // Navigation from tavern
