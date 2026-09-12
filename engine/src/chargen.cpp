@@ -1,6 +1,7 @@
 #include "chargen.hpp"
 #include "game.hpp"
 #include "bx_data.hpp"
+#include "item_catalog.hpp"
 #include "game_internal.hpp"
 
 #include <algorithm>
@@ -208,11 +209,14 @@ bool buy_starting_armor(Entity& hero, int bx_armor_index, int& purse_gp, int dex
 }
 
 bool buy_starting_shield(Entity& hero, int& purse_gp) {
-    if (purse_gp < 10) return false;
-    purse_gp -= 10;
+    const auto shield_slot = bx::armor_index("shield");
+    if (!shield_slot) return false;
+    const auto& shield = bx::armor_items[*shield_slot];
+    if (purse_gp < shield.cost_gp) return false;
+    purse_gp -= shield.cost_gp;
     hero.has_shield = true;
-    hero.armor_counts[3]++; // armor_items[3] is the shield
-    hero.ac -= 1;           // B/X: shield gives a -1 AC bonus
+    hero.armor_counts[*shield_slot]++;
+    hero.ac += shield.ac;   // B/X: shield gives a -1 AC bonus
     return true;
 }
 

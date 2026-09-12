@@ -4,6 +4,7 @@
 #include "map.hpp"
 #include "bx_data.hpp"
 #include "item_effects.hpp"
+#include "inventory.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -2345,11 +2346,11 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
 
             // Light a torch from inventory
             if (g.hero.torch_turns == 0) {
-                if (g.hero.gear_counts[15] > 0) {
+                if (item_count(g.hero, "torches") > 0) {
                     if (!has_gear(g.hero, "tinder-box")) {
                         log_event(g, "You need a tinder box to light a torch.");
                     } else {
-                        g.hero.gear_counts[15]--;
+                        consume_owned_item(g.hero, "torches");
                         g.hero.torch_turns = 20;
                         log_event(g, "You light a torch.");
                     }

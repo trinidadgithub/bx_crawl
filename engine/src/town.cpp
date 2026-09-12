@@ -1,5 +1,6 @@
 #include "game.hpp"
 #include "game_internal.hpp"
+#include "inventory.hpp"
 #include "bx_data.hpp"
 
 #include <algorithm>
@@ -35,7 +36,7 @@ void buy_gear_item(Game& g, int gear_index) {
     }
 
     g.total_gold -= item.cost_gp;
-    g.hero.gear_counts[static_cast<std::size_t>(gear_index)]++;
+    give_item(g.hero, item.id);
 
     std::string_view id(item.id);
     if (id == "standard-rations") {

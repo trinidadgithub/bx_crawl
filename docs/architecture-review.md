@@ -29,6 +29,8 @@ Repository
 |   +-- bx_data.hpp       Generated/curated constexpr B/X data
 |   +-- chargen.hpp       Level-1 character generation rules (non-interactive)
 |   +-- dice.hpp          DiceRoller: wraps the game RNG behind rule calls
+|   +-- item_catalog.hpp  Validated item content-id -> table-position mapping
+|   +-- inventory.hpp     ID-based inventory access (item_count, give, consume)
 |   +-- sound.hpp         Procedural sound API
 |   +-- description.hpp   Text description store
 |
@@ -37,6 +39,7 @@ Repository
 |   +-- src/map.cpp       Procedural dungeon map generation
 |   +-- src/chargen.cpp   Character generation rules (no console I/O)
 |   +-- src/dice.cpp      DiceRoller rule draws (d / range)
+|   +-- src/item_catalog.cpp  Item catalog lookups + Entity size pinning
 |   +-- src/sound.cpp     Fork/exec sound backend
 |   +-- src/description.cpp
 |   +-- src/item_effects.cpp
@@ -163,7 +166,10 @@ Modern C++ usage is pragmatic but can improve:
 - `const` usage is decent but can be strengthened around helper functions.
 - Stronger domain types would help for `Hp`, `ArmorClass`, `Coins`, `DungeonLevel`, `Turns`, `TileIndex`, and `MonsterId`, but should be introduced selectively.
 - Public structs expose all internals. That is convenient for tests but makes future module APIs unstable.
-- Some arrays depend on implicit indexes matching `bx_data`, e.g. `weapon_counts`, `armor_counts`, and `gear_counts`. This is efficient but fragile for module-defined items.
+- Inventory counts use fixed arrays on `Entity` (`weapon_counts`, `armor_counts`,
+  `gear_counts`) whose positions line up with `bx_data`. `item_catalog.hpp` is
+  now the single validated id→position mapping, and ID-based access
+  (`inventory.hpp`) is available, so new code need not assume implicit indexes.
 
 ## Rules Engine Review
 
@@ -565,7 +571,7 @@ Before module support:
 - Define module manifest and validation errors.
 - Add `ContentCatalog` lookup by stable ids rather than array indexes.
 - Separate immutable content definitions from mutable runtime state.
-- Replace gear/weapon/armor fixed-count arrays with id-based inventory or validated content indexes.
+- ~~Replace gear/weapon/armor fixed-count arrays with id-based inventory or validated content indexes.~~ Done in Phase 21: `item_catalog.hpp` provides validated content-id → table-position lookup, `inventory.hpp` adds ID-based access, and kit-writing call sites use them.
 - Persist full campaign/module state, including current module id/version and world flags.
 - Add module-loading tests with one tiny sample module.
 

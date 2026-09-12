@@ -9,6 +9,8 @@
 #include "rules_catalog.hpp"
 #include "campaign_state.hpp"
 #include "chargen.hpp"
+#include "item_catalog.hpp"
+#include "inventory.hpp"
 
 #include <cstdint>
 #include <cstdlib>
@@ -199,6 +201,91 @@ TEST_CASE("DiceRoller: Game::rng snapshots and replays roll_d streams") {
     g2.rng.seed(31337u);
     for (int i = 0; i < 500; ++i) {
         CHECK(roll_d(g1, 20) == roll_d(g2, 20));
+    }
+}
+
+// ── Item catalog and ID-based inventory tests ────────────
+
+TEST_CASE("Item catalog: weapon_index resolves known IDs and rejects unknown") {
+    CHECK(bx::weapon_index("sword").has_value());
+    CHECK(bx::weapon_index("dagger").has_value());
+    CHECK(bx::weapon_index("war-hammer").has_value());
+    CHECK_FALSE(bx::weapon_index("nuclear-missile").has_value());
+}
+
+TEST_CASE("Item catalog: armor_index resolves known IDs and rejects unknown") {
+    CHECK(bx::armor_index("leather-armor").has_value());
+    CHECK(bx::armor_index("shield").has_value());
+    CHECK(bx::armor_index("chain-mail").has_value());
+    CHECK_FALSE(bx::armor_index("adamantine-plate").has_value());
+}
+
+TEST_CASE("Item catalog: gear_index resolves known IDs and rejects unknown") {
+    CHECK(bx::gear_index("torches").has_value());
+    CHECK(bx::gear_index("backpack").has_value());
+    CHECK(bx::gear_index("holy-water").has_value());
+    CHECK_FALSE(bx::gear_index("this-does-not-exist").has_value());
+}
+
+TEST_CASE("Item catalog: find_item routes across all three tables") {
+    auto weapon = bx::inventory_item_by_id("sword");
+    CHECK(weapon.has_value());
+    CHECK(weapon->kind == bx::InventorySlotKind::Weapon);
+
+    auto armor = bx::inventory_item_by_id("shield");
+    CHECK(armor.has_value());
+    CHECK(armor->kind == bx::InventorySlotKind::Armor);
+
+    auto gear = bx::inventory_item_by_id("torches");
+    CHECK(gear.has_value());
+    CHECK(gear->kind == bx::InventorySlotKind::Gear);
+
+    CHECK_FALSE(bx::inventory_item_by_id("utter-bogus").has_value());
+}
+
+TEST_CASE("ID-based inventory: item_count / give / set / consume across all tables") {
+    Game g = make_minimal_game();
+
+    SUBCASE("weapon count") {
+        CHECK(item_count(g.hero, "sword") == 0);
+        give_item(g.hero, "sword");
+        CHECK(item_count(g.hero, "sword") == 1);
+        give_item(g.hero, "sword");
+        CHECK(item_count(g.hero, "sword") == 2);
+        set_item_count(g.hero, "sword", 4);
+        CHECK(item_count(g.hero, "sword") == 4);
+        CHECK(consume_owned_item(g.hero, "sword", 4));
+        CHECK(item_count(g.hero, "sword") == 0);
+        CHECK_FALSE(consume_owned_item(g.hero, "sword", 1));
+        CHECK(item_count(g.hero, "sword") == 0);
+    }
+
+    SUBCASE("armor count") {
+        CHECK(item_count(g.hero, "chain-mail") == 0);
+        give_item(g.hero, "chain-mail");
+        give_item(g.hero, "chain-mail");
+        CHECK(item_count(g.hero, "chain-mail") == 2);
+        set_item_count(g.hero, "chain-mail", 0);
+        CHECK(item_count(g.hero, "chain-mail") == 0);
+    }
+
+    SUBCASE("gear count") {
+        CHECK(item_count(g.hero, "torches") == 0);
+        give_item(g.hero, "torches", 3);
+        CHECK(item_count(g.hero, "torches") == 3);
+        CHECK(consume_owned_item(g.hero, "torches", 2));
+        CHECK(item_count(g.hero, "torches") == 1);
+        CHECK_FALSE(consume_owned_item(g.hero, "torches", 2));
+        CHECK(item_count(g.hero, "torches") == 1);  // unchanged on failure
+    }
+
+    SUBCASE("unknown id is a no-op") {
+        CHECK(item_count(g.hero, "legendary-artifact") == 0);
+        give_item(g.hero, "legendary-artifact");
+        CHECK(item_count(g.hero, "legendary-artifact") == 0);
+        set_item_count(g.hero, "legendary-artifact", 5);
+        CHECK(item_count(g.hero, "legendary-artifact") == 0);
+        CHECK_FALSE(consume_owned_item(g.hero, "legendary-artifact", 1));
     }
 }
 
