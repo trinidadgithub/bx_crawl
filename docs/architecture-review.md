@@ -29,7 +29,7 @@ Repository
 |   +-- bx_data.hpp       Generated/curated constexpr B/X data
 |   +-- chargen.hpp       Level-1 character generation rules (non-interactive)
 |   +-- dice.hpp          DiceRoller: wraps the game RNG behind rule calls
-|   +-- item_catalog.hpp  Validated item content-id -> table-position mapping
+|   +-- item_catalog.hpp  Validated content-id / name -> table-position mapping
 |   +-- inventory.hpp     ID-based inventory access (item_count, give, consume)
 |   +-- sound.hpp         Procedural sound API
 |   +-- description.hpp   Text description store
@@ -569,7 +569,7 @@ Near-term:
 Before module support:
 
 - Define module manifest and validation errors.
-- Add `ContentCatalog` lookup by stable ids rather than array indexes.
+- ~~Add `ContentCatalog` lookup by stable ids rather than array indexes.~~ Done in Phases 21-22: `item_catalog.hpp` maps item content ids and monster/spell names to validated table positions (pinned by `static_assert`), `rules_catalog` maps full `ContentId`s, and kit-facing code uses them.
 - Separate immutable content definitions from mutable runtime state.
 - ~~Replace gear/weapon/armor fixed-count arrays with id-based inventory or validated content indexes.~~ Done in Phase 21: `item_catalog.hpp` provides validated content-id → table-position lookup, `inventory.hpp` adds ID-based access, and kit-writing call sites use them.
 - Persist full campaign/module state, including current module id/version and world flags.
