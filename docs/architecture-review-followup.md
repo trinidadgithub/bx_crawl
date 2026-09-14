@@ -210,7 +210,7 @@ Campaign/runtime state describes what has happened:
 - Quest state.
 - RNG state or seed when deterministic continuation is required.
 
-Current location: partially in `Game`, partially in save files, but not fully persisted.
+Current location: partially in `Game`, partially in save files, but not fully persisted. Since Phase 29 the module rows above are concrete: `Game` carries module identity, `heard_rumors`/`module_door_states`/`current_location_id` capture opened doors and world/module flags, and `CampaignState` + save format v6 persist them (restored via `GameSession::resume_module`).
 
 Recommended C++ boundaries:
 

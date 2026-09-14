@@ -86,6 +86,7 @@ campaign save/reload slice.
   `printf 'x' | timeout 30 env BX_LOAD_SAVE=Hrothgar
   ./build/frontends/text/bx_crawl_text` and quits cleanly.
 
-READY for the next Testing Tomb slice: module flags and campaign save/reload —
-the rumor slice proves the mutable session state (heard ids, current module,
-open door/location state) that the campaign save model needs to capture.
+Delivered by the next slice, Phase 29 (module flags and campaign save/reload): the
+rumor slice proved the mutable session state (heard ids, current module, open
+door/location state) that the campaign save model now captures, persists in the
+v6 save format, and restores through `GameSession::resume_module`.

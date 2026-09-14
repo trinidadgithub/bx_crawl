@@ -585,6 +585,12 @@ Testing Tomb slices delivered (data-only, no module-specific C++):
   resolved texts to `Game`, and the tavern `Listen` command (formerly the
   no-op `Help` stub on tavern key 2) serves each rumor once with heard ids
   tracked as session state.~~ Phase 28.
+- ~~Module flags and campaign save/reload: `Game` carries module identity and
+  per-door flags, `CampaignState` captures/restores them, save format v6
+  persists the module tail (identity, current location, heard rumors, door
+  flags), and `GameSession::resume_module` re-binds a module from content plus
+  captured state so heard rumors stay heard and picked doors stay open.~~
+  Phase 29.
 
 Before module support:
 
@@ -592,7 +598,7 @@ Before module support:
 - ~~Add `ContentCatalog` lookup by stable ids rather than array indexes.~~ Done in Phases 21-22: `item_catalog.hpp` maps item content ids and monster/spell names to validated table positions (pinned by `static_assert`), `rules_catalog` maps full `ContentId`s, and kit-facing code uses them.
 - Separate immutable content definitions from mutable runtime state.
 - ~~Replace gear/weapon/armor fixed-count arrays with id-based inventory or validated content indexes.~~ Done in Phase 21: `item_catalog.hpp` provides validated content-id → table-position lookup, `inventory.hpp` adds ID-based access, and kit-writing call sites use them.
-- Persist full campaign/module state, including current module id/version and world flags.
+- ~~Persist full campaign/module state, including current module id/version and world flags.~~ Done in Phase 29: the module identity, heard rumor ids, and door flags ride `CampaignState` and save v6; the `resume_module` session method restores them.
 - Add module-loading tests with one tiny sample module.
 
 Future:

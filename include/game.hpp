@@ -24,6 +24,19 @@ enum class GameState {
 struct GameRumor {
     std::string rumor_id;
     std::string text;
+
+    bool operator==(const GameRumor&) const = default;
+};
+
+// Mutable module door runtime state, keyed by the module's stable door id.
+// Position, routes, and the author's locked flag are module content; a
+// campaign only needs to persist whether the tile sits open and unlocked.
+struct ModuleDoorFlag {
+    std::string door_id;
+    bool open{false};
+    bool locked{false};
+
+    bool operator==(const ModuleDoorFlag&) const = default;
 };
 
 struct Game {
@@ -70,6 +83,12 @@ struct Game {
     // the tavern has already served this session.
     std::vector<GameRumor> module_rumors;
     std::vector<std::string> heard_rumors;
+
+    // Module identity (empty for the procedural core campaign) and the mutable
+    // door states a module campaign must persist across saves.
+    std::string module_id;
+    std::string module_version;
+    std::vector<ModuleDoorFlag> module_door_states;
 };
 
 // Random helper

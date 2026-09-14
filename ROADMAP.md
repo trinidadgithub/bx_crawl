@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 28:
+- Architecture groundwork completed through Phase 29:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -53,6 +53,11 @@ finishing the architecture-review follow-up before expanding new gameplay.
   - module rumor tables and tavern delivery state: `rumors.json` declares
     rumor content ids bound to module text blocks; the tavern `Listen` command
     serves each rumor once and tracks the heard ids as session state
+  - module flags and campaign save/reload: `Game` carries the module identity
+    and per-door flags, `CampaignState` captures them, the binary save format
+    advances to v6 with the module tail, and `GameSession::resume_module`
+    re-binds a module from content plus captured state so heard rumors stay
+    heard and picked doors stay open
 
 ## Architecture Review Track
 
@@ -154,10 +159,15 @@ Already proven:
   binds the resolved texts to `Game`, the tavern `Listen` command (tavern key
   2, replacing the old `Help` stub) serves each rumor exactly once, and the
   heard rumor ids are tracked as session state per campaign)
+- module flags and campaign save/reload (`Game` carries module identity and
+  mutable door flags, `CampaignState` captures/restores them, save format v6
+  persists the module tail, and `GameSession::resume_module` restores a
+  replayed hero's heard rumors, open doors, and location from content plus
+  captured state)
 
-Deferred until after the near-term architecture refactors:
+Deferred:
 
-- module flags and campaign save/reload
+- (nothing currently deferred; the near-term architecture refactors are done)
 
 ## Gameplay Track
 
@@ -176,23 +186,22 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-Continue with **Testing Tomb: module flags and campaign save/reload** — rumor
-delivery state currently lives only for the session; make the campaign model
-carry module runtime state so a replayed hero keeps it. Fold the module-flag
-(mirroring the three-tier merit: a saved seth) into `CampaignState`/save, and
-persist the same session fields (current module, heard rumors, open doors)
-that this slice proved are mutable campaign state.
+**Testing Tomb: campaign boot** — turn the engine/nested test-proof into a
+playable module campaign. Every content slice (encounters, treasure, traps,
+doors, rumor delivery) and the campaign model (identity, heard rumors, door
+flags through save v6 + `resume_module`) is proven at the engine layer; the
+frontend has never started a module. Add the module start/boot path:
+`gen_pregenerated` (or the frontend) seeds a Testing Tomb campaign save via
+`start_module`/`save_game`, and startup transparently binds it back through
+`resume_module` when `BX_START_MODULE`/the save says so.
 
 Acceptance criteria:
 
-- `CampaignState` captures module runtime state (current module identity,
-  heard rumors, and the door/platform flags the tomb proves), and save/load
-  round-trips it.
-- Restoring a campaign restores that module session state, keeping heard
-  rumors heard and opening previously reached doors/locations.
-- Keep existing gameplay behavior; existing tests pass; full Debug and
-  sanitizer validation pass.
+- A Testing Tomb campaign save round-trips through the real frontend boot path:
+  start the module, play, save, quit, reload, and resume in-module with heard
+  rumors and open doors intact.
+- The procedural core path is unchanged; existing smoke tests (`BX_LOAD_SAVE`)
+  still boot to town; full Debug and sanitizer validation pass.
 
-(Continues the module proof: encounters, treasure, traps, doors, a two-room
-layout, and rumor delivery are live; the remaining surface is campaign
-save/reload and module flags.)
+(Continues the module proof: the last remaining surface is a playable module
+campaign entry point; all content and campaign machinery is already live.)
