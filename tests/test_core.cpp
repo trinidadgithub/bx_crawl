@@ -3916,6 +3916,45 @@ CraftedSave make_valid_save_v5() {
     return s;
 }
 
+struct CraftedSaveV6 {
+    std::string bytes;
+    std::size_t off_module_id_len{};
+    std::size_t off_n_rumors{};
+    std::size_t off_n_doors{};
+};
+
+void patch_i32(std::string& bytes, std::size_t off, int32_t v);
+
+// A valid version-6 payload: the v5 layout plus the trailing module-campaign
+// fields. Offsets mark the v6 count/string fields so corruption tests can
+// target them.
+CraftedSaveV6 make_valid_save_v6() {
+    CraftedSaveV6 s;
+    auto i32 = [&](int32_t v) { s.bytes += pack_i32(v); };
+    auto str = [&](const std::string& v) { s.bytes += pack_str(v); };
+
+    s.bytes += make_valid_save_v5().bytes;
+    // Re-issue the header with the current version.
+    patch_i32(s.bytes, 4, 6);
+
+    s.off_module_id_len = s.bytes.size();
+    str("module.testing_tomb");
+    str("0.1.0");
+    str("module.testing_tomb.location.room_a");
+
+    s.off_n_rumors = s.bytes.size();
+    i32(2);
+    str("module.testing_tomb.rumor.hidden_passage");
+    str("module.testing_tomb.rumor.buried_gold");
+
+    s.off_n_doors = s.bytes.size();
+    i32(1);
+    str("module.testing_tomb.door.entrance_to_room_a");
+    i32(1); // open
+    i32(0); // locked
+    return s;
+}
+
 void write_save_file(const std::string& bytes, const std::filesystem::path& path) {
     std::ofstream out(path, std::ios::binary);
     out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
@@ -4012,6 +4051,67 @@ TEST_CASE("Crafted v5 payload loads, validating the format contract") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("Crafted v6 payload loads module campaign fields, validating the v6 tail") {
+    auto crafted = make_valid_save_v6();
+    auto path = std::filesystem::path{"/tmp/opencode/bx_crawl_crafted_v6.dat"};
+    write_save_file(crafted.bytes, path);
+
+    Game loaded = make_minimal_game();
+    CHECK(load_game(loaded, path));
+    CHECK(loaded.hero.name == "CraftedHero");
+    CHECK(loaded.module_id == "module.testing_tomb");
+    CHECK(loaded.module_version == "0.1.0");
+    CHECK(loaded.current_location_id == "module.testing_tomb.location.room_a");
+    REQUIRE(loaded.heard_rumors.size() == 2);
+    CHECK(loaded.heard_rumors[0] == "module.testing_tomb.rumor.hidden_passage");
+    CHECK(loaded.heard_rumors[1] == "module.testing_tomb.rumor.buried_gold");
+    REQUIRE(loaded.module_door_states.size() == 1);
+    CHECK(loaded.module_door_states[0].door_id == "module.testing_tomb.door.entrance_to_room_a");
+    CHECK(loaded.module_door_states[0].open);
+    CHECK_FALSE(loaded.module_door_states[0].locked);
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("Save/load round-trips module campaign state (v6)") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(5, 3, 0, 4, 9);
+    g.hero.name = "ModuleMarion";
+    g.state = GameState::Dungeon;
+    g.module_id = "module.testing_tomb";
+    g.module_version = "0.1.0";
+    g.current_location_id = "module.testing_tomb.location.room_b";
+    g.heard_rumors = {
+        "module.testing_tomb.rumor.hidden_passage",
+        "module.testing_tomb.rumor.buried_gold"
+    };
+    g.module_door_states = {
+        ModuleDoorFlag{"module.testing_tomb.door.entrance_to_room_a", true, false},
+        ModuleDoorFlag{"module.testing_tomb.door.room_a_to_room_b", false, false}
+    };
+    g.total_gold = 17;
+
+    const auto path = std::filesystem::path{"/tmp/opencode/bx_crawl_v6_roundtrip.dat"};
+    std::filesystem::remove(path);
+    CHECK(save_game(g, path));
+
+    Game loaded;
+    CHECK(load_game(loaded, path));
+    CHECK(loaded.module_id == "module.testing_tomb");
+    CHECK(loaded.module_version == "0.1.0");
+    CHECK(loaded.current_location_id == "module.testing_tomb.location.room_b");
+    CHECK(loaded.heard_rumors == g.heard_rumors);
+    REQUIRE(loaded.module_door_states.size() == 2);
+    CHECK(loaded.module_door_states[0].door_id == g.module_door_states[0].door_id);
+    CHECK(loaded.module_door_states[0].open);
+    CHECK_FALSE(loaded.module_door_states[0].locked);
+    CHECK(loaded.module_door_states[1].open == false);
+    CHECK(loaded.module_door_states[1].locked == false);
+    CHECK(loaded.total_gold == 17);
+
+    std::filesystem::remove(path);
+}
+
 TEST_CASE("Malformed saves: bad magic and unsupported versions are rejected") {
     auto path = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_magic.dat"};
     write_save_file("NOTABXSAVE........", path);
@@ -4019,7 +4119,7 @@ TEST_CASE("Malformed saves: bad magic and unsupported versions are rejected") {
     assert_load_rejected_cleanly(g, path);
     std::filesystem::remove(path);
 
-    for (int32_t bad_version : {-1, 0, 6, 1000000}) {
+    for (int32_t bad_version : {-1, 0, 7, 1000000}) {
         auto c = make_valid_save_v5();
         patch_i32(c.bytes, 4, bad_version);
         auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_version.dat"};
@@ -4117,8 +4217,54 @@ TEST_CASE("Malformed saves: impossible counts and levels are rejected") {
     }
 }
 
+TEST_CASE("Malformed saves: v6 module fields reject corrupt counts and strings") {
+    Game g = make_known_game_state();
+
+    // The v6 string is length-prefixed like every other save string.
+    {
+        auto c = make_valid_save_v6();
+        patch_i32(c.bytes, c.off_module_id_len, -3);
+        auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_v6str.dat"};
+        write_save_file(c.bytes, p);
+        assert_load_rejected_cleanly(g, p);
+        std::filesystem::remove(p);
+    }
+
+    for (int32_t n : {-1, 1000000}) {
+        auto c = make_valid_save_v6();
+        patch_i32(c.bytes, c.off_n_rumors, n);
+        auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_nrumors.dat"};
+        write_save_file(c.bytes, p);
+        assert_load_rejected_cleanly(g, p);
+        std::filesystem::remove(p);
+
+        auto c2 = make_valid_save_v6();
+        patch_i32(c2.bytes, c2.off_n_doors, n);
+        auto p2 = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_ndoors.dat"};
+        write_save_file(c2.bytes, p2);
+        assert_load_rejected_cleanly(g, p2);
+        std::filesystem::remove(p2);
+    }
+
+    // Truncating anywhere in the v6 tail (module ids, rumor list, door list)
+    // must reject without disturbing the live game state.
+    auto c = make_valid_save_v6();
+    const std::vector<std::size_t> cuts = {
+        c.off_module_id_len + 2, c.off_n_rumors, c.off_n_rumors + 4,
+        c.off_n_doors, c.bytes.size() - 8, c.bytes.size() - 1
+    };
+    int idx = 0;
+    for (std::size_t cut : cuts) {
+        auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_truncv6_" +
+                                       std::to_string(idx++) + ".dat"};
+        write_save_file(c.bytes.substr(0, cut), p);
+        assert_load_rejected_cleanly(g, p);
+        std::filesystem::remove(p);
+    }
+}
+
 TEST_CASE("Old save versions still load with defaulted fields") {
-    for (int32_t version : {1, 2, 3, 4}) {
+    for (int32_t version : {1, 2, 3, 4, 5}) {
         auto crafted = make_valid_save_v5();
         patch_i32(crafted.bytes, 4, version);
         auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_old_v" +
@@ -4140,6 +4286,15 @@ TEST_CASE("Old save versions still load with defaulted fields") {
                 any_owned = any_owned || (c != 0);
             CHECK_FALSE(any_owned);   // weapon_id empty → no weapon restored
         }
+
+        // Versions before 6 predate module campaign state: all of it defaults
+        // to empty rather than leaking stale hero-only runtime into a module.
+        CHECK(loaded.module_id.empty());
+        CHECK(loaded.module_version.empty());
+        CHECK(loaded.current_location_id.empty());
+        CHECK(loaded.heard_rumors.empty());
+        CHECK(loaded.module_door_states.empty());
+
         std::filesystem::remove(p);
     }
 }
@@ -5328,11 +5483,54 @@ TEST_CASE("CampaignState separates future module identity from current procedura
     Game restored = make_minimal_game();
     restore_campaign_state(restored, state);
 
-    // Module metadata is part of the campaign model, but restoring into current
-    // Game intentionally does not create a module runtime in this phase.
+    // Module identity is part of the campaign model and restores onto Game:
+    // a procedural Game carries no module, and the restored Game adopts the
+    // captured module identity for the session layer to re-bind against.
     CHECK(restored.current_location_id == state.current_location_id);
+    CHECK(restored.module_id == "module.testing_tomb");
+    CHECK(restored.module_version == "0.1.0");
     CHECK(state.module_id == "module.testing_tomb");
     CHECK(state.module_version == "0.1.0");
+}
+
+TEST_CASE("CampaignState captures module runtime state: identity, rumors, doors") {
+    Game g = make_minimal_game(12, 8);
+    g.module_id = "module.testing_tomb";
+    g.module_version = "0.1.0";
+    g.current_location_id = "module.testing_tomb.location.room_b";
+    g.module_rumors = {
+        GameRumor{"module.testing_tomb.rumor.hidden_passage", "A hidden passage."},
+        GameRumor{"module.testing_tomb.rumor.buried_gold", "Gold lies buried."}
+    };
+    g.heard_rumors = {"module.testing_tomb.rumor.hidden_passage"};
+    g.module_door_states = {
+        ModuleDoorFlag{"module.testing_tomb.door.entrance_to_room_a", true, false},
+        ModuleDoorFlag{"module.testing_tomb.door.room_a_to_room_b", false, true}
+    };
+
+    CampaignState state = capture_campaign_state(g);
+
+    CHECK(state.module_id == g.module_id);
+    CHECK(state.module_version == g.module_version);
+    CHECK(state.current_location_id == g.current_location_id);
+    REQUIRE(state.module_rumors.size() == 2);
+    CHECK(state.module_rumors[0].rumor_id == g.module_rumors[0].rumor_id);
+    CHECK(state.module_rumors[0].text == "A hidden passage.");
+    CHECK(state.heard_rumors == g.heard_rumors);
+    REQUIRE(state.module_door_states.size() == 2);
+    CHECK(state.module_door_states[0].door_id == g.module_door_states[0].door_id);
+    CHECK(state.module_door_states[0].open);
+    CHECK_FALSE(state.module_door_states[0].locked);
+    CHECK(state.module_door_states[1].locked);
+
+    Game restored = make_minimal_game();
+    restore_campaign_state(restored, state);
+    CHECK(restored.module_id == state.module_id);
+    CHECK(restored.module_version == state.module_version);
+    CHECK(restored.current_location_id == state.current_location_id);
+    CHECK(restored.module_rumors == state.module_rumors);
+    CHECK(restored.heard_rumors == state.heard_rumors);
+    CHECK(restored.module_door_states == state.module_door_states);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -7312,4 +7510,133 @@ TEST_CASE("GameSession tavern serves no rumors before the module is loaded") {
     CHECK(session.game().heard_rumors.empty());
     REQUIRE_FALSE(session.game().event_log.empty());
     CHECK(session.game().event_log.back() == "The barkeep has no rumors to share with you.");
+}
+
+namespace {
+
+// A thief who can pick any tomb lock, with the tools to try.
+Entity make_thief_for_module() {
+    Entity hero = make_hero(0, 0, 2, 6, 14);
+    hero.char_class = CharacterClass::Thief;
+    hero.skill_pick_locks = 100;
+    hero.gear_counts[13] = 1; // thieves-tools
+    return hero;
+}
+
+// Open the entrance door (2,2) from the corridor tile (2,3), then walk into
+// the tavern and hear both rumors. Returns once both are heard.
+void play_module_progression(GameSession& session) {
+    Game& game = session.game();
+    session.apply(PlayerCommand{PlayerCommandType::Move, 0, -1, 0}); // to (2,3)
+    session.apply(PlayerCommand{PlayerCommandType::Open, 0, 0, 0});  // pick entrance door
+
+    game.state = GameState::Town;
+    game.event_log.clear();
+    session.apply(PlayerCommand{PlayerCommandType::Move, 0, -1, 0}); // into tavern
+    const PlayerCommand listen{PlayerCommandType::Listen, 0, 0, 0};
+    session.apply(listen);
+    session.apply(listen);
+}
+
+} // anonymous namespace
+
+TEST_CASE("GameSession resume_module restores heard rumors and door flags") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+
+    GameSession first;
+    REQUIRE(first.start_module(loaded.module, make_thief_for_module()).ok);
+    Game& game = first.game();
+    Tile& entrance_door = game.map[static_cast<std::size_t>(2 * game.width + 2)];
+
+    play_module_progression(first);
+    REQUIRE(game.heard_rumors.size() == 2);
+    CHECK(entrance_door.type == TileType::DoorOpen);
+    CHECK_FALSE(entrance_door.locked);
+
+    CampaignState campaign = capture_campaign_state(game);
+
+    // A fresh session re-binds the module only from content + campaign state.
+    GameSession resumed;
+    ModuleStartResult started =
+        resumed.resume_module(loaded.module, campaign.hero, campaign);
+    REQUIRE(started.ok);
+
+    const Game& rg = resumed.game();
+    REQUIRE(rg.heard_rumors.size() == 2);
+    CHECK(rg.heard_rumors[0] == campaign.heard_rumors[0]);
+    CHECK(rg.heard_rumors[1] == campaign.heard_rumors[1]);
+    CHECK(rg.current_location_id == campaign.current_location_id);
+
+    // The entrance door restores open and unlocked; Room B's door stays at its
+    // authored locked state because no campaign flag unsealed it.
+    REQUIRE(rg.module_door_states.size() == 2);
+    for (const ModuleDoorFlag& flag : rg.module_door_states) {
+        if (flag.door_id == "module.testing_tomb.door.entrance_to_room_a") {
+            CHECK(flag.open);
+            CHECK_FALSE(flag.locked);
+        } else {
+            CHECK(flag.door_id == "module.testing_tomb.door.room_a_to_room_b");
+            CHECK_FALSE(flag.open);
+            CHECK(flag.locked);
+        }
+    }
+    const Tile& resumed_door = rg.map[static_cast<std::size_t>(2 * rg.width + 2)];
+    CHECK(resumed_door.type == TileType::DoorOpen);
+    CHECK_FALSE(resumed_door.locked);
+
+    // The rumor table re-resolves from content (the campaign carries heard
+    // ids, not text).
+    REQUIRE(rg.module_rumors.size() == 2);
+    CHECK(rg.module_rumors[0].rumor_id == "module.testing_tomb.rumor.hidden_passage");
+    CHECK_FALSE(rg.module_rumors[0].text.empty());
+}
+
+TEST_CASE("Module campaign state round-trips save/load and resumes") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+
+    GameSession first;
+    REQUIRE(first.start_module(loaded.module, make_thief_for_module()).ok);
+    Game& game = first.game();
+    play_module_progression(first);
+    REQUIRE(game.heard_rumors.size() == 2);
+
+    // Captured campaign -> binary save -> load -> capture -> resume is the
+    // full persistence arc a replayed hero goes through.
+    CampaignState campaign = capture_campaign_state(game);
+
+    const auto path = std::filesystem::path{"/tmp/opencode/bx_crawl_module_campaign.dat"};
+    std::filesystem::remove(path);
+    REQUIRE(save_game(game, path));
+
+    Game on_disk;
+    REQUIRE(load_game(on_disk, path));
+    CHECK(on_disk.module_id == "testing_tomb");
+    CHECK(on_disk.module_version == "0.1.0");
+    REQUIRE(on_disk.heard_rumors.size() == 2);
+
+    CampaignState reloaded = capture_campaign_state(on_disk);
+    CHECK(reloaded.heard_rumors == campaign.heard_rumors);
+    CHECK(reloaded.module_door_states == campaign.module_door_states);
+
+    GameSession resumed;
+    ModuleStartResult started =
+        resumed.resume_module(loaded.module, reloaded.hero, reloaded);
+    REQUIRE(started.ok);
+
+    const Game& rg = resumed.game();
+    REQUIRE(rg.heard_rumors.size() == 2);
+    CHECK(rg.heard_rumors == campaign.heard_rumors);
+    REQUIRE(rg.module_door_states.size() == 2);
+    for (const ModuleDoorFlag& flag : rg.module_door_states) {
+        if (flag.door_id == "module.testing_tomb.door.entrance_to_room_a") {
+            CHECK(flag.open);
+            CHECK_FALSE(flag.locked);
+        }
+    }
+    const Tile& resumed_door = rg.map[static_cast<std::size_t>(2 * rg.width + 2)];
+    CHECK(resumed_door.type == TileType::DoorOpen);
+
+    std::filesystem::remove(path);
 }

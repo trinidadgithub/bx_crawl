@@ -2,7 +2,12 @@
 
 CampaignState capture_campaign_state(const Game& game) {
     CampaignState state;
+    state.module_id = game.module_id;
+    state.module_version = game.module_version;
     state.current_location_id = game.current_location_id;
+    state.module_rumors = game.module_rumors;
+    state.heard_rumors = game.heard_rumors;
+    state.module_door_states = game.module_door_states;
     state.state = game.state;
     state.previous_state = game.previous_state;
     state.town_submenu = game.town_submenu;
@@ -25,7 +30,12 @@ CampaignState capture_campaign_state(const Game& game) {
 }
 
 void restore_campaign_state(Game& game, const CampaignState& state) {
+    game.module_id = state.module_id;
+    game.module_version = state.module_version;
     game.current_location_id = state.current_location_id;
+    game.module_rumors = state.module_rumors;
+    game.heard_rumors = state.heard_rumors;
+    game.module_door_states = state.module_door_states;
     game.state = state.state;
     game.previous_state = state.previous_state;
     game.town_submenu = state.town_submenu;

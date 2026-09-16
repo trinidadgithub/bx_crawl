@@ -12,11 +12,18 @@ struct CampaignState {
     int schema_version{1};
     std::string rules_version{"bx.moldvay-basic"};
 
-    // Empty until module loading exists. These fields reserve the ownership
-    // boundary without introducing a module system in this phase.
+    // Module identity when this campaign runs a module; empty for the
+    // procedural core campaign. current_location_id carries the hero's
+    // position within the module's location graph.
     std::string module_id;
     std::string module_version;
     std::string current_location_id;
+
+    // Module runtime state a campaign must persist: the bound rumor table,
+    // the rumor ids already heard, and the module's mutable door tiles.
+    std::vector<GameRumor> module_rumors;
+    std::vector<std::string> heard_rumors;
+    std::vector<ModuleDoorFlag> module_door_states;
 
     GameState state{GameState::Town};
     GameState previous_state{GameState::Town};

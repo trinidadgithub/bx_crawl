@@ -1,5 +1,6 @@
 #pragma once
 
+#include "campaign_state.hpp"
 #include "game.hpp"
 #include "game_snapshot.hpp"
 #include "module_content.hpp"
@@ -63,21 +64,34 @@ public:
     // treasures, traps, or mutable campaign state.
     ModuleStartResult start_module(const ModuleContent& module, Entity hero);
 
+    // Restart a module campaign and re-apply the persisted module runtime
+    // state: heard rumors stay heard, previously opened doors restore to open,
+    // and the hero resumes at the captured location. The module rebuilds its
+    // authored map and content from `module`; only mutable state (rumor ids,
+    // door flags, location) comes from `campaign`.
+    ModuleStartResult resume_module(const ModuleContent& module, Entity hero,
+                                    const CampaignState& campaign);
+
     // Structured event stream. Frontends may consume new events by retaining a
     // cursor into this vector; Game still owns event storage for now.
     const std::vector<GameEvent>& events() const;
 
 private:
-    // Module-backed runtime state: the declared door routes (tile position and
-    // both endpoint locations).
+    // Module-backed runtime state: the declared door routes (stable door id,
+    // tile position and both endpoint locations).
     bool module_mode_{false};
     struct ModuleDoorRoute {
+        std::string door_id;
         int x{};
         int y{};
         std::string from_location_id;
         std::string to_location_id;
     };
     std::vector<ModuleDoorRoute> module_door_routes_;
+
+    // Refresh Game::module_door_states from the runtime door tiles so
+    // campaign capture sees the current open/locked flags.
+    void sync_module_door_states();
 
     void resolve_module_location(const std::string& prev_location);
 

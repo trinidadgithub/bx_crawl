@@ -34,6 +34,13 @@ constexpr int32_t kMaxHeroLevel = 14;
 // beyond any authored content.
 constexpr int32_t kMaxDungeonLevel = 100;
 
+// Module rumor tables are small ordered lists; the cap keeps a corrupt count
+// from triggering a pathological allocation.
+constexpr int32_t kMaxSerializedRumorCount = 100;
+
+// A module declares at most a handful of doors; the cap mirrors the rumor cap.
+constexpr int32_t kMaxSerializedDoorCount = 100;
+
 // Byte-exact stream helpers. Every persistence read/write goes through these
 // so a short-read or a failed write is never silently ignored.
 bool write_exact(std::ostream& out, const char* src, std::size_t n) {
@@ -111,7 +118,7 @@ bool read_game_from(std::istream& in, Game& out) {
     int32_t version = 0;
     if (!read_int(in, version))
         return false;
-    if (version < 1 || version > 5)
+    if (version < 1 || version > 6)
         return false;
 
     Entity& h = out.hero;
@@ -289,6 +296,58 @@ bool read_game_from(std::istream& in, Game& out) {
         if (h.has_shield) h.armor_counts[*bx::armor_index("shield")] = 1;
     }
 
+    // Version 6+ fields
+    if (version >= 6) {
+        if (!read_str(in, out.module_id))
+            return false;
+        if (!read_str(in, out.module_version))
+            return false;
+        if (!read_str(in, out.current_location_id))
+            return false;
+
+        int32_t n_rumors = 0;
+        if (!read_int(in, n_rumors))
+            return false;
+        if (n_rumors < 0 || n_rumors > kMaxSerializedRumorCount)
+            return false;
+        out.heard_rumors.clear();
+        out.heard_rumors.reserve(static_cast<std::size_t>(n_rumors));
+        for (int32_t i = 0; i < n_rumors; ++i) {
+            std::string rumor_id;
+            if (!read_str(in, rumor_id))
+                return false;
+            out.heard_rumors.push_back(std::move(rumor_id));
+        }
+
+        int32_t n_doors = 0;
+        if (!read_int(in, n_doors))
+            return false;
+        if (n_doors < 0 || n_doors > kMaxSerializedDoorCount)
+            return false;
+        out.module_door_states.clear();
+        out.module_door_states.reserve(static_cast<std::size_t>(n_doors));
+        for (int32_t i = 0; i < n_doors; ++i) {
+            ModuleDoorFlag flag;
+            if (!read_str(in, flag.door_id))
+                return false;
+            int32_t open = 0;
+            int32_t locked = 0;
+            if (!read_int(in, open))
+                return false;
+            if (!read_int(in, locked))
+                return false;
+            flag.open = (open != 0);
+            flag.locked = (locked != 0);
+            out.module_door_states.push_back(std::move(flag));
+        }
+    } else {
+        out.module_id.clear();
+        out.module_version.clear();
+        out.current_location_id.clear();
+        out.heard_rumors.clear();
+        out.module_door_states.clear();
+    }
+
     // Restore runtime-only fields
     h.type  = EntityType::Hero;
     h.alive = true;
@@ -423,7 +482,7 @@ bool save_game(const Game& g, const std::filesystem::path& path) {
 
     // Magic + version
     if (!write_exact(out, "BXSV", 4)) return false;
-    int32_t version = 5;
+    int32_t version = 6;
     if (!write_int(out, version)) return false;
 
     const auto& h = g.hero;
@@ -504,6 +563,26 @@ bool save_game(const Game& g, const std::filesystem::path& path) {
         if (!write_int(out, count)) return false;
     for (int count : h.armor_counts)
         if (!write_int(out, count)) return false;
+
+    // Version 6+ fields
+    if (!write_str(out, g.module_id)) return false;
+    if (!write_str(out, g.module_version)) return false;
+    if (!write_str(out, g.current_location_id)) return false;
+
+    if (g.heard_rumors.size() > static_cast<std::size_t>(kMaxSerializedRumorCount))
+        return false;
+    if (!write_int(out, static_cast<int32_t>(g.heard_rumors.size()))) return false;
+    for (const auto& rumor_id : g.heard_rumors)
+        if (!write_str(out, rumor_id)) return false;
+
+    if (g.module_door_states.size() > static_cast<std::size_t>(kMaxSerializedDoorCount))
+        return false;
+    if (!write_int(out, static_cast<int32_t>(g.module_door_states.size()))) return false;
+    for (const auto& flag : g.module_door_states) {
+        if (!write_str(out, flag.door_id)) return false;
+        if (!write_int(out, flag.open ? 1 : 0)) return false;
+        if (!write_int(out, flag.locked ? 1 : 0)) return false;
+    }
 
     out.flush();
     if (!out) return false;

@@ -115,6 +115,11 @@ ActionResult GameSession::apply(const PlayerCommand& cmd) {
     if (module_mode_ && cmd.type == PlayerCommandType::Move)
         resolve_module_location(prev_location);
 
+    // Keep the campaign-facing door flags in step with the runtime tiles
+    // whenever a dungeon command may have opened, closed, or picked a door.
+    if (module_mode_)
+        sync_module_door_states();
+
     if (!any_monsters_alive(g))
         announce_dungeon_at_peace(g);
 
@@ -158,6 +163,8 @@ ModuleStartResult GameSession::start_module(const ModuleContent& module, Entity 
 
     game_ = Game{};
     init_game_runtime(game_);
+    game_.module_id = module.manifest.module_id;
+    game_.module_version = module.manifest.version;
     game_.width = map->width;
     game_.height = map->height;
     game_.map.assign(map->tiles.size(), Tile{});
@@ -238,8 +245,8 @@ ModuleStartResult GameSession::start_module(const ModuleContent& module, Entity 
         Tile& tile = game_
             .map[static_cast<std::size_t>(door.y * game_.width + door.x)];
         tile.locked = door.locked;
-        module_door_routes_.push_back(
-            ModuleDoorRoute{door.x, door.y, door.from_location_id, door.to_location_id});
+        module_door_routes_.push_back(ModuleDoorRoute{
+            door.door_id, door.x, door.y, door.from_location_id, door.to_location_id});
     }
     module_mode_ = true;
 
@@ -257,11 +264,52 @@ ModuleStartResult GameSession::start_module(const ModuleContent& module, Entity 
     }
 
     append_log(game_, "You enter " + module.manifest.title + ".");
+    sync_module_door_states();
     return {true, {}};
 }
 
 const std::vector<GameEvent>& GameSession::events() const {
     return game_.events;
+}
+
+ModuleStartResult GameSession::resume_module(const ModuleContent& module, Entity hero,
+                                             const CampaignState& campaign) {
+    ModuleStartResult started = start_module(module, std::move(hero));
+    if (!started.ok)
+        return started;
+
+    Game& g = game_;
+    // start_module re-resolves the rumor texts from module content, which is
+    // authoritative; only heard-ness is true campaign state.
+    g.heard_rumors = campaign.heard_rumors;
+    g.current_location_id = campaign.current_location_id;
+
+    // Re-apply persisted door flags onto the freshly rebuilt map.
+    for (const ModuleDoorFlag& flag : campaign.module_door_states) {
+        for (const ModuleDoorRoute& route : module_door_routes_) {
+            if (route.door_id != flag.door_id)
+                continue;
+            Tile& tile = game_
+                .map[static_cast<std::size_t>(route.y * game_.width + route.x)];
+            if (flag.open)
+                tile.type = TileType::DoorOpen;
+            tile.locked = flag.locked;
+            break;
+        }
+    }
+    sync_module_door_states();
+    return {true, {}};
+}
+
+void GameSession::sync_module_door_states() {
+    game_.module_door_states.clear();
+    game_.module_door_states.reserve(module_door_routes_.size());
+    for (const ModuleDoorRoute& route : module_door_routes_) {
+        const Tile& tile = game_
+            .map[static_cast<std::size_t>(route.y * game_.width + route.x)];
+        game_.module_door_states.push_back(
+            ModuleDoorFlag{route.door_id, tile.type == TileType::DoorOpen, tile.locked});
+    }
 }
 
 void GameSession::resolve_module_location(const std::string& prev_location) {
