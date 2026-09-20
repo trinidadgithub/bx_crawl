@@ -127,6 +127,7 @@ struct Entity {
     bool is_vampire_bat{false};  // giant bat variant: bite causes unconsciousness + blood drain
     bool drains_level{false};    // touch drains one hero level (wight, wraith)
     bool drains_strength{false}; // touch drains 1 STR (shadow)
+    bool corrodes_metal{false};  // touch rusts normal metal equipment (rust monster)
     WeaponImmunity weapon_immunity{WeaponImmunity::None};
     int count{1};  // number of creatures this entity represents (bat swarms)
 

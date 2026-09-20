@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 31:
+- Architecture groundwork completed through Phase 32:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -73,6 +73,14 @@ finishing the architecture-review follow-up before expanding new gameplay.
     (`SilverOrMagic` wights, `MagicOnly` shadows/wraiths) that `attack_internal`
     and `ranged_attack` honor through `hero_weapon_can_wound` (silver dagger is
     the game's only pass; spells, thrown holy water, and turning bypass melee)
+  - rust monster corrosion: a rust monster touch (`corrodes_metal`, set at
+    spawn) corrodes one piece of the hero's normal metal equipment per hit —
+    worn chain/plate, then shield, then the wielded metal weapon (which leaves
+    the hero unarmed at 1d2), then carried metal — via `apply_rust_corrosion`
+    in the combat special chain; non-metal and silver gear (weapon material
+    rules are classified in one place) are unharmed, a touch finds "no metal to
+    corrode" otherwise, and destroyed equipment round-trips through save v7
+    (ids, AC, and counts)
 
 ## Architecture Review Track
 
@@ -207,26 +215,38 @@ High-value gameplay items still known:
   shadow touches drain 1 STR; all three are immune to weapons without the
   right material (wights: silver or magic; shadows/wraiths: magic only —
   spells, thrown holy water, and turning bypass exactly as before).
-- Rust monsters/oozes/slimes: equipment destruction/corrosion consistency.
+- ~~Rust monster: metal corrosion consistency.~~ Done in Phase 32: a rust
+  monster touch (`corrodes_metal`, set at spawn) corrodes one normal-metal
+  piece per hit — worn chain/plate, then shield, then the wielded metal weapon
+  (leaving the hero unarmed at 1d2), then a carried metal item — with a message
+  and the equipment actually removed; silver, non-metal, and the wooden missile
+  weapons are unharmed (weapon-material rules live in one place), and a touch
+  with nothing to eat finds "no metal to corrode".
+- Oozes/slimes: distinct ignores-armor damage and green slime's dissolve/1d8
+  contact rule (the Phase 32 material+subtraction machinery is reusable here).
 - Continue reviewing monster descriptions and stat data against the Basic Box PDF.
 - Replace stale `Monsters.md` with a generated reference or a pointer to the
   monster tools and data files.
 
 ## Recommended Next Task
 
-**Rust monster / corrosion consistency** — bring the equipment-damaging core
-B/X monsters inline with the Basic Box. Rust monsters, jellies/oozes/slimes,
-and black puddings currently use generic melee: B/X specifies that a rust
-monster's touch corrodes normal metal weapons and armor (magic metal is
-immune), and that oozes/slimes have their own damage/ignores-armor behavior.
-Add the rule at the same layer the drains landed (data-driven special flag +
-combat resolution), with the usual Debug + sanitizer + smoke validation.
+**Ooze / slime corrosion and ignores-armor damage** — bring the remaining
+corrosion-family monsters inline with the Basic Box. Gray ooze and ochre jelly
+already scale their damage from data, but every slime still resolves through
+generic melee: B/X specifies that oozes/slimes ignore armor (their damage is
+not reduced by AC) and that a green slime's contact dissolves metal and wood
+(1d8 damage each round until scraped off). Add the rules at the layer the
+rust monster just established — a spawn-set special flag (`ignores_armor`,
+`green_slime_dissolve`) plus combat resolution — reusing the equipment
+subtraction from Phase 32.
 
 Acceptance criteria:
 
-- A rust monster touch destroys normal metal melee weapons and armor (with a
-  dungeon message and the equipment actually removed); magic/ silver items and
-  non-metal items are unharmed.
+- A gray ooze/ochre jelly hit deals full damage regardless of the hero's armor,
+  with a dungeon message.
+- A green slime contact dissolves the victim's non-magical armor/weapon gear
+  (reusing Phase 32 subtraction) and deals ongoing 1d8 until removed, with no
+  crash at zero equipment.
 - Existing weapon/armor, combat, and save/load tests stay green; Debug +
   sanitizer validation pass.
 

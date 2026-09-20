@@ -19,6 +19,7 @@ bool make_save(Game& g, CharacterClass cc, int category);
 
 void apply_level_drain(Game& g, const Entity& draining);
 void apply_strength_drain(Game& g, const Entity& draining);
+void apply_rust_corrosion(Game& g, const Entity& rusting);
 bool hero_weapon_can_wound(const Game& g, WeaponImmunity immunity);
 
 int sign(int v);
