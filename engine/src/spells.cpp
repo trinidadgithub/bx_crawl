@@ -36,6 +36,12 @@ void check_level_up(Game& g) {
     game_internal::check_level_up(g);
 }
 
+bool fire_hits_monster(Game& g, Entity& target, int dmg,
+                       const std::string& flame,
+                       std::vector<Entity>& spillover) {
+    return game_internal::fire_hits_monster(g, target, dmg, flame, spillover);
+}
+
 bool is_undead(const Entity& e) {
     if (e.type == EntityType::Monster) return e.undead;
     return e.type == EntityType::Skeleton || e.type == EntityType::Zombie;
@@ -472,19 +478,18 @@ bool cast_spell(Game& g, int spell_index, int dx, int dy) {
     if (spell == "Fire Ball") {
         --hero.spell_slots[spell_level];
         int killed = 0;
+        std::vector<Entity> spillover;
         for (auto& m : g.monsters) {
             if (!m.alive) continue;
             int dmg = roll_d(g, 6) + roll_d(g, 6);
-            m.hp -= dmg;
-            if (m.hp <= 0) {
-                m.hp = 0;
-                m.alive = false;
+            if (fire_hits_monster(g, m, dmg, "fire ball", spillover)) {
                 ++killed;
-                log_event(g, m.name + " is consumed by the fire ball!");
-            } else {
+            } else if (m.hp > 0) {
                 log_event(g, m.name + " is scorched by the fire ball!");
             }
         }
+        for (auto& off : spillover)
+            g.monsters.push_back(std::move(off));
         {
             std::ostringstream oss;
             oss << "Fire ball kills " << killed << " monster"

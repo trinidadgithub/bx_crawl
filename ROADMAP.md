@@ -236,35 +236,47 @@ High-value gameplay items still known:
   consumes a turn to remove it; silver survives, gray ooze/ochre jelly already
   deal their correct B/X damage (B/X has no "ignores armor" damage rule — AC
   only affects to-hit).
-- Slime counter-attacks: only fire (and some spells) can destroy green slime;
-  ochre jellies and black puddings split when struck by fire or lightning.
+- Slime counter-attacks: done in Phase 34 for current engine/data support
+  (green slime fire-only, burning oil / Fire Ball as fire, ochre jelly fire
+  splitting). Lightning splitting and black pudding remain blocked on missing
+  lightning sources and missing monster data.
 - Continue reviewing monster descriptions and stat data against the Basic Box PDF.
 - Replace stale `Monsters.md` with a generated reference or a pointer to the
   monster tools and data files.
 
-## Recommended Next Task
+## Recently Completed
 
-**Slime damage immunities and splitting** — finish the corrosion family's
-combat rules. Green slime is currently fought with ordinary melee, but B/X
-says weapons pass through it and only fire or fire-based magic destroys it;
-ochre jellies and black puddings take damage normally but each fire or
-lightning strike splits one into (smaller) copies. Add both at the layer the
-rust monster/slime phases established — spawn-set special flags plus combat
-resolution — honoring the reference-material idea: melee wounds nothing unless
-a fire source is used, and a struck slime explodes into offspring (count handled
-by the existing bat-swarm `Entity::count`).
+~~**Slime damage immunities and splitting**~~ — done in Phase 34 for the rules
+that have current engine/data support. Green slime is now fire-only (`FireOnly`:
+melee/thrown weapons pass through), burning oil is a new fire source, Fire Ball
+shares the same fire-damage path, and base ochre jellies split into two smaller
+`Ochre Jelly'` offspring when fire would slay them. The original lightning / black
+pudding wording remains future work because there is no lightning source and no
+Black Pudding monster row yet.
 
-Acceptance criteria:
+Acceptance criteria completed:
 
 - A green slime is unharmed by any melee/thrown weapon (a "passes right
-  through!" message), but suffers damage from the oil/fire and appropriate
-  spells; it stays correct against the existing weapon-immunity tests.
-- An ochre jelly / black pudding reduced by fire or lightning splits into two
-  smaller jellies (hp halves, `Entity::count` tracks the group) instead of
-  dying outright, with no crash and a dungeon message.
+  through!" message), but suffers damage from burning oil and Fire Ball; it
+  stays correct against the existing weapon-immunity tests.
+- A base ochre jelly reduced by fire splits into two smaller `Ochre Jelly'`
+  monsters instead of dying outright, with no crash and a dungeon message.
 - Existing weapon/armor, combat, and save/load tests stay green; Debug +
   sanitizer validation pass.
+
+Remaining backlog:
+
+- Add lightning damage sources/typing before implementing lightning-triggered
+  splits.
+- Add or generate a Black Pudding monster row before implementing black-pudding
+  splitting.
 
 (The Testing Tomb module proof is complete: content, gameplay, rumor delivery,
 and a full campaign save/reload loop. Remaining Gameplay Track items above are
 the backlog.)
+
+## Recommended Next Task
+
+**Monster description/stat review** — continue checking monster descriptions and
+stat data against the Basic Box PDF, then replace stale `Monsters.md` with a
+generated reference or a pointer to the monster tools and data files.

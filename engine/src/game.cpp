@@ -897,6 +897,12 @@ static bool is_name_green_slime(const char* name) {
     return std::string_view(name) == "Green Slime";
 }
 
+// Check if a monster name is the base ochre jelly (a fire hit that would slay
+// it instead splits it into two smaller jellies).
+static bool is_name_splits_on_fire(const char* name) {
+    return std::string_view(name) == "Ochre Jelly";
+}
+
 // Weapon-immunity tier for a monster name. Shadows and wraiths can be hit
 // only by magical weapons; wights by silver or magical weapons.
 static WeaponImmunity weapon_immunity_for_name(const char* name) {
@@ -906,6 +912,8 @@ static WeaponImmunity weapon_immunity_for_name(const char* name) {
     if (n.find("Shadow") != std::string_view::npos
         || n.find("Wraith") != std::string_view::npos)
         return WeaponImmunity::MagicOnly;
+    if (n == "Green Slime")
+        return WeaponImmunity::FireOnly;
     return WeaponImmunity::None;
 }
 
@@ -1300,6 +1308,7 @@ Entity spawn_bx_monster_by_index(Game& g, int idx) {
     e.drains_strength = is_name_strength_drain(m.name);
     e.corrodes_metal  = is_name_corrodes_metal(m.name);
     e.green_slime     = is_name_green_slime(m.name);
+    e.splits_on_fire  = is_name_splits_on_fire(m.name);
     e.weapon_immunity = weapon_immunity_for_name(m.name);
     e.fleeing    = false;
     e.alive      = true;
@@ -2145,7 +2154,13 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
             if (total >= target->ac) {
                 if (target->weapon_immunity != WeaponImmunity::None
                     && !hero_weapon_can_wound(g, target->weapon_immunity)) {
-                    log_event(g, "The " + target->name + " is unharmed by your weapon!");
+                    if (target->weapon_immunity == WeaponImmunity::FireOnly) {
+                        log_event(g, "Your weapon passes right through the "
+                                     + target->name + "!");
+                    } else {
+                        log_event(g, "The " + target->name
+                                     + " is unharmed by your weapon!");
+                    }
                 } else {
                     int dmg = roll_d(g, damage_die);
                     target->hp -= dmg;
@@ -2239,6 +2254,95 @@ static bool throw_holy_water(Game& g, int dx, int dy) {
         ++dist;
     }
     log_event(g, "The holy water flask shatters in the darkness.");
+    return true;
+}
+
+// Apply fire damage (flaming oil, fire spells) to a monster. A monster that a
+// fire hit would slay normally; an ochre jelly instead splits into two smaller
+// jellies (the "Ochre Jelly'" variant) with half the big one's hit points.
+// Offspring are queued in spillover so callers may finish iterating first.
+// Returns true when the monster is slain outright, or false on survival or a
+// split.
+static bool fire_hits_monster(Game& g, Entity& target, int dmg,
+                              const std::string& flame,
+                              std::vector<Entity>& spillover) {
+    target.hp -= dmg;
+    if (target.hp > 0) return false;
+
+    if (target.splits_on_fire) {
+        int each = std::max(1, (target.hp + dmg) / 2);
+        target.hp = 0;
+        target.alive = false;
+        const auto off_idx = bx::monster_index("Ochre Jelly'");
+        for (int i = 0; i < 2; ++i) {
+            Entity off = spawn_bx_monster_by_index(
+                g, off_idx.has_value()
+                       ? static_cast<int>(*off_idx)
+                       : static_cast<int>(bx::monsters.size() - 1));
+            off.pos = target.pos;
+            off.hp = each;
+            off.max_hp = each;
+            spillover.push_back(std::move(off));
+        }
+        log_event(g, "The ochre jelly splits into two smaller jellies!");
+        return false;
+    }
+
+    target.hp = 0;
+    target.alive = false;
+    log_event(g, target.name + " is consumed by the " + flame + "!");
+    return true;
+}
+
+namespace game_internal {
+bool fire_hits_monster(Game& g, Entity& target, int dmg,
+                       const std::string& flame,
+                       std::vector<Entity>& spillover) {
+    return ::fire_hits_monster(g, target, dmg, flame, spillover);
+}
+} // namespace game_internal
+
+// Throw a flask of burning oil at a monster. Deals 1d8 fire damage and
+// destroys green slime, which normal weapons pass through.
+static bool throw_oil(Game& g, int dx, int dy) {
+    if (dx == 0 && dy == 0) {
+        log_event(g, "Throw burning oil needs a direction!");
+        return false;
+    }
+    if (g.hero.oil_flasks <= 0 || !consume_gear(g.hero, "oil-flask")) {
+        log_event(g, "You have no oil to throw!");
+        return false;
+    }
+    g.hero.oil_flasks--;
+    queue_sound(g, SoundEffect::Throw);
+
+    int dist = 1;
+    int nx = g.hero.pos.x + dx;
+    int ny = g.hero.pos.y + dy;
+    while (in_bounds(g, nx, ny) && dist <= 4) {
+        if (is_blocked(g, nx, ny)) break;
+        if (Entity* target = monster_at(g, nx, ny)) {
+            int dmg = roll_d(g, 8);
+            {
+                std::ostringstream oss;
+                oss << "The burning oil scorches " << target->name << " for "
+                    << dmg << " damage!";
+                log_event(g, oss.str());
+            }
+            std::vector<Entity> spillover;
+            if (fire_hits_monster(g, *target, dmg, "burning oil", spillover)) {
+                award_treasure(g, *target);
+                check_level_up(g);
+            }
+            for (auto& off : spillover)
+                g.monsters.push_back(std::move(off));
+            return true;
+        }
+        nx += dx;
+        ny += dy;
+        ++dist;
+    }
+    log_event(g, "The flask of burning oil shatters in the darkness.");
     return true;
 }
 
@@ -2592,6 +2696,11 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
         }
         case PlayerCommandType::ThrowHolyWater: {
             throw_holy_water(g, cmd.dx, cmd.dy);
+            tick_wander_counter(g);
+            return true;
+        }
+        case PlayerCommandType::ThrowOil: {
+            throw_oil(g, cmd.dx, cmd.dy);
             tick_wander_counter(g);
             return true;
         }

@@ -38,7 +38,8 @@ enum class CharacterClass {
 enum class WeaponImmunity {
     None,          // any weapon wounds this monster
     SilverOrMagic, // silver or magical weapons
-    MagicOnly      // magical weapons only
+    MagicOnly,     // magical weapons only
+    FireOnly       // no weapon wounds it; only fire or spells (green slime)
 };
 
 struct Abilities {
@@ -133,6 +134,7 @@ struct Entity {
     bool drains_strength{false}; // touch drains 1 STR (shadow)
     bool corrodes_metal{false};  // touch rusts normal metal equipment (rust monster)
     bool green_slime{false};     // contact eats gear + clings (green slime)
+    bool splits_on_fire{false};  // a fire hit that would slay it splits it in two (ochre jelly)
     WeaponImmunity weapon_immunity{WeaponImmunity::None};
     int count{1};  // number of creatures this entity represents (bat swarms)
 

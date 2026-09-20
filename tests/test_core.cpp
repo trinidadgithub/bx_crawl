@@ -1921,6 +1921,305 @@ TEST_CASE("Green Slime contact eats gear and clings") {
     }
 }
 
+// ── Slime fire damage: green slime weapon immunity + flaming oil ──
+// ── Ochre jelly splitting on fire ─────────────────────
+
+TEST_CASE("Green Slime spawns fire-only; Ochre Jelly spawns with the fire-split trait") {
+    {
+        ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+        ScopedEnvVar test_monster("BX_TEST_MONSTER", "green slime");
+        Game g;
+        init_game(g, make_hero(1, 1, 0, 1, 10));
+        CHECK(g.monsters[0].name.find("Slime") != std::string::npos);
+        CHECK(g.monsters[0].weapon_immunity == WeaponImmunity::FireOnly);
+    }
+    {
+        ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+        ScopedEnvVar test_monster("BX_TEST_MONSTER", "ochre jelly");
+        Game g;
+        init_game(g, make_hero(1, 1, 0, 1, 10));
+        CHECK(g.monsters[0].name.find("Ochre Jelly") != std::string::npos);
+        CHECK(g.monsters[0].splits_on_fire == true);
+    }
+}
+
+TEST_CASE("Green Slime is unharmed by every weapon") {
+    SUBCASE("a club passes right through the slime") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/10, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.hp = 20;
+        g.hero.max_hp = 20;
+        give_item(g.hero, "club", 1);
+        g.hero.weapon_id = "club";
+        g.hero.damage_die = 4;
+
+        auto slime = make_monster("Green Slime", EntityType::Monster,
+                                  2, 1, 10, 10, 20, 1, 0);
+        slime.weapon_immunity = WeaponImmunity::FireOnly;
+        g.monsters.push_back(slime);
+
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK(g.monsters[0].hp == 10);
+        CHECK(g.monsters[0].alive);
+        bool saw = false;
+        for (const auto& e : g.event_log)
+            if (e.find("passes right through") != std::string::npos) saw = true;
+        CHECK(saw);
+    }
+    SUBCASE("even a silver dagger passes right through the slime") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/10, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.hp = 20;
+        g.hero.max_hp = 20;
+        give_item(g.hero, "silver-dagger", 1);
+        g.hero.weapon_id = "silver-dagger";
+        g.hero.damage_die = 4;
+
+        auto slime = make_monster("Green Slime", EntityType::Monster,
+                                  2, 1, 10, 10, 20, 1, 0);
+        slime.weapon_immunity = WeaponImmunity::FireOnly;
+        g.monsters.push_back(slime);
+
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK(g.monsters[0].hp == 10);
+        CHECK(g.monsters[0].alive);
+        bool saw = false;
+        for (const auto& e : g.event_log)
+            if (e.find("passes right through") != std::string::npos) saw = true;
+        CHECK(saw);
+    }
+    SUBCASE("a thrown knife passes right through the slime") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/10, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.knives = 2;
+
+        auto slime = make_monster("Green Slime", EntityType::Monster,
+                                  2, 1, 10, 10, 20, 1, 0);
+        slime.weapon_immunity = WeaponImmunity::FireOnly;
+        g.monsters.push_back(slime);
+
+        apply_player_command(g, {PlayerCommandType::ThrowKnife, 1, 0});
+
+        CHECK(g.monsters[0].hp == 10);
+        CHECK(g.monsters[0].alive);
+        bool saw = false;
+        for (const auto& e : g.event_log)
+            if (e.find("passes right through") != std::string::npos) saw = true;
+        CHECK(saw);
+    }
+}
+
+TEST_CASE("throwing burning oil: consumption, range, and green slime destruction") {
+    SUBCASE("no direction refuses the throw") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/10, /*dmg_die=*/1,
+                           /*ac=*/10);
+        give_item(g.hero, "oil-flask", 1);
+        g.hero.oil_flasks = 1;
+
+        auto slime = make_monster("Green Slime", EntityType::Monster,
+                                  2, 1, 10, 10, 20, 1, 0);
+        slime.weapon_immunity = WeaponImmunity::FireOnly;
+        g.monsters.push_back(slime);
+
+        apply_player_command(g, {PlayerCommandType::ThrowOil, 0, 0});
+
+        CHECK(g.hero.oil_flasks == 1);
+        CHECK(g.monsters[0].alive);
+        bool saw = false;
+        for (const auto& e : g.event_log)
+            if (e.find("needs a direction") != std::string::npos) saw = true;
+        CHECK(saw);
+    }
+    SUBCASE("without oil the throw is refused") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/10, /*dmg_die=*/1,
+                           /*ac=*/10);
+
+        auto slime = make_monster("Green Slime", EntityType::Monster,
+                                  2, 1, 10, 10, 20, 1, 0);
+        slime.weapon_immunity = WeaponImmunity::FireOnly;
+        g.monsters.push_back(slime);
+
+        apply_player_command(g, {PlayerCommandType::ThrowOil, 1, 0});
+
+        CHECK(g.monsters[0].hp == 10);
+        CHECK(g.monsters[0].alive);
+        bool saw = false;
+        for (const auto& e : g.event_log)
+            if (e.find("no oil to throw") != std::string::npos) saw = true;
+        CHECK(saw);
+    }
+    SUBCASE("a lit flask scorches the slime to cinders") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/10, /*dmg_die=*/1,
+                           /*ac=*/10);
+        give_item(g.hero, "oil-flask", 1);
+        g.hero.oil_flasks = 1;
+        g.total_xp = 0;
+        g.total_gold = 0;
+
+        auto slime = make_monster("Green Slime", EntityType::Monster,
+                                  2, 1, 1, 10, 20, 1, 0);
+        slime.weapon_immunity = WeaponImmunity::FireOnly;
+        slime.xp_value = 85;
+        g.monsters.push_back(slime);
+
+        apply_player_command(g, {PlayerCommandType::ThrowOil, 1, 0});
+
+        CHECK(g.hero.oil_flasks == 0);
+        CHECK_FALSE(g.monsters[0].alive);
+        CHECK(g.monsters[0].hp == 0);
+        CHECK(g.total_xp == 85);          // a real kill awards treasure and XP
+        bool saw = false;
+        for (const auto& e : g.event_log)
+            if (e.find("consumed by the burning oil") != std::string::npos) saw = true;
+        CHECK(saw);
+    }
+    SUBCASE("other monsters resist the fire like any monster") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/10, /*dmg_die=*/1,
+                           /*ac=*/10);
+        give_item(g.hero, "oil-flask", 1);
+        g.hero.oil_flasks = 1;
+
+        auto goblin = make_monster("Goblin", EntityType::Monster,
+                                   2, 1, 3, 10, 20, 1, 0);
+        g.monsters.push_back(goblin);
+
+        apply_player_command(g, {PlayerCommandType::ThrowOil, 1, 0});
+
+        CHECK(g.hero.oil_flasks == 0);
+        CHECK_FALSE(g.monsters[0].alive);  // a 3-HP goblin cannot shrug off 1d8 oil
+    }
+}
+
+TEST_CASE("flaming oil splits an ochre jelly instead of slaying it") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(/*x=*/1, /*y=*/1,
+                       /*atk_bonus=*/10, /*dmg_die=*/1,
+                       /*ac=*/10);
+    give_item(g.hero, "oil-flask", 1);
+    g.hero.oil_flasks = 1;
+    g.total_xp = 0;
+    g.total_gold = 0;
+
+    auto jelly = make_monster("Ochre Jelly", EntityType::Monster,
+                              2, 1, 1, 10, 20, 1, 0);
+    jelly.splits_on_fire = true;
+    g.monsters.push_back(jelly);
+
+    apply_player_command(g, {PlayerCommandType::ThrowOil, 1, 0});
+
+    CHECK_FALSE(g.monsters[0].alive);       // the big jelly is "killed"...
+    CHECK(g.total_xp == 0);                 // ...but a split is not a kill
+    CHECK(g.total_gold == 0);
+    CHECK(g.hero.oil_flasks == 0);
+
+    int offspring = 0;
+    for (auto& m : g.monsters) {
+        if (m.alive && m.name.find("Ochre Jelly'") != std::string::npos) {
+            ++offspring;
+            CHECK(m.pos.x == 2);
+            CHECK(m.pos.y == 1);
+            CHECK(m.hp >= 1);
+            CHECK(m.hp == m.max_hp);        // each new jelly at half strength
+            CHECK(m.splits_on_fire == false);
+        }
+    }
+    CHECK(offspring == 2);
+    bool saw = false;
+    for (const auto& e : g.event_log)
+        if (e.find("splits into two smaller jellies") != std::string::npos) saw = true;
+    CHECK(saw);
+}
+
+TEST_CASE("a mundane sword thrust slays an ochre jelly with no splitting") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(/*x=*/1, /*y=*/1,
+                       /*atk_bonus=*/10, /*dmg_die=*/4,
+                       /*ac=*/10);  // fights unarmed for a solid 1d4
+    g.hero.hp = 20;
+    g.hero.max_hp = 20;
+
+    auto jelly = make_monster("Ochre Jelly", EntityType::Monster,
+                              2, 1, 1, 10, 20, 1, 0);
+    jelly.splits_on_fire = true;
+    g.monsters.push_back(jelly);
+
+    apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+    CHECK_FALSE(g.monsters[0].alive);
+    CHECK(g.monsters.size() == 1);          // no offspring from a regular kill
+    bool saw = false;
+    for (const auto& e : g.event_log)
+        if (e.find("splits into two smaller jellies") != std::string::npos) saw = true;
+    CHECK_FALSE(saw);
+}
+
+TEST_CASE("Fire Ball destroys green slime and splits ochre jelly") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(/*x=*/1, /*y=*/1,
+                       /*atk_bonus=*/10, /*dmg_die=*/1,
+                       /*ac=*/10);
+    g.hero.spells = {"Fire Ball"};
+    g.hero.spell_slots[3] = 1;
+
+    auto slime = make_monster("Green Slime", EntityType::Monster,
+                              2, 1, 1, 10, 20, 1, 0);
+    slime.weapon_immunity = WeaponImmunity::FireOnly;
+    auto jelly = make_monster("Ochre Jelly", EntityType::Monster,
+                              3, 1, 1, 10, 20, 1, 0);
+    jelly.splits_on_fire = true;
+    g.monsters.push_back(slime);
+    g.monsters.push_back(jelly);
+
+    apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+
+    CHECK(g.hero.spell_slots[3] == 0);      // a slot was spent
+
+    bool slime_dead = false;
+    for (const auto& m : g.monsters)
+        if (m.name == "Green Slime") slime_dead = !m.alive;
+    CHECK(slime_dead);
+
+    int offspring = 0;
+    for (auto& m : g.monsters) {
+        if (m.alive && m.name.find("Ochre Jelly'") != std::string::npos) {
+            ++offspring;
+            CHECK(m.pos.x == 3);
+            CHECK(m.pos.y == 1);
+            CHECK(m.hp >= 1);
+            CHECK(m.hp == m.max_hp);
+            CHECK(m.splits_on_fire == false);
+        }
+    }
+    CHECK(offspring == 2);
+
+    bool saw_split = false;
+    bool saw_kills = false;
+    for (const auto& e : g.event_log) {
+        if (e.find("splits into two smaller jellies") != std::string::npos)
+            saw_split = true;
+        if (e.find("kills 1 monster") != std::string::npos)
+            saw_kills = true;
+    }
+    CHECK(saw_split);
+    CHECK(saw_kills);
+}
+
 // ── Humanoid daylight penalties + lair leader morale ─────
 
 TEST_CASE("B/X daylight penalty: light-shy humanoids fight at -1 in the hero's light") {
