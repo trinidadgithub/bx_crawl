@@ -1,0 +1,23 @@
+[
+  {
+    "treasure_id": "module.testing_tomb.treasure.antechamber_gold",
+    "type": "gold",
+    "x": 2,
+    "y": 3,
+    "count": 2
+  },
+  {
+    "treasure_id": "module.testing_tomb.treasure.antechamber_gems",
+    "type": "gem",
+    "x": 3,
+    "y": 3,
+    "count": 1
+  },
+  {
+    "treasure_id": "module.testing_tomb.treasure.room_b_gold",
+    "type": "gold",
+    "x": 7,
+    "y": 3,
+    "count": 2
+  }
+]

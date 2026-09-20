@@ -41,6 +41,10 @@ constexpr int32_t kMaxSerializedRumorCount = 100;
 // A module declares at most a handful of doors; the cap mirrors the rumor cap.
 constexpr int32_t kMaxSerializedDoorCount = 100;
 
+// The current on-disk format. Bump this when a field is added to the tail so a
+// reader knows how much of the trailing payload to consume.
+constexpr int32_t kCurrentSaveVersion = 7;
+
 // Byte-exact stream helpers. Every persistence read/write goes through these
 // so a short-read or a failed write is never silently ignored.
 bool write_exact(std::ostream& out, const char* src, std::size_t n) {
@@ -118,7 +122,7 @@ bool read_game_from(std::istream& in, Game& out) {
     int32_t version = 0;
     if (!read_int(in, version))
         return false;
-    if (version < 1 || version > 6)
+    if (version < 1 || version > kCurrentSaveVersion)
         return false;
 
     Entity& h = out.hero;
@@ -348,6 +352,17 @@ bool read_game_from(std::istream& in, Game& out) {
         out.module_door_states.clear();
     }
 
+    // Version 7+ fields: the hero's map position so a module campaign resumes
+    // on the exact tile where it was saved. Older saves default to {0, 0}.
+    if (version >= 7) {
+        if (!read_int(in, h.pos.x))
+            return false;
+        if (!read_int(in, h.pos.y))
+            return false;
+    } else {
+        h.pos = {0, 0};
+    }
+
     // Restore runtime-only fields
     h.type  = EntityType::Hero;
     h.alive = true;
@@ -364,8 +379,8 @@ bool read_game_from(std::istream& in, Game& out) {
     h.has_disease = false;
 
     // Trailing bytes after a complete, valid load are tolerated; the current
-    // writer emits nothing after armor_counts, so future fields appended at
-    // the tail of the format can be ignored by older loaders.
+    // writer emits nothing after the hero's position, so future fields appended
+    // at the tail of the format can be ignored by older loaders.
     return true;
 }
 
@@ -482,7 +497,7 @@ bool save_game(const Game& g, const std::filesystem::path& path) {
 
     // Magic + version
     if (!write_exact(out, "BXSV", 4)) return false;
-    int32_t version = 6;
+    const int32_t version = kCurrentSaveVersion;
     if (!write_int(out, version)) return false;
 
     const auto& h = g.hero;
@@ -583,6 +598,10 @@ bool save_game(const Game& g, const std::filesystem::path& path) {
         if (!write_int(out, flag.open ? 1 : 0)) return false;
         if (!write_int(out, flag.locked ? 1 : 0)) return false;
     }
+
+    // Version 7+ fields
+    if (!write_int(out, h.pos.x)) return false;
+    if (!write_int(out, h.pos.y)) return false;
 
     out.flush();
     if (!out) return false;

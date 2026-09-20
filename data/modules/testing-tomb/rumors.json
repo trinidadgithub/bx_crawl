@@ -1,0 +1,10 @@
+[
+  {
+    "rumor_id": "module.testing_tomb.rumor.hidden_passage",
+    "description_id": "module.testing_tomb.text.rumor_hidden_passage"
+  },
+  {
+    "rumor_id": "module.testing_tomb.rumor.buried_gold",
+    "description_id": "module.testing_tomb.text.rumor_buried_gold"
+  }
+]

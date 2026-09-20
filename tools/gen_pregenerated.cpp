@@ -1,5 +1,8 @@
 #include "bx_data.hpp"
 #include "game.hpp"
+#include "game_session.hpp"
+#include "module_content.hpp"
+#include "module_manifest.hpp"
 #include "entity.hpp"
 #include "item_catalog.hpp"
 #include <iostream>
@@ -35,8 +38,8 @@ static void give_starting_gear(Entity& e) {
     e.gear_counts[*bx::gear_index("iron-spikes")] = 1;
 }
 
-// Generate and save a pregenerated character
-static bool generate_and_save(
+// Build one of the standard pregenerated heroes.
+static Entity make_pregenerated_hero(
     const std::string& name,
     CharacterClass cc,
     const Abilities& abilities,
@@ -47,13 +50,8 @@ static bool generate_and_save(
     int atk_bonus,
     int dmg_die,
     int dmg_bonus,
-    int ac,
-    std::mt19937& rng,
-    const std::filesystem::path& out_dir
+    int ac
 ) {
-    Game g;
-    init_game_runtime(g);
-
     Entity h;
     h.name           = name;
     h.type           = EntityType::Hero;
@@ -96,6 +94,31 @@ static bool generate_and_save(
     h.skill_move_silent = 20;
     h.skill_hear_noise = 33;
 
+    return h;
+}
+
+// Generate and save a pregenerated character
+static bool generate_and_save(
+    const std::string& name,
+    CharacterClass cc,
+    const Abilities& abilities,
+    const char* weapon_id,
+    const char* armor_id,
+    bool has_shield,
+    int hp,
+    int atk_bonus,
+    int dmg_die,
+    int dmg_bonus,
+    int ac,
+    std::mt19937& rng,
+    const std::filesystem::path& out_dir
+) {
+    Game g;
+    init_game_runtime(g);
+
+    Entity h = make_pregenerated_hero(name, cc, abilities, weapon_id, armor_id,
+                                      has_shield, hp, atk_bonus, dmg_die, dmg_bonus, ac);
+
     // Starting gold (NOT placed into purse — it's in total_gold)
     g.total_gold = roll_3d6(rng) * 10;
 
@@ -104,6 +127,63 @@ static bool generate_and_save(
 
     auto path = out_dir / (name + ".dat");
     bool ok = save_game(g, path);
+    if (ok)
+        std::cout << "  Saved " << path << "\n";
+    else
+        std::cout << "  FAILED " << path << "\n";
+    return ok;
+}
+
+// Generate and save the Testing Tomb module campaign template. The save is
+// produced through the real module boot path (start_module, play, save) so the
+// shipped template exercises the same machinery a live campaign uses, and the
+// frontend resumes it through `resume_module` when it is loaded.
+static bool generate_module_campaign_save(const std::filesystem::path& data_dir,
+                                          const std::filesystem::path& out_dir) {
+    auto module_dir = find_module_dir(data_dir, "testing_tomb");
+    if (module_dir.empty()) {
+        std::cerr << "  Module campaign: Testing Tomb not found under "
+                  << (data_dir / "modules") << "\n";
+        return false;
+    }
+
+    ModuleContentResult content = load_module_content(module_dir);
+    if (!content.ok) {
+        std::cerr << "  Module campaign: " << content.error << "\n";
+        return false;
+    }
+
+    // A thief who can pick the entrance lock, with the tools to try.
+    Abilities a{9, 14, 9, 10, 9, 10};
+    Entity hero = make_pregenerated_hero(
+        "Tomb Runner", CharacterClass::Thief, a,
+        "short-sword", "leather-armor", false,
+        20, 0, 6, 0, 16);
+    hero.skill_pick_locks = 100;
+    hero.gear_counts[*bx::gear_index("thieves-tools")] = 1;
+
+    GameSession session;
+    ModuleStartResult started = session.start_module(content.module, std::move(hero));
+    if (!started.ok) {
+        std::cerr << "  Module campaign: " << started.error << "\n";
+        return false;
+    }
+
+    Game& game = session.game();
+    game.total_gold = 30;
+
+    // Play a few turns: step up to the corridor, pick the entrance door, then
+    // walk to the tavern and hear the first rumor. The saved state is exactly
+    // what a replayed hero lands on.
+    session.apply(PlayerCommand{PlayerCommandType::Move, 0, -1, 0});
+    session.apply(PlayerCommand{PlayerCommandType::Open, 0, 0, 0});
+    game.state = GameState::Town;
+    game.event_log.clear();
+    session.apply(PlayerCommand{PlayerCommandType::Move, 0, -1, 0});
+    session.apply(PlayerCommand{PlayerCommandType::Listen, 0, 0, 0});
+
+    auto path = out_dir / "Tomb Runner.dat";
+    bool ok = save_game(game, path);
     if (ok)
         std::cout << "  Saved " << path << "\n";
     else
@@ -230,6 +310,10 @@ int main() {
             "short-sword", "leather-armor", true,
             hp, 1 + str_mod, 6, str_mod, 12 + dex_mod);
     }
+
+    //  8. Testing Tomb module campaign  — Tomb Runner (template)
+    ++total;
+    if (generate_module_campaign_save(data_dir, out_dir)) ++success;
 
     std::cout << success << "/" << total << " pregenerated saves created.\n";
     return (success == total) ? 0 : 1;

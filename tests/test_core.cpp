@@ -3955,6 +3955,26 @@ CraftedSaveV6 make_valid_save_v6() {
     return s;
 }
 
+// A valid version-7 payload: the v6 layout plus the trailing hero position.
+// `off_pos_x` marks the start of the two position int32s so corruption tests
+// can truncate exactly at the v7 tail.
+struct CraftedSaveV7 {
+    std::string bytes;
+    std::size_t off_pos_x{};
+};
+
+CraftedSaveV7 make_valid_save_v7() {
+    CraftedSaveV7 s;
+    s.bytes = make_valid_save_v6().bytes;
+    patch_i32(s.bytes, 4, 7);
+
+    auto i32 = [&](int32_t v) { s.bytes += pack_i32(v); };
+    s.off_pos_x = s.bytes.size();
+    i32(3); // pos.x
+    i32(4); // pos.y
+    return s;
+}
+
 void write_save_file(const std::string& bytes, const std::filesystem::path& path) {
     std::ofstream out(path, std::ios::binary);
     out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
@@ -4073,10 +4093,43 @@ TEST_CASE("Crafted v6 payload loads module campaign fields, validating the v6 ta
     std::filesystem::remove(path);
 }
 
-TEST_CASE("Save/load round-trips module campaign state (v6)") {
+TEST_CASE("Crafted v7 payload loads hero position from the format tail") {
+    auto crafted = make_valid_save_v7();
+    auto path = std::filesystem::path{"/tmp/opencode/bx_crawl_crafted_v7.dat"};
+    write_save_file(crafted.bytes, path);
+
+    Game loaded = make_minimal_game();
+    CHECK(load_game(loaded, path));
+    CHECK(loaded.hero.name == "CraftedHero");
+    CHECK(loaded.module_id == "module.testing_tomb");
+    CHECK(loaded.hero.pos.x == 3);
+    CHECK(loaded.hero.pos.y == 4);
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("Malformed saves: v7 files truncated in the position tail are rejected") {
+    Game g = make_known_game_state();
+    auto crafted = make_valid_save_v7();
+    const std::vector<std::size_t> cuts = {
+        crafted.bytes.size() - 8, crafted.bytes.size() - 4,
+        crafted.bytes.size() - 1
+    };
+    int idx = 0;
+    for (std::size_t cut : cuts) {
+        auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_truncv7_" +
+                                       std::to_string(idx++) + ".dat"};
+        write_save_file(crafted.bytes.substr(0, cut), p);
+        assert_load_rejected_cleanly(g, p);
+        std::filesystem::remove(p);
+    }
+}
+
+TEST_CASE("Save/load round-trips module campaign state, including hero position") {
     Game g = make_minimal_game();
     g.hero = make_hero(5, 3, 0, 4, 9);
     g.hero.name = "ModuleMarion";
+    g.hero.pos = {3, 4};
     g.state = GameState::Dungeon;
     g.module_id = "module.testing_tomb";
     g.module_version = "0.1.0";
@@ -4108,6 +4161,8 @@ TEST_CASE("Save/load round-trips module campaign state (v6)") {
     CHECK(loaded.module_door_states[1].open == false);
     CHECK(loaded.module_door_states[1].locked == false);
     CHECK(loaded.total_gold == 17);
+    CHECK(loaded.hero.pos.x == 3);
+    CHECK(loaded.hero.pos.y == 4);
 
     std::filesystem::remove(path);
 }
@@ -4119,7 +4174,7 @@ TEST_CASE("Malformed saves: bad magic and unsupported versions are rejected") {
     assert_load_rejected_cleanly(g, path);
     std::filesystem::remove(path);
 
-    for (int32_t bad_version : {-1, 0, 7, 1000000}) {
+    for (int32_t bad_version : {-1, 0, 8, 1000000}) {
         auto c = make_valid_save_v5();
         patch_i32(c.bytes, 4, bad_version);
         auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_version.dat"};
@@ -4294,9 +4349,27 @@ TEST_CASE("Old save versions still load with defaulted fields") {
         CHECK(loaded.current_location_id.empty());
         CHECK(loaded.heard_rumors.empty());
         CHECK(loaded.module_door_states.empty());
+        // The hero's position predates the v7 tail: it defaults to {0, 0}.
+        CHECK(loaded.hero.pos.x == 0);
+        CHECK(loaded.hero.pos.y == 0);
 
         std::filesystem::remove(p);
     }
+
+    // Version 6 carries the module tail but not the v7 position. The position
+    // defaults to {0, 0} even though the module fields are present.
+    auto crafted = make_valid_save_v6();
+    auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_old_v6.dat"};
+    write_save_file(crafted.bytes, p);
+
+    Game loaded = make_minimal_game();
+    CHECK(load_game(loaded, p));
+    CHECK(loaded.hero.name == "CraftedHero");
+    CHECK(loaded.module_id == "module.testing_tomb");
+    CHECK(loaded.hero.pos.x == 0);
+    CHECK(loaded.hero.pos.y == 0);
+
+    std::filesystem::remove(p);
 }
 
 TEST_CASE("save_game fails instead of silently succeeding when it cannot write") {
@@ -5693,6 +5766,26 @@ TEST_CASE("Module manifest loader handles missing directories and files") {
     CHECK(no_file.error == "could not open module.json");
 
     std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("find_module_dir locates installed modules by declared module id") {
+    // The shipped runtime copy lives under data/modules; directory names carry
+    // no contract, only the module.json module_id does.
+    const auto found = find_module_dir(std::filesystem::path{"data"}, "testing_tomb");
+    REQUIRE_FALSE(found.empty());
+    CHECK(std::filesystem::exists(found / "module.json"));
+
+    ModuleManifestResult manifest = load_module_manifest(found);
+    REQUIRE(manifest.ok);
+    CHECK(manifest.manifest.module_id == "testing_tomb");
+    CHECK(manifest.manifest.title == "Testing Tomb");
+
+    // Unknown ids, empty ids, and data dirs without a modules/ subdirectory
+    // resolve to nothing rather than errors.
+    CHECK(find_module_dir(std::filesystem::path{"data"}, "no_such_module").empty());
+    CHECK(find_module_dir(std::filesystem::path{"data"}, "").empty());
+    CHECK(find_module_dir(std::filesystem::path{"/tmp/opencode/bx_crawl_no_modules_data"},
+                          "testing_tomb").empty());
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -7567,6 +7660,9 @@ TEST_CASE("GameSession resume_module restores heard rumors and door flags") {
     CHECK(rg.heard_rumors[0] == campaign.heard_rumors[0]);
     CHECK(rg.heard_rumors[1] == campaign.heard_rumors[1]);
     CHECK(rg.current_location_id == campaign.current_location_id);
+    // The hero resumes on the saved tile, not the module entry.
+    CHECK(rg.hero.pos.x == 2);
+    CHECK(rg.hero.pos.y == 3);
 
     // The entrance door restores open and unlocked; Room B's door stays at its
     // authored locked state because no campaign flag unsealed it.
@@ -7628,6 +7724,9 @@ TEST_CASE("Module campaign state round-trips save/load and resumes") {
     const Game& rg = resumed.game();
     REQUIRE(rg.heard_rumors.size() == 2);
     CHECK(rg.heard_rumors == campaign.heard_rumors);
+    // The persistent position carries through the binary round-trip.
+    CHECK(rg.hero.pos.x == 2);
+    CHECK(rg.hero.pos.y == 3);
     REQUIRE(rg.module_door_states.size() == 2);
     for (const ModuleDoorFlag& flag : rg.module_door_states) {
         if (flag.door_id == "module.testing_tomb.door.entrance_to_room_a") {
@@ -7639,4 +7738,97 @@ TEST_CASE("Module campaign state round-trips save/load and resumes") {
     CHECK(resumed_door.type == TileType::DoorOpen);
 
     std::filesystem::remove(path);
+}
+
+TEST_CASE("GameSession resume falls back to the entry tile for unusable positions") {
+    ModuleContentResult loaded = load_module_content(std::filesystem::path{"modules/testing-tomb"});
+    REQUIRE(loaded.ok);
+
+    // A stale position on a wall tile (e.g. the {0, 0} default of a pre-v7
+    // module save) must not strand the hero; the tile at (0,0) is a wall.
+    GameSession session;
+    CampaignState campaign;
+    campaign.hero = make_thief_for_module();
+    campaign.hero.pos = {0, 0};
+    ModuleStartResult started = session.resume_module(loaded.module, campaign.hero, campaign);
+    REQUIRE(started.ok);
+    CHECK(session.game().hero.pos.x == 2);
+    CHECK(session.game().hero.pos.y == 4);
+}
+
+TEST_CASE("Dungeon Save command persists the game without advancing the turn") {
+    const char* old_home = std::getenv("HOME");
+    setenv("HOME", "/tmp/opencode", 1);
+    std::filesystem::remove_all(saves_directory());
+
+    GameSession session;
+    Game& g = session.game();
+    g.state = GameState::Dungeon;
+    g.width = 10;
+    g.height = 5;
+    g.map.assign(50, Tile{});
+    for (auto& tile : g.map) tile.type = TileType::Floor;
+    g.hero = make_hero(1, 1, 2, 6, 9);
+    g.hero.name = "SavaN";
+    g.total_gold = 7;
+    Entity monster = make_monster("Goblin", EntityType::Goblin, 3, 1, 4, 7, 0, 6, 7);
+    g.monsters.push_back(monster);
+
+    // A save is out-of-band: it passes even while paralyzed and must not let a
+    // monster take its turn.
+    g.hero.paralyzed_turns = 1;
+    PlayerCommand save{PlayerCommandType::Save, 0, 0, 0};
+    ActionResult result = session.apply(save);
+    CHECK(result.keep_playing);
+    CHECK(g.hero.paralyzed_turns == 1);
+    CHECK(g.monsters[0].hp == monster.hp);
+
+    Game loaded;
+    const auto found = save_path_for_hero("SavaN");
+    CHECK(std::filesystem::exists(found));
+    CHECK(load_game(loaded, found));
+    CHECK(loaded.hero.name == "SavaN");
+    CHECK(loaded.total_gold == 7);
+    CHECK(loaded.state == GameState::Dungeon);
+
+    std::filesystem::remove_all(saves_directory());
+    if (old_home) setenv("HOME", old_home, 1);
+    else unsetenv("HOME");
+}
+
+TEST_CASE("Pregenerated Tomb Runner campaign save boots a module session") {
+    const auto path = std::filesystem::path{"data/pregenerated_saves/Tomb Runner.dat"};
+
+    Game loaded;
+    REQUIRE(load_game(loaded, path));
+    CHECK(loaded.module_id == "testing_tomb");
+    CHECK(loaded.module_version == "0.1.0");
+    REQUIRE_FALSE(loaded.heard_rumors.empty());
+    CHECK(loaded.hero.pos.x == 2);
+    CHECK(loaded.hero.pos.y == 3);
+
+    // The frontend boot path: find the installed module, bind content, and
+    // resume the campaign from the loaded save.
+    auto module_dir = find_module_dir(std::filesystem::path{"data"}, loaded.module_id);
+    REQUIRE_FALSE(module_dir.empty());
+    ModuleContentResult content = load_module_content(module_dir);
+    REQUIRE(content.ok);
+
+    CampaignState campaign = capture_campaign_state(loaded);
+    GameSession resumed;
+    ModuleStartResult started = resumed.resume_module(content.module, campaign.hero, campaign);
+    REQUIRE(started.ok);
+
+    const Game& rg = resumed.game();
+    CHECK(rg.hero.pos.x == 2);
+    CHECK(rg.hero.pos.y == 3);
+    REQUIRE(rg.module_door_states.size() == 2);
+    for (const ModuleDoorFlag& flag : rg.module_door_states) {
+        if (flag.door_id == "module.testing_tomb.door.entrance_to_room_a") {
+            CHECK(flag.open);
+            CHECK_FALSE(flag.locked);
+        }
+    }
+    const Tile& entrance = rg.map[static_cast<std::size_t>(2 * rg.width + 2)];
+    CHECK(entrance.type == TileType::DoorOpen);
 }

@@ -23,3 +23,10 @@ struct ModuleManifestResult {
 };
 
 ModuleManifestResult load_module_manifest(const std::filesystem::path& module_dir);
+
+// Locate the directory under `data_dir/modules` whose module.json declares
+// `module_id`. Sibling directories are scanned by their declared module id, so
+// a directory name never needs to match. Returns an empty path when no module
+// with this id is installed.
+std::filesystem::path find_module_dir(const std::filesystem::path& data_dir,
+                                      const std::string& module_id);

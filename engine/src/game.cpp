@@ -2073,6 +2073,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
                            && cmd.type == PlayerCommandType::Cast);
     if ((g.hero.paralyzed_turns > 0 || g.hero.unconscious_turns > 0)
         && cmd.type != PlayerCommandType::Quit
+        && cmd.type != PlayerCommandType::Save
         && !cast_exception) {
         if (g.hero.unconscious_turns > 0) {
             --g.hero.unconscious_turns;
@@ -2100,6 +2101,7 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             case PlayerCommandType::Hide:
             case PlayerCommandType::Search:
             case PlayerCommandType::Help:
+            case PlayerCommandType::Save:
             case PlayerCommandType::None:
                 break; // keep hidden
             default:
@@ -2112,6 +2114,18 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
     switch (cmd.type) {
         case PlayerCommandType::Quit:
             return false;
+
+        case PlayerCommandType::Save: {
+            // Save wherever the hero happens to be, mirroring the camp save.
+            // The save does not advance the turn; monsters do not act on it.
+            auto save_path =
+                save_path_for_hero(g.hero.name.empty() ? "hero" : g.hero.name);
+            if (save_game(g, save_path))
+                log_event(g, "Game saved to " + save_path.string() + ".");
+            else
+                log_event(g, "Failed to save game at " + save_path.string() + ".");
+            return true;
+        }
 
         case PlayerCommandType::Wait:
             return true;

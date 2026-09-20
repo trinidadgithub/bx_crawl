@@ -210,7 +210,7 @@ Campaign/runtime state describes what has happened:
 - Quest state.
 - RNG state or seed when deterministic continuation is required.
 
-Current location: partially in `Game`, partially in save files, but not fully persisted. Since Phase 29 the module rows above are concrete: `Game` carries module identity, `heard_rumors`/`module_door_states`/`current_location_id` capture opened doors and world/module flags, and `CampaignState` + save format v6 persist them (restored via `GameSession::resume_module`).
+Current location: partially in `Game`, partially in save files, but not fully persisted. Since Phase 29 the module rows above are concrete: `Game` carries module identity, `heard_rumors`/`module_door_states`/`current_location_id` capture opened doors and world/module flags, and `CampaignState` + save format v6 persist them (restored via `GameSession::resume_module`). Phase 30 adds the hero position to that caption: save format v7 writes `pos` after the v6 door list (realized by backend loads in Phases 13-16), `resume_module` guards it (in-bounds, not a wall/closed door; otherwise falls back to the module entry tile), a dungeon `Save` command (non-turn, like `Quit`) writes `save_path_for_hero`, and `find_module_dir` locates shipped module content by scanned manifest id under `data/modules` so a module save re-binds through the same path the engine test uses.
 
 Recommended C++ boundaries:
 
@@ -653,10 +653,20 @@ Room A
             v
          Room B
             |
-            +-- 2 goblins
-            +-- trapped chest
-            +-- treasure
++-- 2 goblins
+    +-- trapped chest
+    +-- treasure
 ```
+
+Status: the proof of concept is complete (Phase 30). Manifest/schema/content
+loading, map/location/description loading, doors with runtime state, scripted
+encounters, treasure and trap seeding, module flags, state transitions, and
+save/reload with state restoration all work data-only with zero module-specific
+C++ engine logic, and the campaign now boots end-to-end: `gen_pregenerated`
+seeds `data/pregenerated_saves/Tomb Runner.dat` through the real boot path,
+and the frontend re-enters it (`resume_module`) so a hero can play, save
+(dungeon `Save`, text key `y`), quit, reload, and resume in-module with heard
+rumors, open doors, and position intact.
 
 What it must prove:
 
@@ -904,3 +914,4 @@ Future evidence that would justify some of them:
 8. Define `ContentId` and canonical `bx.*` IDs with adapter lookup over existing `bx_data.hpp`.
 9. Sketch the `testing-tomb` module JSON files and validation tests before implementing a broad loader.
 10. ~~Create the four ADRs listed above once the first boundary work begins.~~ Done in `docs/adr/`.
+11. ~~Prove the Testing Tomb module campaign end-to-end.~~ Done through Phase 30: content, gameplay, room B, rumor delivery, campaign save/reload, and a bootable campaign (`gen_pregenerated` seeds `Tomb Runner.dat`; the frontend re-enters it; a dungeon `Save` command supports play → save → quit → reload → resume in-module). The remaining follow-up priorities are gameplay-completeness track items (see `ROADMAP.md`), not module machinery.

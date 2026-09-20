@@ -4,6 +4,8 @@
 #include "char_session.hpp"
 #include "bx_data.hpp"
 #include "sound.hpp"
+#include "module_content.hpp"
+#include "module_manifest.hpp"
 
 #include <iostream>
 #include <cctype>
@@ -93,6 +95,10 @@ static PlayerCommand read_player_command(const Game& g) {
             return PlayerCommand{PlayerCommandType::Inventory, 0, 0};
         }
 
+        if (c == 'y') {
+            return PlayerCommand{PlayerCommandType::Save, 0, 0};
+        }
+
         if (c == 'h') {
             const char* help =
                 "\x1B[2J\x1B[H"
@@ -115,6 +121,7 @@ static PlayerCommand read_player_command(const Game& g) {
                 "u  Use (light lantern/torch, spike doors, read scrolls)\r\n"
                 "m  Cast a spell\r\n"
                 "t  Turn undead (direction)\r\n"
+                "y  Save game\r\n"
                 "x  Quit\r\n"
                 "\r\n"
                 "Press any key to return...\r\n";
@@ -349,6 +356,38 @@ static void play_new_sound_events(const GameSession& session, std::size_t& curso
     }
 }
 
+// Re-enter a freshly loaded game: a module campaign save is bound back through
+// resume_module (which rebuilds the authored map and restores heard rumors,
+// open doors, position, and location), while a procedural save settles any
+// dungeon at camp. Returns false when the load must be treated as unusable.
+static bool reenter_loaded_save(GameSession& session,
+                                const std::filesystem::path& data_dir,
+                                const std::string& label) {
+    Game& g = session.game();
+    if (!g.module_id.empty()) {
+        auto module_dir = find_module_dir(data_dir, g.module_id);
+        if (module_dir.empty())
+            return false;
+        auto content = load_module_content(module_dir);
+        if (!content.ok)
+            return false;
+        CampaignState campaign = capture_campaign_state(g);
+        ModuleStartResult started =
+            session.resume_module(content.module, campaign.hero, campaign);
+        if (!started.ok)
+            return false;
+        Game& resumed = session.game();
+        resumed.event_log.clear();
+        resumed.event_log.push_back("Loaded " + label + ".");
+        return true;
+    }
+    if (g.state == GameState::Dungeon)
+        g.state = GameState::Camp;
+    g.event_log.clear();
+    g.event_log.push_back("Loaded " + label + ".");
+    return true;
+}
+
 int main() {
     // Resolve data_dir relative to the binary so it works from any CWD
     std::filesystem::path bx_data_dir = "../data";
@@ -381,12 +420,8 @@ int main() {
         if (!path.empty()) {
             init_game_runtime(g, bx_data_dir);
             loaded = load_game(g, path);
-            if (loaded) {
-                if (g.state == GameState::Dungeon)
-                    g.state = GameState::Camp;
-                g.event_log.clear();
-                g.event_log.push_back("Loaded " + std::string(quick_load) + ".");
-            }
+            if (loaded)
+                loaded = reenter_loaded_save(session, bx_data_dir, quick_load);
         }
     }
 
@@ -409,14 +444,12 @@ int main() {
             if (choice >= 1 && choice <= static_cast<int>(saves.size())) {
                 init_game_runtime(g, bx_data_dir);
                 loaded = load_game(g, saves[static_cast<std::size_t>(choice - 1)]);
-                if (loaded) {
-                    if (g.state == GameState::Dungeon)
-                        g.state = GameState::Camp;
-                    g.event_log.clear();
-                    g.event_log.push_back("Loaded " + strip_save_extension(saves[static_cast<std::size_t>(choice - 1)]) + ".");
-                } else {
+                if (loaded)
+                    loaded = reenter_loaded_save(
+                        session, bx_data_dir,
+                        strip_save_extension(saves[static_cast<std::size_t>(choice - 1)]));
+                if (!loaded)
                     std::cout << "Failed to load save. Starting a new game.\n";
-                }
             }
         }
     }
@@ -435,10 +468,10 @@ int main() {
                 init_game_runtime(g, bx_data_dir);
                 loaded = load_game(g, old_path);
                 if (loaded) {
-                    if (g.state == GameState::Dungeon)
-                        g.state = GameState::Camp;
-                    g.event_log.clear();
-                    g.event_log.push_back("Loaded legacy save. Re-save at camp to migrate to per-character format.");
+                    loaded = reenter_loaded_save(session, bx_data_dir, "legacy save");
+                    if (loaded && session.game().module_id.empty())
+                        session.game().event_log.push_back(
+                            "Re-save at camp to migrate to per-character format.");
                 } else {
                     std::cout << "Failed to load legacy save.\n";
                 }

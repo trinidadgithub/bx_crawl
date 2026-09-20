@@ -165,3 +165,26 @@ ModuleManifestResult load_module_manifest(const std::filesystem::path& module_di
 
     return validate_manifest(std::move(manifest));
 }
+
+std::filesystem::path find_module_dir(const std::filesystem::path& data_dir,
+                                      const std::string& module_id) {
+    if (module_id.empty())
+        return {};
+    const auto modules_root = data_dir / "modules";
+    std::error_code ec;
+    std::filesystem::directory_iterator it(modules_root, ec);
+    if (ec)
+        return {};
+    std::filesystem::directory_iterator end;
+    for (; it != end; it.increment(ec)) {
+        if (ec)
+            break;
+        const auto& dir = it->path();
+        if (!std::filesystem::is_directory(dir, ec) || ec)
+            continue;
+        ModuleManifestResult result = load_module_manifest(dir);
+        if (result.ok && result.manifest.module_id == module_id)
+            return dir;
+    }
+    return {};
+}

@@ -1,0 +1,32 @@
+{
+  "map_id": "module.testing_tomb.map.tomb",
+  "width": 10,
+  "height": 5,
+  "entry_x": 2,
+  "entry_y": 4,
+  "tiles": [
+    "##########",
+    "#...+....#",
+    "##+##....#",
+    "#...#....#",
+    "##.##....#"
+  ],
+  "doors": [
+    {
+      "door_id": "module.testing_tomb.door.entrance_to_room_a",
+      "from_location_id": "module.testing_tomb.location.entrance",
+      "to_location_id": "module.testing_tomb.location.room_a",
+      "x": 2,
+      "y": 2,
+      "locked": true
+    },
+    {
+      "door_id": "module.testing_tomb.door.room_a_to_room_b",
+      "from_location_id": "module.testing_tomb.location.room_a",
+      "to_location_id": "module.testing_tomb.location.room_b",
+      "x": 4,
+      "y": 1,
+      "locked": true
+    }
+  ]
+}

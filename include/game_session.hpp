@@ -66,9 +66,9 @@ public:
 
     // Restart a module campaign and re-apply the persisted module runtime
     // state: heard rumors stay heard, previously opened doors restore to open,
-    // and the hero resumes at the captured location. The module rebuilds its
-    // authored map and content from `module`; only mutable state (rumor ids,
-    // door flags, location) comes from `campaign`.
+    // and the hero resumes at the captured position and location. The module
+    // rebuilds its authored map and content from `module`; only mutable state
+    // (rumor ids, door flags, position, location) comes from `campaign`.
     ModuleStartResult resume_module(const ModuleContent& module, Entity hero,
                                     const CampaignState& campaign);
 

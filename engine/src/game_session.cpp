@@ -75,6 +75,7 @@ ActionResult GameSession::apply(const PlayerCommand& cmd) {
     // matching the former frontend special-case. Initiative and monster turns
     // therefore only run for commands that pass a dungeon turn.
     if (cmd.type == PlayerCommandType::Inventory ||
+        cmd.type == PlayerCommandType::Save ||
         cmd.type == PlayerCommandType::Quit) {
         result.keep_playing = apply_player_command(g, cmd);
         return result;
@@ -283,6 +284,20 @@ ModuleStartResult GameSession::resume_module(const ModuleContent& module, Entity
     // authoritative; only heard-ness is true campaign state.
     g.heard_rumors = campaign.heard_rumors;
     g.current_location_id = campaign.current_location_id;
+
+    // A persistent hero position resumes on the saved tile; the entry
+    // position is the fallback for campaigns without a usable recorded spot
+    // (e.g. pre-v7 saves, whose position defaults to {0, 0} on a wall).
+    if (campaign.hero.pos.x >= 0 && campaign.hero.pos.y >= 0 &&
+        campaign.hero.pos.x < game_.width && campaign.hero.pos.y < game_.height) {
+        const Tile& tile = game_.map[static_cast<std::size_t>(
+            campaign.hero.pos.y * game_.width + campaign.hero.pos.x)];
+        const TileType type = tile.type;
+        if (type != TileType::Wall && type != TileType::DoorClosed &&
+            type != TileType::SecretDoorClosed) {
+            game_.hero.pos = campaign.hero.pos;
+        }
+    }
 
     // Re-apply persisted door flags onto the freshly rebuilt map.
     for (const ModuleDoorFlag& flag : campaign.module_door_states) {
