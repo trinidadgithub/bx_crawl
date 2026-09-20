@@ -3,6 +3,7 @@
 #include "game_snapshot.hpp"
 #include "map.hpp"
 #include "bx_data.hpp"
+#include "item_catalog.hpp"
 #include "item_effects.hpp"
 #include "inventory.hpp"
 
@@ -239,6 +240,92 @@ void check_level_up(Game& g) {
 
         needed = xp_for_level(g.hero.char_class, g.hero_level + 1);
     }
+}
+
+void apply_level_drain(Game& g, const Entity& draining) {
+    if (g.hero_level <= 1) {
+        log_event(g, "The " + draining.name + "'s drain has no effect on a first-level hero!");
+        return;
+    }
+
+    int new_level = g.hero_level - 1;
+
+    int con_mod = ability_modifier_display(g.hero.abilities.con);
+    int hd = class_hd_sides(g.hero.char_class);
+    int lost = std::max(1, roll_d(g, hd) + con_mod);
+    g.hero.max_hp -= lost;
+    if (g.hero.max_hp < 1) g.hero.max_hp = 1;
+    if (g.hero.hp > g.hero.max_hp) g.hero.hp = g.hero.max_hp;
+    if (g.hero.hp < 1) g.hero.hp = 1;
+
+    if (g.hero.char_class == CharacterClass::Fighter) {
+        int str_mod = bx::get_strength(g.hero.abilities.str).toHitMelee;
+        g.hero.attack_bonus = fighter_attack_bonus_for_level(new_level) + str_mod;
+    } else {
+        g.hero.attack_bonus -= 1;
+    }
+
+    auto grant_slots = [&](const auto& table) {
+        for (const auto& entry : table) {
+            if (entry.level == new_level) {
+                g.hero.max_spell_slots[1] = entry.first_level_spells;
+                g.hero.max_spell_slots[2] = entry.second_level_spells;
+                g.hero.spell_slots[1]      = entry.first_level_spells;
+                g.hero.spell_slots[2]      = entry.second_level_spells;
+                break;
+            }
+        }
+    };
+    switch (g.hero.char_class) {
+        case CharacterClass::MagicUser: grant_slots(bx::magic_user_levels); break;
+        case CharacterClass::Cleric:    grant_slots(bx::cleric_levels);    break;
+        case CharacterClass::Elf:       grant_slots(bx::elf_levels);       break;
+        default: break;
+    }
+
+    int band_min = (new_level <= 1) ? 0 : xp_for_level(g.hero.char_class, new_level);
+    int band_max = xp_for_level(g.hero.char_class, new_level + 1);
+    g.total_xp = (band_min + band_max) / 2;
+
+    g.hero_level = new_level;
+
+    {
+        std::ostringstream oss;
+        oss << draining.name << " drains one of your life levels! "
+            << "You are now level " << new_level
+            << " (max HP " << g.hero.max_hp << ").";
+        log_event(g, oss.str());
+    }
+}
+
+void apply_strength_drain(Game& g, const Entity& draining) {
+    if (g.hero.abilities.str <= 3) {
+        log_event(g, "The " + draining.name + "'s drain cannot weaken you further!");
+        return;
+    }
+
+    int old_str = g.hero.abilities.str;
+    int old_mod = bx::get_strength(old_str).toHitMelee;
+    g.hero.abilities.str = old_str - 1;
+    int delta = bx::get_strength(g.hero.abilities.str).toHitMelee - old_mod;
+    g.hero.attack_bonus += delta;
+    g.hero.damage_bonus += delta;
+
+    {
+        std::ostringstream oss;
+        oss << draining.name << " drains 1 point of Strength "
+            << "(STR " << old_str << " -> " << (old_str - 1) << ").";
+        log_event(g, oss.str());
+    }
+}
+
+bool hero_weapon_can_wound(const Game& g, WeaponImmunity immunity) {
+    if (immunity == WeaponImmunity::None) return true;
+    auto silver = bx::weapon_index("silver-dagger");
+    bool silver_wielded =
+        silver.has_value() && g.hero.weapon_id == bx::weapons[*silver].id;
+    if (silver_wielded) return immunity == WeaponImmunity::SilverOrMagic;
+    return false;
 }
 
 // Check if a tile is occupied by any living entity (hero or monsters).
@@ -664,6 +751,32 @@ static bool is_name_paralysis(const char* name) {
         || n.find("Thoul") != std::string_view::npos;
 }
 
+// Check if a monster name indicates a touch that drains a hero level
+// (wight, wraith).
+static bool is_name_level_drain(const char* name) {
+    std::string_view n(name);
+    return n.find("Wight") != std::string_view::npos
+        || n.find("Wraith") != std::string_view::npos;
+}
+
+// Check if a monster name indicates a touch that drains a point of
+// Strength (shadow).
+static bool is_name_strength_drain(const char* name) {
+    return std::string_view(name) == "Shadow";
+}
+
+// Weapon-immunity tier for a monster name. Shadows and wraiths can be hit
+// only by magical weapons; wights by silver or magical weapons.
+static WeaponImmunity weapon_immunity_for_name(const char* name) {
+    std::string_view n(name);
+    if (n.find("Wight") != std::string_view::npos)
+        return WeaponImmunity::SilverOrMagic;
+    if (n.find("Shadow") != std::string_view::npos
+        || n.find("Wraith") != std::string_view::npos)
+        return WeaponImmunity::MagicOnly;
+    return WeaponImmunity::None;
+}
+
 // Check if a monster name is a normal bat (confusion, no attack)
 static bool is_name_normal_bat(const char* name) {
     return std::string_view(name) == "Bat, Normal";
@@ -1051,6 +1164,9 @@ Entity spawn_bx_monster_by_index(Game& g, int idx) {
     e.has_poison = is_name_poison(m.name);
     e.has_disease = is_name_disease(m.name);
     e.has_paralysis = is_name_paralysis(m.name);
+    e.drains_level    = is_name_level_drain(m.name);
+    e.drains_strength = is_name_strength_drain(m.name);
+    e.weapon_immunity = weapon_immunity_for_name(m.name);
     e.fleeing    = false;
     e.alive      = true;
     e.attacks_per_turn = 1;
@@ -1114,6 +1230,18 @@ void check_level_up(Game& g) {
 
 bool make_save(Game& g, CharacterClass cc, int category) {
     return ::make_save(g, cc, category);
+}
+
+void apply_level_drain(Game& g, const Entity& draining) {
+    ::apply_level_drain(g, draining);
+}
+
+void apply_strength_drain(Game& g, const Entity& draining) {
+    ::apply_strength_drain(g, draining);
+}
+
+bool hero_weapon_can_wound(const Game& g, WeaponImmunity immunity) {
+    return ::hero_weapon_can_wound(g, immunity);
 }
 
 int sign(int v) {
@@ -1869,31 +1997,36 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
             }
 
             if (total >= target->ac) {
-                int dmg = roll_d(g, damage_die);
-                target->hp -= dmg;
+                if (target->weapon_immunity != WeaponImmunity::None
+                    && !hero_weapon_can_wound(g, target->weapon_immunity)) {
+                    log_event(g, "The " + target->name + " is unharmed by your weapon!");
+                } else {
+                    int dmg = roll_d(g, damage_die);
+                    target->hp -= dmg;
 
-                {
-                    std::ostringstream oss;
-                    oss << "Hit! " << target->name << " takes "
-                        << dmg << " damage.";
-                    log_event(g, oss.str());
-                }
-
-                if (target->hp <= 0) {
-                    target->hp    = 0;
-                    target->alive = false;
                     {
                         std::ostringstream oss;
-                        oss << target->name << " is slain!";
+                        oss << "Hit! " << target->name << " takes "
+                            << dmg << " damage.";
                         log_event(g, oss.str());
                     }
-                    award_treasure(g, *target);
-                    check_level_up(g);
 
-                    // Recover the thrown weapon
-                    ++ammo;
-                    log_event(g, weapon_name + " recovered from "
-                               + target->name + ".");
+                    if (target->hp <= 0) {
+                        target->hp    = 0;
+                        target->alive = false;
+                        {
+                            std::ostringstream oss;
+                            oss << target->name << " is slain!";
+                            log_event(g, oss.str());
+                        }
+                        award_treasure(g, *target);
+                        check_level_up(g);
+
+                        // Recover the thrown weapon
+                        ++ammo;
+                        log_event(g, weapon_name + " recovered from "
+                                   + target->name + ".");
+                    }
                 }
             } else {
                 log_event(g, "Miss!");

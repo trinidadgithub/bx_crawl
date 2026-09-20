@@ -42,6 +42,18 @@ void check_level_up(Game& g) {
     game_internal::check_level_up(g);
 }
 
+void apply_level_drain(Game& g, const Entity& draining) {
+    game_internal::apply_level_drain(g, draining);
+}
+
+void apply_strength_drain(Game& g, const Entity& draining) {
+    game_internal::apply_strength_drain(g, draining);
+}
+
+bool hero_weapon_can_wound(const Game& g, WeaponImmunity immunity) {
+    return game_internal::hero_weapon_can_wound(g, immunity);
+}
+
 int sign(int v) {
     return game_internal::sign(v);
 }
@@ -207,121 +219,139 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
     }
 
     if (total >= target) {
-        int dmg = roll_d(g, attacker.damage_die) + attacker.damage_bonus;
-        dmg = std::max(1, dmg);
-        if (backstab_bonus) {
-            dmg *= 2;
-            queue_sound(g, SoundEffect::Backstab);
-            log_event(g, "Backstab hits for double damage!");
-        } else if (attacker.type == EntityType::Hero) {
-            queue_sound(g, SoundEffect::AttackHit);
-        }
-        defender.hp -= dmg;
-
-        {
-            std::ostringstream oss;
-            oss << "Hit! " << defender.name << " takes "
-                << dmg << " damage.";
-            log_event(g, oss.str());
+        bool weapon_can_wound = true;
+        if (attacker.type == EntityType::Hero
+            && defender.weapon_immunity != WeaponImmunity::None) {
+            weapon_can_wound = hero_weapon_can_wound(g, defender.weapon_immunity);
         }
 
-        if (defender.hp <= 0) {
-            defender.hp = 0;
-            defender.alive = false;
-
-            if (defender.type == EntityType::Hero) {
-                queue_sound(g, SoundEffect::PlayerDeath);
-            } else {
-                queue_sound(g, SoundEffect::MonsterDeath);
+        if (!weapon_can_wound) {
+            {
+                std::ostringstream oss;
+                oss << "The " << defender.name << " is unharmed by your weapon!";
+                log_event(g, oss.str());
             }
+        } else {
+            int dmg = roll_d(g, attacker.damage_die) + attacker.damage_bonus;
+            dmg = std::max(1, dmg);
+            if (backstab_bonus) {
+                dmg *= 2;
+                queue_sound(g, SoundEffect::Backstab);
+                log_event(g, "Backstab hits for double damage!");
+            } else if (attacker.type == EntityType::Hero) {
+                queue_sound(g, SoundEffect::AttackHit);
+            }
+            defender.hp -= dmg;
 
             {
                 std::ostringstream oss;
-                oss << defender.name << " is slain!";
+                oss << "Hit! " << defender.name << " takes "
+                    << dmg << " damage.";
                 log_event(g, oss.str());
             }
 
-            if (defender.type != EntityType::Hero && defender.is_leader) {
-                std::ostringstream oss;
-                oss << "The " << defender.name
-                    << " leader has fallen — the group's morale wavers!";
-                log_event(g, oss.str());
-            }
+            if (defender.hp <= 0) {
+                defender.hp = 0;
+                defender.alive = false;
 
-            if (attacker.type == EntityType::Hero &&
-                defender.type != EntityType::Hero) {
-                award_treasure(g, defender);
-                check_level_up(g);
-            }
+                if (defender.type == EntityType::Hero) {
+                    queue_sound(g, SoundEffect::PlayerDeath);
+                } else {
+                    queue_sound(g, SoundEffect::MonsterDeath);
+                }
 
-            if (trigger_morale && defender_is_monster &&
-                attacker.type == EntityType::Hero) {
-                morale_allies_on_death(g, defender, attacker,
-                                       free_attacks_remaining);
-            }
-        } else {
-            if (defender.type == EntityType::Hero && attacker.type != EntityType::Hero) {
-                if (attacker.has_poison) {
-                    if (make_save(g, g.hero.char_class, 0)) {
-                        log_event(g, "You resist the poison!");
-                    } else {
-                        int poison_dmg = roll_d(g, 4);
-                        defender.hp -= poison_dmg;
-                        {
-                            std::ostringstream oss;
-                            oss << attacker.name << " poison deals " << poison_dmg << " damage!";
-                            log_event(g, oss.str());
+                {
+                    std::ostringstream oss;
+                    oss << defender.name << " is slain!";
+                    log_event(g, oss.str());
+                }
+
+                if (defender.type != EntityType::Hero && defender.is_leader) {
+                    std::ostringstream oss;
+                    oss << "The " << defender.name
+                        << " leader has fallen — the group's morale wavers!";
+                    log_event(g, oss.str());
+                }
+
+                if (attacker.type == EntityType::Hero &&
+                    defender.type != EntityType::Hero) {
+                    award_treasure(g, defender);
+                    check_level_up(g);
+                }
+
+                if (trigger_morale && defender_is_monster &&
+                    attacker.type == EntityType::Hero) {
+                    morale_allies_on_death(g, defender, attacker,
+                                           free_attacks_remaining);
+                }
+            } else {
+                if (defender.type == EntityType::Hero && attacker.type != EntityType::Hero) {
+                    if (attacker.has_poison) {
+                        if (make_save(g, g.hero.char_class, 0)) {
+                            log_event(g, "You resist the poison!");
+                        } else {
+                            int poison_dmg = roll_d(g, 4);
+                            defender.hp -= poison_dmg;
+                            {
+                                std::ostringstream oss;
+                                oss << attacker.name << " poison deals " << poison_dmg << " damage!";
+                                log_event(g, oss.str());
+                            }
+                            if (defender.hp <= 0) {
+                                defender.hp = 0;
+                                defender.alive = false;
+                                log_event(g, "You succumb to the poison!");
+                            }
                         }
-                        if (defender.hp <= 0) {
-                            defender.hp = 0;
-                            defender.alive = false;
-                            log_event(g, "You succumb to the poison!");
+                    } else if (attacker.has_disease) {
+                        if (!make_save(g, g.hero.char_class, 0)) {
+                            log_event(g, "The " + attacker.name + " infects you with disease!");
+                            int disease_dmg = 1;
+                            defender.hp -= disease_dmg;
+                            if (defender.hp <= 0) {
+                                defender.hp = 0;
+                                defender.alive = false;
+                            }
                         }
-                    }
-                } else if (attacker.has_disease) {
-                    if (!make_save(g, g.hero.char_class, 0)) {
-                        log_event(g, "The " + attacker.name + " infects you with disease!");
-                        int disease_dmg = 1;
-                        defender.hp -= disease_dmg;
-                        if (defender.hp <= 0) {
-                            defender.hp = 0;
-                            defender.alive = false;
+                    } else if (attacker.has_paralysis) {
+                        bool elf_immune = (g.hero.char_class == CharacterClass::Elf
+                                           && attacker.name.find("Ghoul") != std::string::npos);
+                        if (elf_immune) {
+                            log_event(g, "Your elven blood resists the ghoul's paralysis!");
+                        } else if (make_save(g, g.hero.char_class, 2)) {
+                            log_event(g, "You resist the paralysis!");
+                        } else {
+                            g.hero.paralyzed_turns = roll_d(g, 4) + roll_d(g, 4);
+                            {
+                                std::ostringstream oss;
+                                oss << attacker.name << " paralyzes you for "
+                                    << g.hero.paralyzed_turns << " turns!";
+                                log_event(g, oss.str());
+                            }
                         }
-                    }
-                } else if (attacker.has_paralysis) {
-                    bool elf_immune = (g.hero.char_class == CharacterClass::Elf
-                                       && attacker.name.find("Ghoul") != std::string::npos);
-                    if (elf_immune) {
-                        log_event(g, "Your elven blood resists the ghoul's paralysis!");
-                    } else if (make_save(g, g.hero.char_class, 2)) {
-                        log_event(g, "You resist the paralysis!");
-                    } else {
-                        g.hero.paralyzed_turns = roll_d(g, 4) + roll_d(g, 4);
-                        {
-                            std::ostringstream oss;
-                            oss << attacker.name << " paralyzes you for "
-                                << g.hero.paralyzed_turns << " turns!";
-                            log_event(g, oss.str());
+                    } else if (attacker.is_vampire_bat) {
+                        if (make_save(g, g.hero.char_class, 2)) {
+                            log_event(g, "You shake off the vampire bat's bite!");
+                        } else {
+                            g.hero.unconscious_turns = roll_d(g, 10);
+                            {
+                                std::ostringstream oss;
+                                oss << "The vampire bat's bite knocks you unconscious for "
+                                    << g.hero.unconscious_turns << " rounds!";
+                                log_event(g, oss.str());
+                            }
                         }
-                    }
-                } else if (attacker.is_vampire_bat) {
-                    if (make_save(g, g.hero.char_class, 2)) {
-                        log_event(g, "You shake off the vampire bat's bite!");
-                    } else {
-                        g.hero.unconscious_turns = roll_d(g, 10);
-                        {
-                            std::ostringstream oss;
-                            oss << "The vampire bat's bite knocks you unconscious for "
-                                << g.hero.unconscious_turns << " rounds!";
-                            log_event(g, oss.str());
-                        }
+                    } else if (attacker.drains_level) {
+                        apply_level_drain(g, attacker);
+                    } else if (attacker.drains_strength) {
+                        apply_strength_drain(g, attacker);
                     }
                 }
-            }
-            if (trigger_morale && defender_is_monster &&
-                attacker.type == EntityType::Hero) {
-                try_morale_check(g, defender, attacker,
-                                 free_attacks_remaining, "is wounded");
+                if (trigger_morale && defender_is_monster &&
+                    attacker.type == EntityType::Hero) {
+                    try_morale_check(g, defender, attacker,
+                                     free_attacks_remaining, "is wounded");
+                }
             }
         }
     } else {

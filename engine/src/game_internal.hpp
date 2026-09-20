@@ -17,6 +17,10 @@ void award_treasure(Game& g, Entity& monster);
 void check_level_up(Game& g);
 bool make_save(Game& g, CharacterClass cc, int category);
 
+void apply_level_drain(Game& g, const Entity& draining);
+void apply_strength_drain(Game& g, const Entity& draining);
+bool hero_weapon_can_wound(const Game& g, WeaponImmunity immunity);
+
 int sign(int v);
 bool is_occupied(const Game& g, int x, int y, const Entity* ignore = nullptr);
 void move_entity(Game& g, Entity& e, int dx, int dy);
