@@ -184,6 +184,7 @@ enum class PlayerCommandType {
     ThrowKnife,
     ThrowDart,
     ThrowHolyWater,
+    ThrowOil,
     Cast,
     Turn,
     Inventory,

@@ -236,7 +236,12 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
         if (!weapon_can_wound) {
             {
                 std::ostringstream oss;
-                oss << "The " << defender.name << " is unharmed by your weapon!";
+                if (defender.weapon_immunity == WeaponImmunity::FireOnly) {
+                    oss << "Your weapon passes right through the "
+                        << defender.name << "!";
+                } else {
+                    oss << "The " << defender.name << " is unharmed by your weapon!";
+                }
                 log_event(g, oss.str());
             }
         } else {

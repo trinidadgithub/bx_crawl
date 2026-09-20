@@ -22,6 +22,9 @@ void apply_strength_drain(Game& g, const Entity& draining);
 void apply_rust_corrosion(Game& g, const Entity& rusting);
 void apply_green_slime(Game& g, const Entity& slime);
 bool hero_weapon_can_wound(const Game& g, WeaponImmunity immunity);
+bool fire_hits_monster(Game& g, Entity& target, int dmg,
+                       const std::string& flame,
+                       std::vector<Entity>& spillover);
 
 int sign(int v);
 bool is_occupied(const Game& g, int x, int y, const Entity* ignore = nullptr);

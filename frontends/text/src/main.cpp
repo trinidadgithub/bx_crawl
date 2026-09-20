@@ -118,6 +118,7 @@ static PlayerCommand read_player_command(const Game& g) {
                 "k  Throw knife (direction)\r\n"
                 "f  Throw dart  (direction)\r\n"
                 "v  Throw holy water (direction)\r\n"
+                "n  Throw burning oil (direction)\r\n"
                 "g  Get items from the ground\r\n"
                 "s  Scrape off clinging green slime (costs a round)\r\n"
                 "b  Character sheet / equipment\r\n"
@@ -173,13 +174,14 @@ static PlayerCommand read_player_command(const Game& g) {
         }
 
         // Throw weapon: read a second key for direction
-        if (c == 'k' || c == 'f' || c == 'v') {
+        if (c == 'k' || c == 'f' || c == 'v' || c == 'n') {
             int dx = 0, dy = 0;
             if (!read_direction(dx, dy))
                 return PlayerCommand{PlayerCommandType::Wait, 0, 0};
             auto cmd_type = PlayerCommandType::ThrowHolyWater;
             if (c == 'k') cmd_type = PlayerCommandType::ThrowKnife;
             else if (c == 'f') cmd_type = PlayerCommandType::ThrowDart;
+            else if (c == 'n') cmd_type = PlayerCommandType::ThrowOil;
             return PlayerCommand{cmd_type, dx, dy, 0};
         }
 
@@ -237,6 +239,7 @@ static PlayerCommand read_town_command(const Game& g) {
                 "k  Throw knife (direction)\r\n"
                 "f  Throw dart  (direction)\r\n"
                 "v  Throw holy water (direction)\r\n"
+                "n  Throw burning oil (direction)\r\n"
                 "g  Get items from the ground\r\n"
                 "b  Character sheet / equipment\r\n"
                 "i  Hide in shadows (Thief)\r\n"
