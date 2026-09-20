@@ -394,6 +394,51 @@ void apply_rust_corrosion(Game& g, const Entity& rusting) {
     rusts("no metal to corrode");
 }
 
+// A green slime's touch dissolves the hero's worn non-magical gear (armor,
+// shield, and wielded weapon — silver remains the reference material that
+// survives) and clings on: the hero suffers 1d8 each round until a Scrape
+// action removes it.
+void apply_green_slime(Game& g, const Entity&) {
+    if (g.hero.green_slime_turns > 0) return;
+
+    std::vector<std::string> eaten;
+    if (!g.hero.armor_id.empty()) {
+        if (auto slot = bx::armor_index(g.hero.armor_id)) {
+            eaten.push_back(bx::armor_items[*slot].name);
+            g.hero.armor_counts[static_cast<std::size_t>(*slot)]--;
+            g.hero.armor_id.clear();
+            g.hero.ac = 9;
+        }
+    }
+    if (g.hero.has_shield) {
+        eaten.push_back("Shield");
+        g.hero.has_shield = false;
+        if (auto slot = bx::armor_index("shield")) {
+            g.hero.armor_counts[static_cast<std::size_t>(*slot)]--;
+        }
+    }
+    if (!g.hero.weapon_id.empty()) {
+        if (auto slot = bx::weapon_index(g.hero.weapon_id)) {
+            if (bx::weapons[*slot].id != std::string_view("silver-dagger")) {
+                eaten.push_back(bx::weapons[*slot].name);
+                g.hero.weapon_counts[*slot]--;
+                g.hero.weapon_id.clear();
+                g.hero.damage_die = 2; // unarmed: 1d2
+            }
+        }
+    }
+
+    if (!eaten.empty()) {
+        std::string list = eaten[0];
+        for (std::size_t i = 1; i < eaten.size(); ++i)
+            list += ", " + eaten[i];
+        log_event(g, "The green slime eats through your " + list + "!");
+    }
+
+    g.hero.green_slime_turns = 1;
+    log_event(g, "The green slime clings to you!");
+}
+
 bool hero_weapon_can_wound(const Game& g, WeaponImmunity immunity) {
     if (immunity == WeaponImmunity::None) return true;
     auto silver = bx::weapon_index("silver-dagger");
@@ -846,6 +891,12 @@ static bool is_name_corrodes_metal(const char* name) {
     return std::string_view(name).find("Rust") != std::string_view::npos;
 }
 
+// Check if a monster name is the green slime (contact eats non-magical armor
+// and weapons, then clings for 1d8/round until scraped off).
+static bool is_name_green_slime(const char* name) {
+    return std::string_view(name) == "Green Slime";
+}
+
 // Weapon-immunity tier for a monster name. Shadows and wraiths can be hit
 // only by magical weapons; wights by silver or magical weapons.
 static WeaponImmunity weapon_immunity_for_name(const char* name) {
@@ -1248,6 +1299,7 @@ Entity spawn_bx_monster_by_index(Game& g, int idx) {
     e.drains_level    = is_name_level_drain(m.name);
     e.drains_strength = is_name_strength_drain(m.name);
     e.corrodes_metal  = is_name_corrodes_metal(m.name);
+    e.green_slime     = is_name_green_slime(m.name);
     e.weapon_immunity = weapon_immunity_for_name(m.name);
     e.fleeing    = false;
     e.alive      = true;
@@ -1324,6 +1376,10 @@ void apply_strength_drain(Game& g, const Entity& draining) {
 
 void apply_rust_corrosion(Game& g, const Entity& rusting) {
     ::apply_rust_corrosion(g, rusting);
+}
+
+void apply_green_slime(Game& g, const Entity& slime) {
+    ::apply_green_slime(g, slime);
 }
 
 bool hero_weapon_can_wound(const Game& g, WeaponImmunity immunity) {
@@ -1778,6 +1834,9 @@ void render(const Game& g) {
         // Unconscious indicator
         if (g.hero.unconscious_turns > 0)
             oss << " UNCONSCIOUS!";
+        // Green slime indicator
+        if (g.hero.green_slime_turns > 0)
+            oss << " GREEN SLIME!";
         oss << " R:" << g.hero.rations;
         put_line(oss.str());
     }
@@ -1883,6 +1942,7 @@ GameStateSnapshot make_game_state_snapshot(const Game& g) {
     out.hero.courage_turns = h.courage_turns;
     out.hero.resist_cold_turns = h.resist_cold_turns;
     out.hero.unconscious_turns = h.unconscious_turns;
+    out.hero.green_slime_turns = h.green_slime_turns;
     out.hero.confused = hero_is_confused(g);
 
     out.monsters.reserve(g.monsters.size());
@@ -2312,6 +2372,27 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
         return true;
     }
 
+    // A clinging green slime eats through the hero each round spent not
+    // scraping it off (Quit/Save do not advance the round).
+    if (g.hero.green_slime_turns > 0
+        && cmd.type != PlayerCommandType::Scrape
+        && cmd.type != PlayerCommandType::Quit
+        && cmd.type != PlayerCommandType::Save) {
+        int dmg = roll_d(g, 8);
+        g.hero.hp -= dmg;
+        {
+            std::ostringstream oss;
+            oss << "The green slime eats through you! (" << dmg << " damage)";
+            log_event(g, oss.str());
+        }
+        if (g.hero.hp <= 0) {
+            g.hero.hp = 0;
+            g.hero.alive = false;
+            log_event(g, "The green slime devours you!");
+            return true;
+        }
+    }
+
     // Break stealth on most actions (not Wait, Hide, Search, Help, or None)
     if (g.hero.hidden) {
         switch (cmd.type) {
@@ -2348,6 +2429,16 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
 
         case PlayerCommandType::Wait:
             return true;
+
+        case PlayerCommandType::Scrape: {
+            if (g.hero.green_slime_turns > 0) {
+                g.hero.green_slime_turns = 0;
+                log_event(g, "You frantically scrape the green slime off!");
+            } else {
+                log_event(g, "There is nothing to scrape off.");
+            }
+            return true;
+        }
 
         case PlayerCommandType::Move: {
             if (hero_move(g, cmd.dx, cmd.dy))

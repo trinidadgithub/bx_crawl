@@ -66,6 +66,7 @@ struct HeroView {
     int courage_turns{};
     int resist_cold_turns{};
     int unconscious_turns{};
+    int green_slime_turns{};
     bool confused{false};
 };
 

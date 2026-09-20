@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 32:
+- Architecture groundwork completed through Phase 33:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -81,6 +81,13 @@ finishing the architecture-review follow-up before expanding new gameplay.
     rules are classified in one place) are unharmed, a touch finds "no metal to
     corrode" otherwise, and destroyed equipment round-trips through save v7
     (ids, AC, and counts)
+  - green slime contact: `apply_green_slime` (spawn flag in the combat special
+    chain) dissolves the hero's worn non-magical gear — armor, shield, and
+    wielded weapon, wood included — in one touch with a message naming what was
+    eaten (silver survives), then clings (`green_slime_turns`): 1d8 each round
+    the hero spends not scraping, via a new `Scrape` player command (frontend
+    key `s`) that consumes a normal turn; gray ooze/ochre jelly already carry
+    their correct B/X damage
 
 ## Architecture Review Track
 
@@ -222,31 +229,39 @@ High-value gameplay items still known:
   and the equipment actually removed; silver, non-metal, and the wooden missile
   weapons are unharmed (weapon-material rules live in one place), and a touch
   with nothing to eat finds "no metal to corrode".
-- Oozes/slimes: distinct ignores-armor damage and green slime's dissolve/1d8
-  contact rule (the Phase 32 material+subtraction machinery is reusable here).
+- ~~Green slime: contact dissolution and 1d8 clinging.~~ Done in Phase 33:
+  `apply_green_slime` (spawn flag in the combat special chain) dissolves the
+  worn non-magical armor, shield, and wielded weapon — wood included — in one
+  touch, then clings for 1d8 each round until a `Scrape` action (new key `s`)
+  consumes a turn to remove it; silver survives, gray ooze/ochre jelly already
+  deal their correct B/X damage (B/X has no "ignores armor" damage rule — AC
+  only affects to-hit).
+- Slime counter-attacks: only fire (and some spells) can destroy green slime;
+  ochre jellies and black puddings split when struck by fire or lightning.
 - Continue reviewing monster descriptions and stat data against the Basic Box PDF.
 - Replace stale `Monsters.md` with a generated reference or a pointer to the
   monster tools and data files.
 
 ## Recommended Next Task
 
-**Ooze / slime corrosion and ignores-armor damage** — bring the remaining
-corrosion-family monsters inline with the Basic Box. Gray ooze and ochre jelly
-already scale their damage from data, but every slime still resolves through
-generic melee: B/X specifies that oozes/slimes ignore armor (their damage is
-not reduced by AC) and that a green slime's contact dissolves metal and wood
-(1d8 damage each round until scraped off). Add the rules at the layer the
-rust monster just established — a spawn-set special flag (`ignores_armor`,
-`green_slime_dissolve`) plus combat resolution — reusing the equipment
-subtraction from Phase 32.
+**Slime damage immunities and splitting** — finish the corrosion family's
+combat rules. Green slime is currently fought with ordinary melee, but B/X
+says weapons pass through it and only fire or fire-based magic destroys it;
+ochre jellies and black puddings take damage normally but each fire or
+lightning strike splits one into (smaller) copies. Add both at the layer the
+rust monster/slime phases established — spawn-set special flags plus combat
+resolution — honoring the reference-material idea: melee wounds nothing unless
+a fire source is used, and a struck slime explodes into offspring (count handled
+by the existing bat-swarm `Entity::count`).
 
 Acceptance criteria:
 
-- A gray ooze/ochre jelly hit deals full damage regardless of the hero's armor,
-  with a dungeon message.
-- A green slime contact dissolves the victim's non-magical armor/weapon gear
-  (reusing Phase 32 subtraction) and deals ongoing 1d8 until removed, with no
-  crash at zero equipment.
+- A green slime is unharmed by any melee/thrown weapon (a "passes right
+  through!" message), but suffers damage from the oil/fire and appropriate
+  spells; it stays correct against the existing weapon-immunity tests.
+- An ochre jelly / black pudding reduced by fire or lightning splits into two
+  smaller jellies (hp halves, `Entity::count` tracks the group) instead of
+  dying outright, with no crash and a dungeon message.
 - Existing weapon/armor, combat, and save/load tests stay green; Debug +
   sanitizer validation pass.
 

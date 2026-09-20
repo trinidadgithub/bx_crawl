@@ -188,7 +188,7 @@ Clean examples:
 
 Less extensible examples:
 
-- Monster special traits are name predicates in `game.cpp`, e.g. `is_name_undead`, `is_name_poison`, `is_name_paralysis`, `is_name_normal_bat`, `is_name_giant_bat`. Phases 31-32 extend the same pattern for `drains_level` / `drains_strength` / `corrodes_metal` / `WeaponImmunity`, still name-derived at spawn but stored as data flags on `Entity` (consistent with the existing specials; the longer-term "convert to data traits" direction below is unchanged).
+- Monster special traits are name predicates in `game.cpp`, e.g. `is_name_undead`, `is_name_poison`, `is_name_paralysis`, `is_name_normal_bat`, `is_name_giant_bat`. Phases 31-33 extend the same pattern for `drains_level` / `drains_strength` / `corrodes_metal` / `green_slime` / `WeaponImmunity`, still name-derived at spawn but stored as data flags on `Entity` (consistent with the existing specials; the longer-term "convert to data traits" direction below is unchanged).
 - Spell resolution is a long chain of string comparisons inside `cast_spell`.
 - Class behavior is repeated across switches in `game.cpp`, `chargen.cpp`, and helper functions.
 - Monster leader/daylight behavior is currently name-based. It works, but adding more monster families will keep growing conditionals.

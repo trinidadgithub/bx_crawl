@@ -1795,6 +1795,132 @@ TEST_CASE("Rust monster touch corrodes metal equipment") {
     }
 }
 
+// ── Green slime / contact dissolution + clinging ─────────
+
+TEST_CASE("Green Slime gets the contact-dissolves trait at spawn") {
+    {
+        ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+        ScopedEnvVar test_monster("BX_TEST_MONSTER", "green slime");
+        Game g;
+        init_game(g, make_hero(1, 1, 0, 1, 10));
+        CHECK(g.monsters[0].green_slime == true);
+        CHECK(g.monsters[0].name.find("Slime") != std::string::npos);
+    }
+    {
+        ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+        ScopedEnvVar test_monster("BX_TEST_MONSTER", "goblin");
+        Game g;
+        init_game(g, make_hero(1, 1, 0, 1, 10));
+        CHECK(g.monsters[0].green_slime == false);
+    }
+}
+
+TEST_CASE("Green Slime contact eats gear and clings") {
+    SUBCASE("a touch dissolves worn armor, shield, and wielded weapon") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/9);
+        g.hero.hp = 20;
+        g.hero.max_hp = 20;
+        give_item(g.hero, "leather-armor", 1);
+        g.hero.armor_id = "leather-armor";
+        g.hero.ac = 7;
+        give_item(g.hero, "shield", 1);
+        g.hero.has_shield = true;
+        give_item(g.hero, "club", 1);  // wood — the slime dissolves it too
+        g.hero.weapon_id = "club";
+        g.hero.damage_die = 4;
+
+        auto slime = make_monster("Green Slime", EntityType::Monster,
+                                  2, 1, 10, 10, 20, 1, 0);
+        slime.green_slime = true;
+        g.monsters.push_back(slime);
+
+        monsters_turn(g);
+
+        CHECK(g.hero.armor_id.empty());
+        CHECK(g.hero.ac == 9);
+        CHECK(item_count(g.hero, "leather-armor") == 0);
+        CHECK(g.hero.has_shield == false);
+        CHECK(item_count(g.hero, "shield") == 0);
+        CHECK(g.hero.weapon_id.empty());
+        CHECK(item_count(g.hero, "club") == 0);
+        CHECK(g.hero.damage_die == 2);  // unarmed: 1d2
+        CHECK(g.hero.green_slime_turns == 1);
+        bool saw_eat = false;
+        for (const auto& e : g.event_log)
+            if (e.find("eats through") != std::string::npos) saw_eat = true;
+        CHECK(saw_eat);
+    }
+
+    SUBCASE("a silver dagger survives and the slime still clings") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.hp = 20;
+        g.hero.max_hp = 20;
+        give_item(g.hero, "silver-dagger", 1);
+        g.hero.weapon_id = "silver-dagger";
+        g.hero.damage_die = 4;
+
+        auto slime = make_monster("Green Slime", EntityType::Monster,
+                                  2, 1, 10, 10, 20, 1, 0);
+        slime.green_slime = true;
+        g.monsters.push_back(slime);
+
+        monsters_turn(g);
+
+        CHECK(g.hero.weapon_id == "silver-dagger");
+        CHECK(item_count(g.hero, "silver-dagger") == 1);
+        CHECK(g.hero.green_slime_turns == 1);
+        bool saw_cling = false;
+        for (const auto& e : g.event_log)
+            if (e.find("clings to you") != std::string::npos) saw_cling = true;
+        CHECK(saw_cling);
+    }
+
+    SUBCASE("the slime deals 1d8 each round until it is scraped off") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.hp = 40;
+        g.hero.max_hp = 40;
+
+        auto slime = make_monster("Green Slime", EntityType::Monster,
+                                  2, 1, 10, 10, 20, 1, 0);
+        slime.green_slime = true;
+        g.monsters.push_back(slime);
+
+        monsters_turn(g);  // contact: the slime clings
+        CHECK(g.hero.green_slime_turns == 1);
+
+        int hp_after_contact = g.hero.hp;
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});  // round 1
+        int hp_after_round1 = g.hero.hp;
+        CHECK(hp_after_round1 >= hp_after_contact - 8);
+        CHECK(hp_after_round1 < hp_after_contact);
+        bool saw_eat = false;
+        for (const auto& e : g.event_log)
+            if (e.find("eats through you") != std::string::npos) saw_eat = true;
+        CHECK(saw_eat);
+
+        apply_player_command(g, {PlayerCommandType::Scrape, 0, 0});
+        CHECK(g.hero.green_slime_turns == 0);
+        bool saw_scrape = false;
+        for (const auto& e : g.event_log)
+            if (e.find("scrape the green slime off") != std::string::npos) saw_scrape = true;
+        CHECK(saw_scrape);
+
+        int hp_after_scrape = g.hero.hp;
+        apply_player_command(g, {PlayerCommandType::Move, -1, 0});  // next round
+        CHECK(g.hero.hp == hp_after_scrape);  // no more slime damage
+        CHECK(g.hero.alive == true);
+    }
+}
+
 // ── Humanoid daylight penalties + lair leader morale ─────
 
 TEST_CASE("B/X daylight penalty: light-shy humanoids fight at -1 in the hero's light") {

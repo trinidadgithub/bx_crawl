@@ -101,6 +101,10 @@ struct Entity {
     // knocked out for N rounds and a vampire bat may drain blood.
     int unconscious_turns{0};
 
+    // Green slime stuck to the hero: >0 while the hero must scrape it off
+    // (a Scrape action) or suffer 1d8 damage each round.
+    int green_slime_turns{0};
+
     // Light / torch
     int torch_turns{60};
     int lantern_turns{0};
@@ -128,6 +132,7 @@ struct Entity {
     bool drains_level{false};    // touch drains one hero level (wight, wraith)
     bool drains_strength{false}; // touch drains 1 STR (shadow)
     bool corrodes_metal{false};  // touch rusts normal metal equipment (rust monster)
+    bool green_slime{false};     // contact eats gear + clings (green slime)
     WeaponImmunity weapon_immunity{WeaponImmunity::None};
     int count{1};  // number of creatures this entity represents (bat swarms)
 
