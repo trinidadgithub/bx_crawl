@@ -54,6 +54,10 @@ void apply_rust_corrosion(Game& g, const Entity& rusting) {
     game_internal::apply_rust_corrosion(g, rusting);
 }
 
+void apply_green_slime(Game& g, const Entity& slime) {
+    game_internal::apply_green_slime(g, slime);
+}
+
 bool hero_weapon_can_wound(const Game& g, WeaponImmunity immunity) {
     return game_internal::hero_weapon_can_wound(g, immunity);
 }
@@ -351,6 +355,8 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
                         apply_strength_drain(g, attacker);
                     } else if (attacker.corrodes_metal) {
                         apply_rust_corrosion(g, attacker);
+                    } else if (attacker.green_slime) {
+                        apply_green_slime(g, attacker);
                     }
                 }
                 if (trigger_morale && defender_is_monster &&

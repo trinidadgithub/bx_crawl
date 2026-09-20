@@ -193,7 +193,8 @@ enum class PlayerCommandType {
     Use,
     Hide,
     Search,
-    Listen
+    Listen,
+    Scrape
 };
 
 struct PlayerCommand {

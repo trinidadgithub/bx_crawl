@@ -79,6 +79,10 @@ static PlayerCommand read_player_command(const Game& g) {
             return PlayerCommand{PlayerCommandType::Get, 0, 0};
         }
 
+        if (c == 's') {
+            return PlayerCommand{PlayerCommandType::Scrape, 0, 0};
+        }
+
         if (c == 'i') {
             return PlayerCommand{PlayerCommandType::Hide, 0, 0};
         }
@@ -115,6 +119,7 @@ static PlayerCommand read_player_command(const Game& g) {
                 "f  Throw dart  (direction)\r\n"
                 "v  Throw holy water (direction)\r\n"
                 "g  Get items from the ground\r\n"
+                "s  Scrape off clinging green slime (costs a round)\r\n"
                 "b  Character sheet / equipment\r\n"
                 "i  Hide in shadows (Thief)\r\n"
                 "l  Search (find traps, hear noise)\r\n"
