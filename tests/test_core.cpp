@@ -1355,6 +1355,279 @@ TEST_CASE("Giant vampire bat: unconsciousness and blood drain") {
     }
 }
 
+// ── Undead drains + weapon immunity ──────────────────────
+
+TEST_CASE("Wight/wraith/shadow drain traits and weapon immunity are data-driven at spawn") {
+    {
+        ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+        ScopedEnvVar test_monster("BX_TEST_MONSTER", "wight");
+        Game g;
+        init_game(g, make_hero(1, 1, 0, 1, 10));
+        CHECK(g.monsters[0].drains_level == true);
+        CHECK(g.monsters[0].drains_strength == false);
+        CHECK(g.monsters[0].weapon_immunity == WeaponImmunity::SilverOrMagic);
+    }
+    {
+        ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+        ScopedEnvVar test_monster("BX_TEST_MONSTER", "wraith");
+        Game g;
+        init_game(g, make_hero(1, 1, 0, 1, 10));
+        CHECK(g.monsters[0].drains_level == true);
+        CHECK(g.monsters[0].weapon_immunity == WeaponImmunity::MagicOnly);
+    }
+    {
+        ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+        ScopedEnvVar test_monster("BX_TEST_MONSTER", "shadow");
+        Game g;
+        init_game(g, make_hero(1, 1, 0, 1, 10));
+        CHECK(g.monsters[0].drains_strength == true);
+        CHECK(g.monsters[0].drains_level == false);
+        CHECK(g.monsters[0].weapon_immunity == WeaponImmunity::MagicOnly);
+    }
+    {
+        ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+        ScopedEnvVar test_monster("BX_TEST_MONSTER", "goblin");
+        Game g;
+        init_game(g, make_hero(1, 1, 0, 1, 10));
+        CHECK(g.monsters[0].drains_level == false);
+        CHECK(g.monsters[0].drains_strength == false);
+        CHECK(g.monsters[0].weapon_immunity == WeaponImmunity::None);
+    }
+}
+
+TEST_CASE("Wight and wraith touches drain one hero level") {
+    SUBCASE("a wight drain removes a Cleric level, hit points, attack, and spell slots") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/5, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.char_class = CharacterClass::Cleric;
+        g.hero_level = 3;
+        g.total_xp = 3500;
+        g.hero.abilities.con = 10;
+        g.hero.max_spell_slots[1] = 2;
+        g.hero.max_spell_slots[2] = 1;
+        g.hero.spell_slots[1] = 2;
+        g.hero.spell_slots[2] = 1;
+        auto wight = make_monster("Wight", EntityType::Monster,
+                                  2, 1, 10, 10, 20, 1, 0);
+        wight.drains_level = true;
+        g.monsters.push_back(wight);
+
+        monsters_turn(g);
+
+        CHECK(g.hero_level == 2);
+        CHECK(g.hero.max_hp < 20);
+        CHECK(g.hero.max_hp >= 14);
+        CHECK(g.hero.hp >= 1);
+        CHECK(g.hero.hp <= g.hero.max_hp);
+        CHECK(g.hero.attack_bonus == 4);
+        CHECK(g.hero.max_spell_slots[1] == 1);
+        CHECK(g.hero.max_spell_slots[2] == 0);
+        CHECK(g.hero.spell_slots[1] == 1);
+        CHECK(g.hero.spell_slots[2] == 0);
+        CHECK(g.total_xp == 2250);  // midpoint of the drained level's band
+        bool saw_drain = false;
+        for (const auto& e : g.event_log)
+            if (e.find("drains one of your life levels") != std::string::npos) saw_drain = true;
+        CHECK(saw_drain);
+    }
+
+    SUBCASE("a Fighter's attack bonus is recomputed against the B/X level bands") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/8, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.char_class = CharacterClass::Fighter;
+        g.hero_level = 7;
+        g.hero.abilities.con = 10;
+        g.hero.abilities.str = 10;
+        auto wraith = make_monster("Wraith", EntityType::Monster,
+                                   2, 1, 10, 10, 20, 1, 0);
+        wraith.drains_level = true;
+        g.monsters.push_back(wraith);
+
+        monsters_turn(g);
+
+        CHECK(g.hero_level == 6);
+        // Level 7 band is +5 to-hit; level 6 band is +2 for Fighters.
+        CHECK(g.hero.attack_bonus == 2);
+    }
+
+    SUBCASE("a drain can never drop a hero below level 1") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.char_class = CharacterClass::Cleric;
+        g.hero_level = 1;
+        g.hero.abilities.con = 10;
+        auto wight = make_monster("Wight", EntityType::Monster,
+                                  2, 1, 10, 10, 20, 1, 0);
+        wight.drains_level = true;
+        g.monsters.push_back(wight);
+
+        int max_hp_before = g.hero.max_hp;
+        monsters_turn(g);
+
+        CHECK(g.hero_level == 1);
+        CHECK(g.hero.max_hp == max_hp_before);
+        CHECK(g.hero.hp >= 1);
+        CHECK(g.hero.alive == true);
+        bool saw_block = false;
+        for (const auto& e : g.event_log)
+            if (e.find("first-level hero") != std::string::npos) saw_block = true;
+        CHECK(saw_block);
+    }
+}
+
+TEST_CASE("Shadow touch drains Strength and its melee bonuses") {
+    SUBCASE("STR 18 drops to 17 and attack/damage bonuses lose the adjustment") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/4, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.abilities.str = 18;
+        g.hero.damage_bonus = 3;
+        auto shadow = make_monster("Shadow", EntityType::Monster,
+                                   2, 1, 10, 10, 20, 1, 0);
+        shadow.drains_strength = true;
+        g.monsters.push_back(shadow);
+
+        monsters_turn(g);
+
+        CHECK(g.hero.abilities.str == 17);
+        CHECK(g.hero.attack_bonus == 3);
+        CHECK(g.hero.damage_bonus == 2);
+        bool saw_drain = false;
+        for (const auto& e : g.event_log)
+            if (e.find("drains 1 point of Strength") != std::string::npos) saw_drain = true;
+        CHECK(saw_drain);
+    }
+
+    SUBCASE("Strength cannot drop below 3") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.abilities.str = 3;
+        g.hero.damage_bonus = -3;
+        auto shadow = make_monster("Shadow", EntityType::Monster,
+                                   2, 1, 10, 10, 20, 1, 0);
+        shadow.drains_strength = true;
+        g.monsters.push_back(shadow);
+
+        monsters_turn(g);
+
+        CHECK(g.hero.abilities.str == 3);
+        CHECK(g.hero.damage_bonus == -3);
+        bool saw_block = false;
+        for (const auto& e : g.event_log)
+            if (e.find("cannot weaken you further") != std::string::npos) saw_block = true;
+        CHECK(saw_block);
+    }
+}
+
+TEST_CASE("Shadow/wight/wraith can be hit only by certain weapons") {
+    SUBCASE("a normal weapon cannot wound a wight") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/2,
+                           /*ac=*/10);
+        g.hero.weapon_id = "sword";
+        auto wi = bx::weapon_index("sword");
+        g.hero.weapon_counts[*wi] = 1;
+        auto wight = make_monster("Wight", EntityType::Monster,
+                                  2, 1, 10, 10, 0, 1, 0);
+        wight.weapon_immunity = WeaponImmunity::SilverOrMagic;
+        g.monsters.push_back(wight);
+
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK(g.monsters[0].hp == 10);
+        bool saw_no_effect = false;
+        for (const auto& e : g.event_log)
+            if (e.find("unharmed by your weapon") != std::string::npos) saw_no_effect = true;
+        CHECK(saw_no_effect);
+    }
+
+    SUBCASE("an unarmed hero cannot wound a wight") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/2,
+                           /*ac=*/10);
+        auto wight = make_monster("Wight", EntityType::Monster,
+                                  2, 1, 10, 10, 0, 1, 0);
+        wight.weapon_immunity = WeaponImmunity::SilverOrMagic;
+        g.monsters.push_back(wight);
+
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK(g.monsters[0].hp == 10);
+    }
+
+    SUBCASE("a silver dagger wounds a wight") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/2,
+                           /*ac=*/10);
+        g.hero.weapon_id = "silver-dagger";
+        auto wi = bx::weapon_index("silver-dagger");
+        g.hero.weapon_counts[*wi] = 1;
+        auto wight = make_monster("Wight", EntityType::Monster,
+                                  2, 1, 10, 10, 0, 1, 0);
+        wight.weapon_immunity = WeaponImmunity::SilverOrMagic;
+        g.monsters.push_back(wight);
+
+        apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+        CHECK(g.monsters[0].hp < 10);
+        CHECK(g.monsters[0].alive == true);
+    }
+
+    SUBCASE("a silver dagger still cannot wound shadows or wraiths (magic only)") {
+        for (const auto* name : {"Shadow", "Wraith"}) {
+            Game g = make_minimal_game();
+            g.hero = make_hero(/*x=*/1, /*y=*/1,
+                               /*atk_bonus=*/20, /*dmg_die=*/2,
+                               /*ac=*/10);
+            g.hero.weapon_id = "silver-dagger";
+            auto wi = bx::weapon_index("silver-dagger");
+            g.hero.weapon_counts[*wi] = 1;
+            auto monster = make_monster(name, EntityType::Monster,
+                                        2, 1, 10, 10, 0, 1, 0);
+            monster.weapon_immunity = WeaponImmunity::MagicOnly;
+            g.monsters.push_back(monster);
+
+            apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+
+            CHECK(g.monsters[0].hp == 10);
+            bool saw_no_effect = false;
+            for (const auto& e : g.event_log)
+                if (e.find("unharmed by your weapon") != std::string::npos) saw_no_effect = true;
+            CHECK(saw_no_effect);
+        }
+    }
+
+    SUBCASE("thrown knives cannot wound an immune monster") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/20, /*dmg_die=*/2,
+                           /*ac=*/10);
+        g.hero.weapon_id = "knife";
+        g.hero.abilities.str = 10;
+        g.hero.knives = 1;
+        auto wight = make_monster("Wight", EntityType::Monster,
+                                  2, 1, 10, 10, 0, 1, 0);
+        wight.weapon_immunity = WeaponImmunity::SilverOrMagic;
+        g.monsters.push_back(wight);
+
+        apply_player_command(g, {PlayerCommandType::ThrowKnife, 1, 0});
+
+        CHECK(g.monsters[0].hp == 10);
+    }
+}
+
 // ── Humanoid daylight penalties + lair leader morale ─────
 
 TEST_CASE("B/X daylight penalty: light-shy humanoids fight at -1 in the hero's light") {

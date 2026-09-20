@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 30:
+- Architecture groundwork completed through Phase 31:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -64,6 +64,15 @@ finishing the architecture-review follow-up before expanding new gameplay.
     position), the frontend transparently re-enters a module save through
     `resume_module` instead of settling at camp, and a dungeon `Save` command
     (text key `y`) lets a hero play, save, quit, reload, and resume in-module
+  - undead drain and weapon immunity: wight/wraith touches drain one hero level
+    (`apply_level_drain` mirrors `check_level_up`: hit die + CON off max/current
+    HP, attack bonus recomputed for Fighters or -1 otherwise, spell slots
+    re-granted at the drained level, XP dropped to the drained band's midpoint)
+    and shadow touches drain 1 STR (via `apply_strength_drain`, bonuses
+    follow); shadows/wights/wraiths carry a `WeaponImmunity` tier set at spawn
+    (`SilverOrMagic` wights, `MagicOnly` shadows/wraiths) that `attack_internal`
+    and `ranged_attack` honor through `hero_weapon_can_wound` (silver dagger is
+    the game's only pass; spells, thrown holy water, and turning bypass melee)
 
 ## Architecture Review Track
 
@@ -189,9 +198,15 @@ module slice requires it.
 
 High-value gameplay items still known:
 
-- Goblins/orcs/kobolds: daylight penalties and leader morale effects where
-  relevant.
-- Shadows/wights/wraiths: drain effects and appropriate weapon immunity.
+- ~~Goblins/orcs: daylight to-hit penalty (-1 in hero light) and lair-leader
+  morale effects.~~ Done: lair-leader morale in Phase 27, and the daylight
+  penalty for goblins/orcs is implemented.
+- ~~Shadows/wights/wraiths: drain effects and appropriate weapon immunity.~~
+  Done in Phase 31: wight/wraith touches drain one hero level (hp/max-hp,
+  attack bonus, spell slots, and XP dropped to the drained level's midpoint);
+  shadow touches drain 1 STR; all three are immune to weapons without the
+  right material (wights: silver or magic; shadows/wraiths: magic only —
+  spells, thrown holy water, and turning bypass exactly as before).
 - Rust monsters/oozes/slimes: equipment destruction/corrosion consistency.
 - Continue reviewing monster descriptions and stat data against the Basic Box PDF.
 - Replace stale `Monsters.md` with a generated reference or a pointer to the
@@ -199,25 +214,22 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-**Undead drain and weapon immunity** — bring the remaining core B/X monster
-trait rules inline with the Basic Box. Shadows, wights, and wraiths currently
-use generic melee like any monster: B/X specifies that their hit drains a
-character level (with the corresponding hit die, attack bonus, and class
-abilities dropped), and that they are immune to non-magical, non-silver
-weapons. Add the two rules to the combat path (attack resolution + the
-post-hit level-drain) driven by monster data where it lives today, with the
-usual Debug + sanitizer + smoke validation.
+**Rust monster / corrosion consistency** — bring the equipment-damaging core
+B/X monsters inline with the Basic Box. Rust monsters, jellies/oozes/slimes,
+and black puddings currently use generic melee: B/X specifies that a rust
+monster's touch corrodes normal metal weapons and armor (magic metal is
+immune), and that oozes/slimes have their own damage/ignores-armor behavior.
+Add the rule at the same layer the drains landed (data-driven special flag +
+combat resolution), with the usual Debug + sanitizer + smoke validation.
 
 Acceptance criteria:
 
-- A shadow/wight/wraith hit drains one hero level and its effects (hp/max-hp,
-  attack bonus, spells, class minimums) actually come off the hero, with a
-  dungeon message and no crash at zero hit dice.
-- Their weapon immunity is honored: non-magic, non-silver melee/thrown weapons
-  do not wound them; silver or magic weapons (and the two cases that already
-  bypass such rules, like undead turning) still work.
-- Existing monster/combat tests stay green; Debug + sanitizer validation pass.
+- A rust monster touch destroys normal metal melee weapons and armor (with a
+  dungeon message and the equipment actually removed); magic/ silver items and
+  non-metal items are unharmed.
+- Existing weapon/armor, combat, and save/load tests stay green; Debug +
+  sanitizer validation pass.
 
 (The Testing Tomb module proof is complete: content, gameplay, rumor delivery,
-and a full campaign save/reload loop. Gameplay Track items above remain the
-backlog.)
+and a full campaign save/reload loop. Remaining Gameplay Track items above are
+the backlog.)

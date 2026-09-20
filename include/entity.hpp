@@ -33,6 +33,14 @@ enum class CharacterClass {
     Halfling
 };
 
+// Monster weapon immunity tiers (B/X): the monster can be harmed only by the
+// listed weapon materials. Normal weapons have no effect on any tier.
+enum class WeaponImmunity {
+    None,          // any weapon wounds this monster
+    SilverOrMagic, // silver or magical weapons
+    MagicOnly      // magical weapons only
+};
+
 struct Abilities {
     int str{};
     int dex{};
@@ -117,6 +125,9 @@ struct Entity {
     bool has_disease{false};
     bool has_paralysis{false};
     bool is_vampire_bat{false};  // giant bat variant: bite causes unconsciousness + blood drain
+    bool drains_level{false};    // touch drains one hero level (wight, wraith)
+    bool drains_strength{false}; // touch drains 1 STR (shadow)
+    WeaponImmunity weapon_immunity{WeaponImmunity::None};
     int count{1};  // number of creatures this entity represents (bat swarms)
 
     // Equipment (weapon + armor IDs from bx_data.hpp)
