@@ -50,6 +50,10 @@ void apply_strength_drain(Game& g, const Entity& draining) {
     game_internal::apply_strength_drain(g, draining);
 }
 
+void apply_rust_corrosion(Game& g, const Entity& rusting) {
+    game_internal::apply_rust_corrosion(g, rusting);
+}
+
 bool hero_weapon_can_wound(const Game& g, WeaponImmunity immunity) {
     return game_internal::hero_weapon_can_wound(g, immunity);
 }
@@ -345,6 +349,8 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
                         apply_level_drain(g, attacker);
                     } else if (attacker.drains_strength) {
                         apply_strength_drain(g, attacker);
+                    } else if (attacker.corrodes_metal) {
+                        apply_rust_corrosion(g, attacker);
                     }
                 }
                 if (trigger_morale && defender_is_monster &&

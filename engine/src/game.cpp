@@ -319,6 +319,81 @@ void apply_strength_drain(Game& g, const Entity& draining) {
     }
 }
 
+// Is a weapon made of normal (rustable) metal? Wooden weapons (club, sling,
+// bows, crossbows), missile spears, and the magic-immune silver dagger are not.
+static bool weapon_is_metal(const char* id) {
+    std::string_view n(id);
+    return n != "club" && n != "sling" && n != "crossbow"
+        && n != "long-bow" && n != "short-bow" && n != "silver-dagger"
+        && n != "spear";
+}
+
+// Is an armor item metal? Chain and plate mail are; leather is not. The
+// shield is treated as metal (metal rim/boss).
+static bool armor_idx_is_metal(std::size_t idx) {
+    return idx == 1 || idx == 2 || idx == 3;
+}
+
+// A rust monster's touch corrodes one piece of the hero's normal metal
+// equipment: the metal armor worn first, then the shield, then the wielded
+// metal weapon, then a carried metal item. Non-metal and silver (magic
+// immune) gear is left alone.
+void apply_rust_corrosion(Game& g, const Entity& rusting) {
+    const auto rusts = [&](const std::string& what) {
+        log_event(g, "The " + rusting.name + "'s touch rusts " + what + "!");
+    };
+
+    if (!g.hero.armor_id.empty()) {
+        if (auto slot = bx::armor_index(g.hero.armor_id)) {
+            if (armor_idx_is_metal(static_cast<std::size_t>(*slot))) {
+                rusts(std::string("your ") + bx::armor_items[*slot].name);
+                g.hero.armor_counts[static_cast<std::size_t>(*slot)]--;
+                g.hero.armor_id.clear();
+                g.hero.ac = 9;
+                return;
+            }
+        }
+    }
+
+    if (g.hero.has_shield) {
+        rusts("your shield");
+        g.hero.has_shield = false;
+        if (auto slot = bx::armor_index("shield")) {
+            g.hero.armor_counts[static_cast<std::size_t>(*slot)]--;
+        }
+        return;
+    }
+
+    if (!g.hero.weapon_id.empty() && weapon_is_metal(g.hero.weapon_id.c_str())) {
+        if (auto slot = bx::weapon_index(g.hero.weapon_id)) {
+            rusts(std::string("your ") + bx::weapons[*slot].name);
+            g.hero.weapon_counts[*slot]--;
+            g.hero.weapon_id.clear();
+            g.hero.damage_die = 2; // unarmed: 1d2
+            return;
+        }
+    }
+
+    for (std::size_t wi = 0; wi < bx::weapons.size(); ++wi) {
+        if (g.hero.weapon_counts[wi] > 0 && weapon_is_metal(bx::weapons[wi].id)) {
+            rusts(std::string("a nearby ") + bx::weapons[wi].name);
+            g.hero.weapon_counts[wi]--;
+            return;
+        }
+    }
+    for (std::size_t ai = 1; ai < bx::armor_items.size(); ++ai) {
+        bool in_use = (ai == 3) ? g.hero.has_shield
+                                : (g.hero.armor_id == bx::armor_items[ai].id);
+        if (g.hero.armor_counts[ai] > 0 && !in_use) {
+            rusts(std::string("a nearby ") + bx::armor_items[ai].name);
+            g.hero.armor_counts[ai]--;
+            return;
+        }
+    }
+
+    rusts("no metal to corrode");
+}
+
 bool hero_weapon_can_wound(const Game& g, WeaponImmunity immunity) {
     if (immunity == WeaponImmunity::None) return true;
     auto silver = bx::weapon_index("silver-dagger");
@@ -765,6 +840,12 @@ static bool is_name_strength_drain(const char* name) {
     return std::string_view(name) == "Shadow";
 }
 
+// Check if a monster name indicates a touch that corrodes metal (rust
+// monster).
+static bool is_name_corrodes_metal(const char* name) {
+    return std::string_view(name).find("Rust") != std::string_view::npos;
+}
+
 // Weapon-immunity tier for a monster name. Shadows and wraiths can be hit
 // only by magical weapons; wights by silver or magical weapons.
 static WeaponImmunity weapon_immunity_for_name(const char* name) {
@@ -1166,6 +1247,7 @@ Entity spawn_bx_monster_by_index(Game& g, int idx) {
     e.has_paralysis = is_name_paralysis(m.name);
     e.drains_level    = is_name_level_drain(m.name);
     e.drains_strength = is_name_strength_drain(m.name);
+    e.corrodes_metal  = is_name_corrodes_metal(m.name);
     e.weapon_immunity = weapon_immunity_for_name(m.name);
     e.fleeing    = false;
     e.alive      = true;
@@ -1238,6 +1320,10 @@ void apply_level_drain(Game& g, const Entity& draining) {
 
 void apply_strength_drain(Game& g, const Entity& draining) {
     ::apply_strength_drain(g, draining);
+}
+
+void apply_rust_corrosion(Game& g, const Entity& rusting) {
+    ::apply_rust_corrosion(g, rusting);
 }
 
 bool hero_weapon_can_wound(const Game& g, WeaponImmunity immunity) {

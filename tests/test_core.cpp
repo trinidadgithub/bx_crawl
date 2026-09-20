@@ -1628,6 +1628,173 @@ TEST_CASE("Shadow/wight/wraith can be hit only by certain weapons") {
     }
 }
 
+// ── Rust monster / equipment corrosion ───────────────────
+
+TEST_CASE("Rust Monster gets the corrodes-metal trait at spawn") {
+    {
+        ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+        ScopedEnvVar test_monster("BX_TEST_MONSTER", "rust");
+        Game g;
+        init_game(g, make_hero(1, 1, 0, 1, 10));
+        CHECK(g.monsters[0].corrodes_metal == true);
+        CHECK(g.monsters[0].name.find("Rust") != std::string::npos);
+    }
+    {
+        ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+        ScopedEnvVar test_monster("BX_TEST_MONSTER", "goblin");
+        Game g;
+        init_game(g, make_hero(1, 1, 0, 1, 10));
+        CHECK(g.monsters[0].corrodes_metal == false);
+    }
+}
+
+TEST_CASE("Rust monster touch corrodes metal equipment") {
+    SUBCASE("metal is eaten one piece per touch: armor, then shield, then weapon") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/9);
+        g.hero.hp = 40;
+        g.hero.max_hp = 40;
+        give_item(g.hero, "chain-mail", 1);
+        g.hero.armor_id = "chain-mail";
+        g.hero.ac = 5;
+        give_item(g.hero, "shield", 1);
+        g.hero.has_shield = true;
+        give_item(g.hero, "sword", 1);
+        g.hero.weapon_id = "sword";
+        g.hero.damage_die = 8;
+
+        auto rust = make_monster("Rust Monster", EntityType::Monster,
+                                 2, 1, 10, 10, 20, 1, 7);
+        rust.corrodes_metal = true;
+        g.monsters.push_back(rust);
+
+        monsters_turn(g);  // touch 1
+        CHECK(g.hero.armor_id.empty());
+        CHECK(g.hero.ac == 9);
+        CHECK(item_count(g.hero, "chain-mail") == 0);
+        CHECK(g.hero.has_shield == true);
+        CHECK(g.hero.weapon_id == "sword");
+
+        monsters_turn(g);  // touch 2
+        CHECK(g.hero.has_shield == false);
+        CHECK(item_count(g.hero, "shield") == 0);
+        CHECK(g.hero.weapon_id == "sword");
+
+        monsters_turn(g);  // touch 3
+        CHECK(g.hero.weapon_id.empty());
+        CHECK(item_count(g.hero, "sword") == 0);
+        CHECK(g.hero.damage_die == 2);  // unarmed: 1d2
+
+        monsters_turn(g);  // touch 4: nothing metal left
+        bool saw_none = false;
+        for (const auto& e : g.event_log)
+            if (e.find("no metal to corrode") != std::string::npos) saw_none = true;
+        CHECK(saw_none);
+        CHECK(g.hero.alive == true);
+    }
+
+    SUBCASE("silver and non-metal gear is unharmed") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.hp = 20;
+        g.hero.max_hp = 20;
+        give_item(g.hero, "silver-dagger", 1);
+        g.hero.weapon_id = "silver-dagger";
+        g.hero.damage_die = 4;
+        give_item(g.hero, "leather-armor", 1);
+        g.hero.armor_id = "leather-armor";
+        g.hero.ac = 7;
+        give_item(g.hero, "club", 1);  // wooden, carried
+
+        auto rust = make_monster("Rust Monster", EntityType::Monster,
+                                 2, 1, 10, 10, 20, 1, 7);
+        rust.corrodes_metal = true;
+        g.monsters.push_back(rust);
+
+        monsters_turn(g);
+
+        CHECK(g.hero.weapon_id == "silver-dagger");
+        CHECK(item_count(g.hero, "silver-dagger") == 1);
+        CHECK(g.hero.armor_id == "leather-armor");
+        CHECK(item_count(g.hero, "leather-armor") == 1);
+        CHECK(item_count(g.hero, "club") == 1);
+        bool saw_none = false;
+        for (const auto& e : g.event_log)
+            if (e.find("no metal to corrode") != std::string::npos) saw_none = true;
+        CHECK(saw_none);
+        CHECK(g.hero.hp < 20);  // the touch still dealt damage
+    }
+
+    SUBCASE("a carried metal weapon rusts when the hero wields a wooden one") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/10);
+        g.hero.hp = 20;
+        g.hero.max_hp = 20;
+        give_item(g.hero, "club", 1);
+        g.hero.weapon_id = "club";
+        g.hero.damage_die = 4;
+        give_item(g.hero, "sword", 1);  // carried, not equipped
+
+        auto rust = make_monster("Rust Monster", EntityType::Monster,
+                                 2, 1, 10, 10, 20, 1, 7);
+        rust.corrodes_metal = true;
+        g.monsters.push_back(rust);
+
+        monsters_turn(g);
+
+        CHECK(item_count(g.hero, "sword") == 0);
+        CHECK(g.hero.weapon_id == "club");
+        CHECK(item_count(g.hero, "club") == 1);
+        bool saw_carried = false;
+        for (const auto& e : g.event_log)
+            if (e.find("a nearby Sword") != std::string::npos) saw_carried = true;
+        CHECK(saw_carried);
+    }
+
+    SUBCASE("corrosion survives save and load") {
+        Game g = make_minimal_game();
+        g.hero = make_hero(/*x=*/1, /*y=*/1,
+                           /*atk_bonus=*/0, /*dmg_die=*/1,
+                           /*ac=*/9);
+        g.hero.char_class = CharacterClass::Fighter;
+        g.total_gold = 42;
+        g.hero.hp = 40;
+        g.hero.max_hp = 40;
+        give_item(g.hero, "chain-mail", 1);
+        g.hero.armor_id = "chain-mail";
+        g.hero.ac = 5;
+        give_item(g.hero, "shield", 1);
+        g.hero.has_shield = true;
+
+        auto rust = make_monster("Rust Monster", EntityType::Monster,
+                                 2, 1, 10, 10, 20, 1, 7);
+        rust.corrodes_metal = true;
+        g.monsters.push_back(rust);
+
+        monsters_turn(g);
+        CHECK(g.hero.armor_id.empty());
+
+        const auto path = std::filesystem::path{"/tmp/opencode/bx_crawl_rust_save_test.dat"};
+        CHECK(save_game(g, path));
+
+        Game loaded;
+        CHECK(load_game(loaded, path));
+        CHECK(loaded.hero.armor_id.empty());
+        CHECK(loaded.hero.ac == 9);
+        CHECK(item_count(loaded.hero, "chain-mail") == 0);
+        CHECK(loaded.hero.has_shield == true);
+        CHECK(item_count(loaded.hero, "shield") == 1);
+
+        std::filesystem::remove(path);
+    }
+}
+
 // ── Humanoid daylight penalties + lair leader morale ─────
 
 TEST_CASE("B/X daylight penalty: light-shy humanoids fight at -1 in the hero's light") {
