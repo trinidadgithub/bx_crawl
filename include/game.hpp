@@ -187,6 +187,7 @@ enum class PlayerCommandType {
     Cast,
     Turn,
     Inventory,
+    Save,
     Help,
     Get,
     Use,

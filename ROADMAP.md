@@ -16,7 +16,7 @@ finishing the architecture-review follow-up before expanding new gameplay.
 - Monster playtest utilities build and smoke-test successfully:
   `list_monsters`, `show_monster`, `edit_monster`, `show_treasure_table`,
   `sim_surprise`, `show_map_features`, and `gen_pregenerated`.
-- Architecture groundwork completed through Phase 29:
+- Architecture groundwork completed through Phase 30:
   - save/load hardening
   - `GameSession` application boundary
   - snapshot renderer separation
@@ -58,6 +58,12 @@ finishing the architecture-review follow-up before expanding new gameplay.
     advances to v6 with the module tail, and `GameSession::resume_module`
     re-binds a module from content plus captured state so heard rumors stay
     heard and picked doors stay open
+  - module campaign boot: `find_module_dir` locates the shipped module under
+    `data/modules`, `gen_pregenerated` seeds a Testing Tomb campaign save
+    through the real boot path (`start_module` → play → save v7 with hero
+    position), the frontend transparently re-enters a module save through
+    `resume_module` instead of settling at camp, and a dungeon `Save` command
+    (text key `y`) lets a hero play, save, quit, reload, and resume in-module
 
 ## Architecture Review Track
 
@@ -164,10 +170,17 @@ Already proven:
   persists the module tail, and `GameSession::resume_module` restores a
   replayed hero's heard rumors, open doors, and location from content plus
   captured state)
+- module campaign boot (a Testing Tomb campaign save is seeded by
+  `gen_pregenerated` through the real boot path, the frontend re-enters a
+  module save through `resume_module` instead of settling at camp, the save
+  format advances to v7 with the hero position so a campaign resumes in-place,
+  and a dungeon `Save` command — text key `y` — supports play → save → quit →
+  reload → resume in-module with heard rumors, open doors, and position intact)
 
 Deferred:
 
-- (nothing currently deferred; the near-term architecture refactors are done)
+- (nothing currently deferred; the Testing Tomb module proof is complete:
+  content, gameplay, rumor delivery, and a campaign save/reload loop)
 
 ## Gameplay Track
 
@@ -186,22 +199,25 @@ High-value gameplay items still known:
 
 ## Recommended Next Task
 
-**Testing Tomb: campaign boot** — turn the engine/nested test-proof into a
-playable module campaign. Every content slice (encounters, treasure, traps,
-doors, rumor delivery) and the campaign model (identity, heard rumors, door
-flags through save v6 + `resume_module`) is proven at the engine layer; the
-frontend has never started a module. Add the module start/boot path:
-`gen_pregenerated` (or the frontend) seeds a Testing Tomb campaign save via
-`start_module`/`save_game`, and startup transparently binds it back through
-`resume_module` when `BX_START_MODULE`/the save says so.
+**Undead drain and weapon immunity** — bring the remaining core B/X monster
+trait rules inline with the Basic Box. Shadows, wights, and wraiths currently
+use generic melee like any monster: B/X specifies that their hit drains a
+character level (with the corresponding hit die, attack bonus, and class
+abilities dropped), and that they are immune to non-magical, non-silver
+weapons. Add the two rules to the combat path (attack resolution + the
+post-hit level-drain) driven by monster data where it lives today, with the
+usual Debug + sanitizer + smoke validation.
 
 Acceptance criteria:
 
-- A Testing Tomb campaign save round-trips through the real frontend boot path:
-  start the module, play, save, quit, reload, and resume in-module with heard
-  rumors and open doors intact.
-- The procedural core path is unchanged; existing smoke tests (`BX_LOAD_SAVE`)
-  still boot to town; full Debug and sanitizer validation pass.
+- A shadow/wight/wraith hit drains one hero level and its effects (hp/max-hp,
+  attack bonus, spells, class minimums) actually come off the hero, with a
+  dungeon message and no crash at zero hit dice.
+- Their weapon immunity is honored: non-magic, non-silver melee/thrown weapons
+  do not wound them; silver or magic weapons (and the two cases that already
+  bypass such rules, like undead turning) still work.
+- Existing monster/combat tests stay green; Debug + sanitizer validation pass.
 
-(Continues the module proof: the last remaining surface is a playable module
-campaign entry point; all content and campaign machinery is already live.)
+(The Testing Tomb module proof is complete: content, gameplay, rumor delivery,
+and a full campaign save/reload loop. Gameplay Track items above remain the
+backlog.)

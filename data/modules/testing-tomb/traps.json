@@ -1,0 +1,14 @@
+[
+  {
+    "trap_id": "module.testing_tomb.trap.antechamber_pit",
+    "type": "pit",
+    "x": 1,
+    "y": 3
+  },
+  {
+    "trap_id": "module.testing_tomb.trap.room_b_pit",
+    "type": "pit",
+    "x": 6,
+    "y": 3
+  }
+]

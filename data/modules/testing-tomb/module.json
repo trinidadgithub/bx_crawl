@@ -1,0 +1,19 @@
+{
+  "module_id": "testing_tomb",
+  "title": "Testing Tomb",
+  "version": "0.1.0",
+  "author": "BX Crawl",
+  "ruleset": "bx.moldvay_basic",
+  "engine_min_version": "0.1.0",
+  "content_schema_version": 1,
+  "entry_location_id": "module.testing_tomb.location.entrance",
+  "files": {
+    "locations": "locations.json",
+    "map": "maps/tomb.json",
+    "encounters": "encounters.json",
+    "treasures": "treasures.json",
+    "traps": "traps.json",
+    "rumors": "rumors.json",
+    "descriptions": "text/descriptions.txt"
+  }
+}

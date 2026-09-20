@@ -1,0 +1,19 @@
+[module.testing_tomb.text.entrance]
+A cold stair opens into a square stone antechamber. Dust gathers around a
+sealed door to the north, and the air smells faintly of old torch smoke.
+
+[module.testing_tomb.text.room_a]
+The chamber beyond the sealed door is bare except for cracked flagstones and
+fresh scratches leading toward deeper darkness.
+
+[module.testing_tomb.text.room_b]
+A low burial chamber packed with dusty niche alcoves. A skeleton in rusted
+mail stands guard across the treasure ledge, and a narrow pit yawns before it.
+
+[module.testing_tomb.text.rumor_hidden_passage]
+They say a passage behind the tomb's sealed door only opens for one who
+carries the warden's iron key.
+
+[module.testing_tomb.text.rumor_buried_gold]
+The tax collector's ledger claims the tribute was never recovered; the dead
+still guard it somewhere in the east chamber.
