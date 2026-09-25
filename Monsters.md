@@ -25,8 +25,10 @@ B/X D&D bestiary entries, simplified for this game.
 └─────┘
 ```
 
-Small, mangy vermin the size of a large dog. They attack in packs and are
-easily panicked (Morale 8). Their bite is weak but dangerous in numbers.
+Giant rats are 3' long or more, usually gray or black, and are often found in
+dark dungeon corners or near undead. They eat almost anything, are good
+swimmers, fear fire, and usually avoid humans unless summoned or defending
+their lair. Some carry disease; a bitten victim may become infected.
 
 ## Giant Spider
 
@@ -38,9 +40,9 @@ easily panicked (Morale 8). Their bite is weak but dangerous in numbers.
 └─────┘
 ```
 
-Web-spinning hunters that lurk in dark corridors. Their venom is not
-modelled directly, but their quick, skittering movement makes them
-dangerous ambushers.
+Giant spiders are 8-10' long spiders that dwell in dark places. Their bite is
+poisonous, requiring a save or causing paralysis for 1d4 turns, and they spin
+webs to trap prey.
 
 ## Goblin
 
@@ -52,8 +54,10 @@ dangerous ambushers.
 └─────┘
 ```
 
-The most common dungeon-dweller. Cowardly when alone but bold in large
-groups. Goblins carry 1d6 &times; 10 gold pieces.
+Goblins are small, incredibly ugly human-like creatures with pale earthy skin
+and red eyes that glow in the dark. They live underground, have infravision to
+90', suffer a penalty in full daylight, hate dwarves, and may sometimes ride
+dire wolves.
 
 ## Kobold
 
@@ -65,8 +69,10 @@ groups. Goblins carry 1d6 &times; 10 gold pieces.
 └─────┘
 ```
 
-Diminutive, dog-faced humanoids. Weaker than goblins but still
-troublesome in packs. Easily routed (Morale 6).
+Kobolds are small, evil dog-like men who live underground. They have scaly
+rust-brown skin, no hair, infravision to 90', and prefer ambushes. A kobold
+chieftain and bodyguards may be found in the lair, raising morale while the
+chieftain lives. Kobolds hate gnomes and attack them on sight.
 
 ## Orc
 
@@ -78,8 +84,10 @@ troublesome in packs. Easily routed (Morale 6).
 └─────┘
 ```
 
-Brutish, warlike humanoids. Tougher and better armoured than goblins,
-with a fearsome reputation. Orcs carry 1d6 &times; 10 gold pieces.
+Orcs are ugly human-like creatures, part animal and part man. They are
+nocturnal, prefer underground lairs, suffer a penalty in daylight, and often
+kill for amusement. Leaders rule by defeating rivals; if a leader is killed,
+orc morale drops. Different tribes are not usually friendly to each other.
 
 ## Skeleton
 
@@ -91,8 +99,10 @@ with a fearsome reputation. Orcs carry 1d6 &times; 10 gold pieces.
 └─────┘
 ```
 
-Animated bones of the long-dead. Mindless and fearless (Morale 12),
-they never check morale and fight until destroyed.
+Skeletons are animated undead often found near graveyards, dungeons, and other
+deserted places. They are commonly used as guards by the high-level magic-user
+or cleric who animated them. Sleep, charm, and mind reading do not affect them,
+and they always fight until destroyed.
 
 ## Zombie
 
@@ -104,8 +114,10 @@ they never check morale and fight until destroyed.
 └─────┘
 ```
 
-Shambling corpses animated by dark magic. Slow but tough (9 HP), with
-high Morale (12) — they never flee and keep coming.
+Zombies are undead humans or demi-humans animated by an evil cleric or
+magic-user. They may be Turned by clerics, but sleep, charm, and mind reading
+do not affect them. They are often placed as silent treasure guards, attack on
+sight, can be destroyed by normal weapons, and always strike last.
 
 ---
 
