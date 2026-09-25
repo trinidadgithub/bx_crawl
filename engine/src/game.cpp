@@ -897,9 +897,9 @@ static bool is_name_green_slime(const char* name) {
     return std::string_view(name) == "Green Slime";
 }
 
-// Check if a monster name is the base ochre jelly (a fire hit that would slay
-// it instead splits it into two smaller jellies).
-static bool is_name_splits_on_fire(const char* name) {
+// Check if a monster name is the base ochre jelly (fire or lightning that would
+// slay it instead splits it into two smaller jellies).
+static bool is_name_splits_on_fire_or_lightning(const char* name) {
     return std::string_view(name) == "Ochre Jelly";
 }
 
@@ -1308,7 +1308,7 @@ Entity spawn_bx_monster_by_index(Game& g, int idx) {
     e.drains_strength = is_name_strength_drain(m.name);
     e.corrodes_metal  = is_name_corrodes_metal(m.name);
     e.green_slime     = is_name_green_slime(m.name);
-    e.splits_on_fire  = is_name_splits_on_fire(m.name);
+    e.splits_on_fire_or_lightning = is_name_splits_on_fire_or_lightning(m.name);
     e.weapon_immunity = weapon_immunity_for_name(m.name);
     e.fleeing    = false;
     e.alive      = true;
@@ -2257,19 +2257,22 @@ static bool throw_holy_water(Game& g, int dx, int dy) {
     return true;
 }
 
-// Apply fire damage (flaming oil, fire spells) to a monster. A monster that a
-// fire hit would slay normally; an ochre jelly instead splits into two smaller
-// jellies (the "Ochre Jelly'" variant) with half the big one's hit points.
+// Apply typed energy damage to a monster. A monster that an energy hit would
+// slay normally; an ochre jelly instead splits into two smaller jellies (the
+// "Ochre Jelly'" variant) with half the big one's hit points.
 // Offspring are queued in spillover so callers may finish iterating first.
 // Returns true when the monster is slain outright, or false on survival or a
 // split.
-static bool fire_hits_monster(Game& g, Entity& target, int dmg,
-                              const std::string& flame,
-                              std::vector<Entity>& spillover) {
+static bool elemental_hits_monster(Game& g, Entity& target, int dmg,
+                                   DamageType damage_type,
+                                   const std::string& source,
+                                   std::vector<Entity>& spillover) {
     target.hp -= dmg;
     if (target.hp > 0) return false;
 
-    if (target.splits_on_fire) {
+    if (target.splits_on_fire_or_lightning
+        && (damage_type == DamageType::Fire
+            || damage_type == DamageType::Lightning)) {
         int each = std::max(1, (target.hp + dmg) / 2);
         target.hp = 0;
         target.alive = false;
@@ -2290,15 +2293,16 @@ static bool fire_hits_monster(Game& g, Entity& target, int dmg,
 
     target.hp = 0;
     target.alive = false;
-    log_event(g, target.name + " is consumed by the " + flame + "!");
+    log_event(g, target.name + " is consumed by the " + source + "!");
     return true;
 }
 
 namespace game_internal {
-bool fire_hits_monster(Game& g, Entity& target, int dmg,
-                       const std::string& flame,
-                       std::vector<Entity>& spillover) {
-    return ::fire_hits_monster(g, target, dmg, flame, spillover);
+bool elemental_hits_monster(Game& g, Entity& target, int dmg,
+                            DamageType damage_type,
+                            const std::string& source,
+                            std::vector<Entity>& spillover) {
+    return ::elemental_hits_monster(g, target, dmg, damage_type, source, spillover);
 }
 } // namespace game_internal
 
@@ -2330,7 +2334,8 @@ static bool throw_oil(Game& g, int dx, int dy) {
                 log_event(g, oss.str());
             }
             std::vector<Entity> spillover;
-            if (fire_hits_monster(g, *target, dmg, "burning oil", spillover)) {
+            if (elemental_hits_monster(g, *target, dmg, DamageType::Fire,
+                                       "burning oil", spillover)) {
                 award_treasure(g, *target);
                 check_level_up(g);
             }

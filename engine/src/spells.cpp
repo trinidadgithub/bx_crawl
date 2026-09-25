@@ -36,10 +36,12 @@ void check_level_up(Game& g) {
     game_internal::check_level_up(g);
 }
 
-bool fire_hits_monster(Game& g, Entity& target, int dmg,
-                       const std::string& flame,
-                       std::vector<Entity>& spillover) {
-    return game_internal::fire_hits_monster(g, target, dmg, flame, spillover);
+bool elemental_hits_monster(Game& g, Entity& target, int dmg,
+                            DamageType damage_type,
+                            const std::string& source,
+                            std::vector<Entity>& spillover) {
+    return game_internal::elemental_hits_monster(g, target, dmg, damage_type,
+                                                source, spillover);
 }
 
 bool is_undead(const Entity& e) {
@@ -482,7 +484,8 @@ bool cast_spell(Game& g, int spell_index, int dx, int dy) {
         for (auto& m : g.monsters) {
             if (!m.alive) continue;
             int dmg = roll_d(g, 6) + roll_d(g, 6);
-            if (fire_hits_monster(g, m, dmg, "fire ball", spillover)) {
+            if (elemental_hits_monster(g, m, dmg, DamageType::Fire,
+                                       "fire ball", spillover)) {
                 ++killed;
             } else if (m.hp > 0) {
                 log_event(g, m.name + " is scorched by the fire ball!");
@@ -493,6 +496,43 @@ bool cast_spell(Game& g, int spell_index, int dx, int dy) {
         {
             std::ostringstream oss;
             oss << "Fire ball kills " << killed << " monster"
+                << (killed == 1 ? "" : "s") << "!";
+            log_event(g, oss.str());
+        }
+        return true;
+    }
+
+    if (spell == "Lightning Bolt") {
+        if (dx == 0 && dy == 0) {
+            log_event(g, "Lightning Bolt needs a direction!");
+            return false;
+        }
+        --hero.spell_slots[spell_level];
+        int killed = 0;
+        std::vector<Entity> spillover;
+        int dist = 1;
+        int nx = hero.pos.x + dx;
+        int ny = hero.pos.y + dy;
+        while (in_bounds(g, nx, ny) && dist <= 8) {
+            if (is_blocked(g, nx, ny)) break;
+            if (Entity* target = monster_at(g, nx, ny)) {
+                int dmg = roll_d(g, 6) + roll_d(g, 6);
+                if (elemental_hits_monster(g, *target, dmg, DamageType::Lightning,
+                                           "lightning bolt", spillover)) {
+                    ++killed;
+                } else if (target->hp > 0) {
+                    log_event(g, target->name + " is struck by the lightning bolt!");
+                }
+            }
+            nx += dx;
+            ny += dy;
+            ++dist;
+        }
+        for (auto& off : spillover)
+            g.monsters.push_back(std::move(off));
+        {
+            std::ostringstream oss;
+            oss << "Lightning bolt kills " << killed << " monster"
                 << (killed == 1 ? "" : "s") << "!";
             log_event(g, oss.str());
         }

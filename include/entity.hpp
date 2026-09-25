@@ -42,6 +42,11 @@ enum class WeaponImmunity {
     FireOnly       // no weapon wounds it; only fire or spells (green slime)
 };
 
+enum class DamageType {
+    Fire,
+    Lightning
+};
+
 struct Abilities {
     int str{};
     int dex{};
@@ -134,7 +139,7 @@ struct Entity {
     bool drains_strength{false}; // touch drains 1 STR (shadow)
     bool corrodes_metal{false};  // touch rusts normal metal equipment (rust monster)
     bool green_slime{false};     // contact eats gear + clings (green slime)
-    bool splits_on_fire{false};  // a fire hit that would slay it splits it in two (ochre jelly)
+    bool splits_on_fire_or_lightning{false}; // fire/lightning slaying hits split it (ochre jelly)
     WeaponImmunity weapon_immunity{WeaponImmunity::None};
     int count{1};  // number of creatures this entity represents (bat swarms)
 

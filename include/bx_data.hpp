@@ -228,7 +228,7 @@ struct Spell {
     const char* class_name;
 };
 
-inline constexpr std::array<Spell, 38> spells{{
+inline constexpr std::array<Spell, 39> spells{{
     { "Cure Light Wounds", 1, "Cleric" },
     { "Detect Evil", 1, "Cleric" },
     { "Detect Magic", 1, "Cleric" },
@@ -266,6 +266,7 @@ inline constexpr std::array<Spell, 38> spells{{
     { "Silence 15' radius", 2, "Cleric" },
     { "Dispel Magic", 3, "Magic-User" },
     { "Fire Ball", 3, "Magic-User" },
+    { "Lightning Bolt", 3, "Magic-User" },
     { "Fly", 3, "Magic-User" },
 }};
 

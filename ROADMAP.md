@@ -238,8 +238,9 @@ High-value gameplay items still known:
   only affects to-hit).
 - Slime counter-attacks: done in Phase 34 for current engine/data support
   (green slime fire-only, burning oil / Fire Ball as fire, ochre jelly fire
-  splitting). Lightning splitting and black pudding remain blocked on missing
-  lightning sources and missing monster data.
+  splitting). Lightning Bolt now provides a lightning damage source and triggers
+  the same ochre jelly split rule; black pudding remains blocked on missing
+  monster data.
 - Continue reviewing monster descriptions and stat data against the Basic Box PDF.
 - Replace stale `Monsters.md` with a generated reference or a pointer to the
   monster tools and data files.
@@ -250,9 +251,10 @@ High-value gameplay items still known:
 that have current engine/data support. Green slime is now fire-only (`FireOnly`:
 melee/thrown weapons pass through), burning oil is a new fire source, Fire Ball
 shares the same fire-damage path, and base ochre jellies split into two smaller
-`Ochre Jelly'` offspring when fire would slay them. The original lightning / black
-pudding wording remains future work because there is no lightning source and no
-Black Pudding monster row yet.
+`Ochre Jelly'` offspring when fire would slay them. Lightning Bolt now provides a
+lightning damage source and also triggers ochre jelly splitting. The original
+black pudding wording remains future work because there is no Black Pudding
+monster row yet.
 
 Acceptance criteria completed:
 
@@ -266,8 +268,6 @@ Acceptance criteria completed:
 
 Remaining backlog:
 
-- Add lightning damage sources/typing before implementing lightning-triggered
-  splits.
 - Add or generate a Black Pudding monster row before implementing black-pudding
   splitting.
 

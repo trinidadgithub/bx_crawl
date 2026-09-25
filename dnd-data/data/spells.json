@@ -194,6 +194,11 @@
       "class": "Magic-User"
     },
     {
+      "name": "Lightning Bolt",
+      "level": 3,
+      "class": "Magic-User"
+    },
+    {
       "name": "Fly",
       "level": 3,
       "class": "Magic-User"

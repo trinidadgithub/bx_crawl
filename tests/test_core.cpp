@@ -1921,10 +1921,10 @@ TEST_CASE("Green Slime contact eats gear and clings") {
     }
 }
 
-// ── Slime fire damage: green slime weapon immunity + flaming oil ──
-// ── Ochre jelly splitting on fire ─────────────────────
+// ── Slime energy damage: green slime weapon immunity + flaming oil ──
+// ── Ochre jelly splitting on fire/lightning ─────────────────────
 
-TEST_CASE("Green Slime spawns fire-only; Ochre Jelly spawns with the fire-split trait") {
+TEST_CASE("Green Slime spawns fire-only; Ochre Jelly spawns with the energy-split trait") {
     {
         ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
         ScopedEnvVar test_monster("BX_TEST_MONSTER", "green slime");
@@ -1939,7 +1939,7 @@ TEST_CASE("Green Slime spawns fire-only; Ochre Jelly spawns with the fire-split 
         Game g;
         init_game(g, make_hero(1, 1, 0, 1, 10));
         CHECK(g.monsters[0].name.find("Ochre Jelly") != std::string::npos);
-        CHECK(g.monsters[0].splits_on_fire == true);
+        CHECK(g.monsters[0].splits_on_fire_or_lightning == true);
     }
 }
 
@@ -2118,7 +2118,7 @@ TEST_CASE("flaming oil splits an ochre jelly instead of slaying it") {
 
     auto jelly = make_monster("Ochre Jelly", EntityType::Monster,
                               2, 1, 1, 10, 20, 1, 0);
-    jelly.splits_on_fire = true;
+    jelly.splits_on_fire_or_lightning = true;
     g.monsters.push_back(jelly);
 
     apply_player_command(g, {PlayerCommandType::ThrowOil, 1, 0});
@@ -2136,7 +2136,7 @@ TEST_CASE("flaming oil splits an ochre jelly instead of slaying it") {
             CHECK(m.pos.y == 1);
             CHECK(m.hp >= 1);
             CHECK(m.hp == m.max_hp);        // each new jelly at half strength
-            CHECK(m.splits_on_fire == false);
+            CHECK(m.splits_on_fire_or_lightning == false);
         }
     }
     CHECK(offspring == 2);
@@ -2156,7 +2156,7 @@ TEST_CASE("a mundane sword thrust slays an ochre jelly with no splitting") {
 
     auto jelly = make_monster("Ochre Jelly", EntityType::Monster,
                               2, 1, 1, 10, 20, 1, 0);
-    jelly.splits_on_fire = true;
+    jelly.splits_on_fire_or_lightning = true;
     g.monsters.push_back(jelly);
 
     apply_player_command(g, {PlayerCommandType::Move, 1, 0});
@@ -2182,7 +2182,7 @@ TEST_CASE("Fire Ball destroys green slime and splits ochre jelly") {
     slime.weapon_immunity = WeaponImmunity::FireOnly;
     auto jelly = make_monster("Ochre Jelly", EntityType::Monster,
                               3, 1, 1, 10, 20, 1, 0);
-    jelly.splits_on_fire = true;
+    jelly.splits_on_fire_or_lightning = true;
     g.monsters.push_back(slime);
     g.monsters.push_back(jelly);
 
@@ -2203,7 +2203,7 @@ TEST_CASE("Fire Ball destroys green slime and splits ochre jelly") {
             CHECK(m.pos.y == 1);
             CHECK(m.hp >= 1);
             CHECK(m.hp == m.max_hp);
-            CHECK(m.splits_on_fire == false);
+            CHECK(m.splits_on_fire_or_lightning == false);
         }
     }
     CHECK(offspring == 2);
@@ -2214,6 +2214,53 @@ TEST_CASE("Fire Ball destroys green slime and splits ochre jelly") {
         if (e.find("splits into two smaller jellies") != std::string::npos)
             saw_split = true;
         if (e.find("kills 1 monster") != std::string::npos)
+            saw_kills = true;
+    }
+    CHECK(saw_split);
+    CHECK(saw_kills);
+}
+
+TEST_CASE("Lightning Bolt is a lightning source and splits ochre jelly") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(/*x=*/1, /*y=*/1,
+                       /*atk_bonus=*/10, /*dmg_die=*/1,
+                       /*ac=*/10);
+    g.hero.spells = {"Lightning Bolt"};
+    g.hero.spell_slots[3] = 1;
+
+    auto jelly = make_monster("Ochre Jelly", EntityType::Monster,
+                              2, 1, 1, 10, 20, 1, 0);
+    jelly.splits_on_fire_or_lightning = true;
+    auto goblin = make_monster("Goblin", EntityType::Monster,
+                               3, 1, 1, 10, 20, 1, 0);
+    g.monsters.push_back(jelly);
+    g.monsters.push_back(goblin);
+
+    apply_player_command(g, {PlayerCommandType::Cast, 1, 0, 0});
+
+    CHECK(g.hero.spell_slots[3] == 0);
+    CHECK_FALSE(g.monsters[0].alive);
+    CHECK_FALSE(g.monsters[1].alive);
+
+    int offspring = 0;
+    for (auto& m : g.monsters) {
+        if (m.alive && m.name.find("Ochre Jelly'") != std::string::npos) {
+            ++offspring;
+            CHECK(m.pos.x == 2);
+            CHECK(m.pos.y == 1);
+            CHECK(m.hp >= 1);
+            CHECK(m.hp == m.max_hp);
+            CHECK(m.splits_on_fire_or_lightning == false);
+        }
+    }
+    CHECK(offspring == 2);
+
+    bool saw_split = false;
+    bool saw_kills = false;
+    for (const auto& e : g.event_log) {
+        if (e.find("splits into two smaller jellies") != std::string::npos)
+            saw_split = true;
+        if (e.find("Lightning bolt kills 1 monster") != std::string::npos)
             saw_kills = true;
     }
     CHECK(saw_split);
