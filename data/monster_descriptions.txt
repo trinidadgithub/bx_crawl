@@ -311,12 +311,15 @@ daylight they suffer a penalty on attack rolls. Goblins hate dwarves
 and will attack them on sight. There is a chance that some goblins
 will be riding dire wolves.
 
-green-slime = Green slime looks like green, oozing slime. It can
-only be harmed by fire or cold. It dissolves wood and metal (in 6
-rounds) but cannot dissolve stone. It clings to walls and ceilings
-and drops on surprised characters. Once on flesh it sticks and
-turns the flesh into more green slime. It cannot be scraped off
-but must be burnt off or treated with cure disease.
+green-slime = Green slime looks like green, oozing slime. It can be
+harmed by fire or cold, but not by other attacks. It dissolves wood and
+metal in 6 rounds, but cannot dissolve stone. It often clings to walls
+and ceilings and drops on surprised characters. Once on flesh it sticks
+and turns the flesh into more green slime. It cannot be scraped off,
+but must be burnt off or treated with cure disease. If it is not burned
+off, the victim turns completely into green slime 1-4 rounds after the
+first 6-round period. Burning does half damage to the slime and half to
+the victim.
 
 halfling = Halflings can appear as NPCs. They live in small villages of
 30-300 inhabitants. Each village has a leader and a village guard of militia.
@@ -580,11 +583,12 @@ In the Basic rules, a noble is always a 3rd level fighter, though the DM may
 choose any class and level. A noble always has a squire and may be
 accompanied by retainers or hirelings, usually 1st level fighters.
 
-ochre-jelly = An ochre jelly is an ochre-colored giant amoeba. It
-can only be harmed by fire or cold. Attacks with weapons or
-lightning make it split into many smaller jellies. It destroys wood,
-leather, and cloth in 1 round but cannot eat through metal or
-stone. It can seep through small cracks.
+ochre-jelly = An ochre jelly is an ochre-colored giant amoeba. It can
+only be harmed by fire or cold. Attacks with weapons or lightning make
+it split into 1d4+1 smaller 2 Hit Dice jellies. It does 2d6 damage per
+turn to exposed flesh, and the smaller jellies do half damage. It can
+seep through small cracks and destroys wood, leather, and cloth in 1
+round, but cannot eat through metal or stone.
 
 ogre = Ogres are huge fearsome human-like creatures, usually 8 to
 10 feet tall. They wear animal skins for clothes and often live in
