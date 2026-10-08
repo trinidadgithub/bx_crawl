@@ -440,18 +440,21 @@ poison, can detect alignment, and become invisible at will.
 
 stirge = A stirge is a birdlike creature with a long nose, looking
 rather like a very small feathered anteater. When a stirge attacks,
-it tries to thrust its beak into the victim's body to suck out blood.
+it tries to thrust its beak into the victim's body to suck out blood
+for 1-3 points of damage.
 A successful hit means it has attached itself; it will automatically
-suck blood each round until either it or its victim is dead. A flying
-stirge gains a bonus on its first attack roll due to its speed.
+suck blood for 1-3 points of damage each round until either it or its
+victim is dead, then it will leave. A flying stirge gains a +2 bonus on
+its first attack roll against any one opponent due to its speed.
 
 troglodyte = Troglodytes are intelligent human-like reptiles with
 a short tail, long legs, and a spiny comb on their head and arms.
-They hate most other creatures and try to kill anyone they meet.
-They have a chameleon-like ability to change color and hide by
-rock walls. They secrete an oily stench that nauseates humans and
-demi-humans unless they save vs. Poison, causing a penalty on
-attack rolls while in combat with troglodytes.
+They walk upright, use their hands as well as humans, hate most other
+creatures, and try to kill anyone they meet. They have a chameleon-like
+ability to change color and hide by rock walls, surprising on a 1-4 on
+1d6. They secrete an oily stench that nauseates humans and demi-humans
+unless they save vs. Poison, causing a -2 penalty on attack rolls while
+in hand-to-hand combat with troglodytes.
 
 wight = A wight is an undead spirit living in the body of a dead human or
 demi-human. It can only be hit by silvered or magical weapons. Wights are
@@ -490,11 +493,11 @@ drain blood. Anyone bitten must save vs. Poison or contract a
 wasting disease. They can be removed with fire or torn off.
 
 gray-ooze = This seeping horror looks like wet stone and is difficult to
-see. It secretes acid that damages bare skin and can dissolve and destroy
-magic armor in one turn. After the first hit, the ooze sticks to its victim,
-automatically destroying normal armor and continuing to burn flesh. Gray
-ooze cannot be harmed by cold or fire, but can be harmed by weapons and
-lightning.
+see. It secretes acid that does 2d8 damage if it hits bare skin and can
+dissolve and destroy magic armor in one turn. After the first hit, the
+ooze sticks to its victim, automatically destroying normal armor and doing
+2d8 damage each round. Gray ooze cannot be harmed by cold or fire, but
+can be harmed by weapons and lightning.
 
 harpy = A harpy has the lower body of a giant eagle and the upper
 body and head of a hideous-looking woman. By their singing,
