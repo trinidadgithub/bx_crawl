@@ -285,8 +285,11 @@ but not by cold or lightning.
 ghoul = Ghouls are hideous, beast-like undead humans who attack
 anything living. Any successful hit by a ghoul will paralyze any
 creature of ogre-size or smaller (except elves) unless the victim
-saves vs. Paralysis. Paralysis lasts 2-8 turns unless removed by a
-cure light wounds spell. Ghouls are immune to sleep and charm.
+saves vs. Paralysis. Once an opponent is paralyzed, the ghoul turns
+and attacks another opponent until the ghoul is destroyed or all its
+opponents are paralyzed or dead. Paralysis lasts 2-8 turns unless
+removed by a cure light wounds spell. Ghouls are immune to sleep and
+charm.
 
 giant-ferret = see Ferret, Giant
 
@@ -401,8 +404,9 @@ spells.
 skeleton = Skeletons are animated undead creatures often found
 near graveyards, dungeons, or other deserted places. They are used
 as guards by the high level magic-user or cleric who animated
-them. They are not affected by sleep or charm spells, nor any form
-of mind reading. Skeletons will always fight until killed.
+them. Since they are undead, they can be Turned by a cleric. They are
+not affected by sleep or charm spells, nor any form of mind reading.
+Skeletons will always fight until killed.
 
 snake-cobra = A spitting cobra is a 3' long grayish-white snake that can
 squirt venom up to 6 feet, aiming for the victim's eyes. A hit requires a
@@ -459,9 +463,10 @@ in hand-to-hand combat with troglodytes.
 wight = A wight is an undead spirit living in the body of a dead human or
 demi-human. It can only be hit by silvered or magical weapons. Wights are
 greatly feared because they drain life energy when striking a victim. Each
-hit drains one level of experience or hit die; anyone totally drained by a
-wight becomes a wight in 1-4 days under the control of the wight who
-drained them.
+hit drains one level of experience or hit die; the victim keeps only enough
+experience points to be at the midpoint of the lower level and loses one hit
+die of hit points. Anyone totally drained by a wight becomes a wight in 1-4
+days under the control of the wight who drained them.
 
 wolf = Wolves are meat-eaters and hunt in packs. Though they prefer the
 wilderness, they are occasionally found in caves. Captured wolf cubs can be
