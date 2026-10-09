@@ -277,10 +277,14 @@ Only magical weapons can hit them.
 
 gelatinous-cube = Gelatinous cubes are 10' cubes of transparent
 jelly that wander dungeons, absorbing organic matter. They are
-almost invisible, surprising opponents easily. Their touch causes
-paralysis (save vs. Paralysis, lasting 2-8 turns unless removed by
-cure light wounds). They may be harmed by fire and weapons
-but not by cold or lightning.
+almost invisible, surprising opponents on a 1-4 on 1d6. They sweep
+rooms and corridors clean of living and dead material, sometimes
+carrying items they cannot dissolve such as gold and gems. They usually
+eat carrion, but attack any living creature they meet, doing 2d4 damage.
+Each hit causes paralysis unless the victim saves vs. Paralysis; attacks
+on a paralyzed victim automatically hit. The paralysis lasts 2-8 turns
+unless removed by cure light wounds. They may be harmed by fire and
+weapons, but not by cold or lightning.
 
 ghoul = Ghouls are hideous, beast-like undead humans who attack
 anything living. Any successful hit by a ghoul will paralyze any
@@ -508,7 +512,11 @@ harpy = A harpy has the lower body of a giant eagle and the upper
 body and head of a hideous-looking woman. By their singing,
 harpies lure creatures to them to be killed and devoured. Any
 creature hearing the song must save vs. Spells or be charmed.
-Harpies are resistant to magic and have a bonus on all saves.
+Charmed victims move toward the harpies and resist any attempt to stop
+them, but do not otherwise attack. If a character saves against the
+songs of a group of harpies, that character will not be affected by any
+of their songs during the encounter. Harpies are resistant to magic and
+have a +2 bonus on all saves.
 
 living-statue-crystal = A living statue is an enchanted animated creature
 made by a powerful wizard. It appears to be a perfectly normal statue until
@@ -563,10 +571,14 @@ packs. Only silver or magical weapons can hit them.
 medusa = A medusa looks like a human female with live snakes growing from
 her head instead of hair. The sight of a medusa turns a creature to stone
 unless the victim saves vs. Turn to Stone. Her snake bite is poisonous. A
-medusa often wears a hooded robe as a disguise. A medusa can be viewed
-safely in a mirror, but if she sees her own reflection she may petrify
-herself. Attacking without looking is difficult, and a medusa has a bonus
-on saves vs. Spells due to her magical nature.
+victim must save vs. Poison or die in one turn; the group of snakes does
+1d6 damage and may attack only once per round. A medusa often wears a
+hooded robe as a disguise to trick victims into looking at her. A medusa
+can be viewed safely in a mirror, but if she sees her own reflection she
+must save vs. Turn to Stone or petrify herself. Anyone attacking without
+looking takes a -4 penalty to hit, while the medusa attacks with a +2
+bonus. A medusa also has a +2 bonus on saves vs. Spells due to her
+magical nature.
 
 minotaur = Minotaurs are semi-intelligent bull-headed humanoids
 that eat humans. They will always attack anything its size or
@@ -629,7 +641,8 @@ gain bonuses against them, and exhausted dancers become helpless.
 thoul = A thoul is a magical combination of a ghoul, a hobgoblin, and a
 troll. Except when very close, thouls look exactly like hobgoblins and are
 sometimes part of a hobgoblin king's bodyguard. Their touch paralyses like
-a ghoul's, and while alive they regenerate damage each round.
+a ghoul's. If damaged, a thoul regenerates 1 hit point at the beginning
+of each combat round as long as it is alive.
 
 trader = Traders are first level fighters who make their living trading
 goods. They are similar to merchants but much braver and better fighters.
