@@ -126,7 +126,7 @@ void show_stat_block(const bx::Monster& monster, int index,
     {
         std::ostringstream cl;
         cl << challenge_level_for(monster);
-        print_field("CL:", cl.str().c_str());
+        print_field("Challenge:", cl.str().c_str());
     }
 
     print_field("Move:", monster.move);
@@ -217,6 +217,32 @@ bool matches(const char* monster_name, const std::string& query) {
     return name.find(query) != std::string::npos;
 }
 
+std::filesystem::path executable_dir() {
+    std::error_code ec;
+    auto exe = std::filesystem::read_symlink("/proc/self/exe", ec);
+    if (!ec) return exe.parent_path();
+    return {};
+}
+
+std::filesystem::path find_data_dir() {
+    std::vector<std::filesystem::path> candidates{std::filesystem::path{"data"}};
+    auto exe_dir = executable_dir();
+    if (!exe_dir.empty()) {
+        candidates.push_back(exe_dir / "../data");
+        candidates.push_back(exe_dir / "../../data");
+    }
+
+    for (const auto& candidate : candidates) {
+        auto desc_path = candidate / "monster_descriptions.txt";
+        if (std::filesystem::exists(desc_path)) {
+            std::error_code ec;
+            auto canonical = std::filesystem::weakly_canonical(candidate, ec);
+            return ec ? candidate : canonical;
+        }
+    }
+    return "data";
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -228,7 +254,7 @@ int main(int argc, char** argv) {
     // Load monster descriptions and source references
     DescriptionStore desc;
     DescriptionStore sources;
-    std::filesystem::path data_dir = std::filesystem::path{"data"};
+    std::filesystem::path data_dir = find_data_dir();
     auto desc_path = data_dir / "monster_descriptions.txt";
     if (std::filesystem::exists(desc_path)) {
         desc.load_from_file(desc_path.string());
