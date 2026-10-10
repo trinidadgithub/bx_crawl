@@ -75,13 +75,21 @@ int find_monster(const std::string& query) {
 }
 
 std::string normalized_path() {
-    // Resolve path relative to the binary
     std::filesystem::path p = "data/monster_descriptions.txt";
     if (std::filesystem::exists(p)) return p.string();
 
-    // Try relative to binary location
-    p = std::filesystem::path{"/proc/self/exe"}.parent_path() / "../data/monster_descriptions.txt";
-    if (std::filesystem::exists(p)) return std::filesystem::weakly_canonical(p).string();
+    std::error_code ec;
+    auto exe = std::filesystem::read_symlink("/proc/self/exe", ec);
+    if (!ec) {
+        auto exe_dir = exe.parent_path();
+        for (const auto& candidate : {exe_dir / "../data/monster_descriptions.txt",
+                                      exe_dir / "../../data/monster_descriptions.txt"}) {
+            if (std::filesystem::exists(candidate)) {
+                auto canonical = std::filesystem::weakly_canonical(candidate, ec);
+                return ec ? candidate.string() : canonical.string();
+            }
+        }
+    }
 
     return "data/monster_descriptions.txt";
 }
