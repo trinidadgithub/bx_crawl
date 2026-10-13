@@ -33,10 +33,26 @@ void usage(const char* argv0) {
               << "\n"
               << "Edits a monster's description in\n"
               << "data/monster_descriptions.txt\n"
-              << "Shows the current description, then reads a new one from\n"
-              << "stdin (multiline; Ctrl+D to finish).\n"
+              << "Shows the current description, then reads a replacement from\n"
+              << "stdin. Use Ctrl+D to finish, or submit no text to cancel.\n"
+              << "Blank lines between paragraphs are preserved.\n"
               << "Indexes are 1-based (use list_monsters to find them).\n"
-              << "Name matches case-insensitive substrings.\n";
+              << "Name matches case-insensitive substrings.\n"
+              << "\n"
+              << "Examples:\n"
+              << "  " << argv0 << " 4\n"
+              << "  " << argv0 << " Bat, Giant\n"
+              << "  " << argv0 << " \"Bat, Giant\"\n"
+              << "  " << argv0 << " \"Bat, Giant\" < /tmp/giant-bat.txt\n";
+}
+
+std::string join_args(int argc, char** argv, int first) {
+    std::string result;
+    for (int i = first; i < argc; ++i) {
+        if (!result.empty()) result += ' ';
+        result += argv[i];
+    }
+    return result;
 }
 
 int find_monster(const std::string& query) {
@@ -71,6 +87,7 @@ int find_monster(const std::string& query) {
     for (int idx : found) {
         std::cout << "  " << (idx + 1) << ". " << bx::monsters[static_cast<std::size_t>(idx)].name << "\n";
     }
+    std::cout << "Use an index or a more specific name.\n";
     return -1;
 }
 
@@ -94,6 +111,38 @@ std::string normalized_path() {
     return "data/monster_descriptions.txt";
 }
 
+bool is_key_line(const std::string& line) {
+    std::string trimmed = line;
+    auto not_space = [](unsigned char c) { return !std::isspace(c); };
+    trimmed.erase(trimmed.begin(), std::find_if(trimmed.begin(), trimmed.end(), not_space));
+    auto eq = trimmed.find('=');
+    return eq != std::string::npos
+        && !trimmed.empty()
+        && std::isalpha(static_cast<unsigned char>(trimmed.front()))
+        && std::all_of(trimmed.begin(), trimmed.begin() + eq,
+            [](char c) { return std::isalnum(static_cast<unsigned char>(c))
+                || c == '-' || c == '_' || std::isspace(static_cast<unsigned char>(c)); });
+}
+
+std::vector<std::string> entry_lines_for(const std::string& key,
+                                         const std::string& description) {
+    std::vector<std::string> result;
+    std::istringstream in(description);
+    std::string line;
+    bool first = true;
+    while (std::getline(in, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (first) {
+            result.push_back(key + " = " + line);
+            first = false;
+        } else {
+            result.push_back(line);
+        }
+    }
+    if (first) result.push_back(key + " =");
+    return result;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -102,13 +151,14 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::string query(argv[1]);
+    std::string query = join_args(argc, argv, 1);
+    if (query == "--help" || query == "-h") {
+        usage(argv[0]);
+        return 0;
+    }
+
     int idx = find_monster(query);
     if (idx < 0) {
-        if (query == "--help" || query == "-h") {
-            usage(argv[0]);
-            return 0;
-        }
         std::cerr << "No monster matching \"" << query << "\".\n";
         return 1;
     }
@@ -136,7 +186,8 @@ int main(int argc, char** argv) {
               << current << "\n"
               << "────────────────────────────────────────\n"
               << "\n"
-              << "Enter new description (Ctrl+D when done, or empty to cancel):\n";
+              << "Enter replacement description. Blank lines are preserved.\n"
+              << "Finish with Ctrl+D (or submit no text to cancel):\n";
 
     // Read multiline input from stdin
     std::string new_desc;
@@ -170,9 +221,7 @@ int main(int argc, char** argv) {
     bool in_entry = false;
     std::vector<std::string> new_lines;
 
-    // Build the new entry text
-    std::vector<std::string> entry_lines;
-    entry_lines.push_back(key + " = " + new_desc);
+    auto entry_lines = entry_lines_for(key, new_desc);
 
     for (std::size_t i = 0; i < lines.size(); ++i) {
         const auto& l = lines[i];
@@ -191,20 +240,10 @@ int main(int argc, char** argv) {
         }
 
         if (in_entry) {
-            // Skip continuation lines (no '=' that looks like a new key)
-            std::string trimmed = l;
-            auto not_space = [](unsigned char c) { return !std::isspace(c); };
-            trimmed.erase(trimmed.begin(),
-                std::find_if(trimmed.begin(), trimmed.end(), not_space));
-            auto eq = trimmed.find('=');
-            bool is_new_key = eq != std::string::npos
-                && !trimmed.empty()
-                && std::isalpha(static_cast<unsigned char>(trimmed.front()))
-                && std::all_of(trimmed.begin(), trimmed.begin() + eq,
-                    [](char c) { return std::isalnum(static_cast<unsigned char>(c))
-                        || c == '-' || c == '_' || c == ' '; });
-            if (is_new_key) {
+            if (is_key_line(l)) {
                 in_entry = false;
+                if (!new_lines.empty() && !new_lines.back().empty())
+                    new_lines.push_back("");
                 new_lines.push_back(l);
                 continue;
             }

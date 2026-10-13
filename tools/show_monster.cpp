@@ -86,6 +86,8 @@ int average_hp(const char* hit_dice) {
     return hd.hd * 4 + (hd.hd + 1) / 2 + hd.bonus;
 }
 
+void print_wrapped_text(const std::string& text);
+
 void show_stat_block(const bx::Monster& monster, int index,
                      const DescriptionStore& desc,
                      const DescriptionStore& sources) {
@@ -174,25 +176,9 @@ void show_stat_block(const bx::Monster& monster, int index,
                   << "  " << source << "\n";
     }
 
-    // Description
     std::string desc_text = monster_description(desc, monster.name);
-    if (desc_text.find("No description") == std::string::npos) {
-        std::cout << "\n";
-        std::string remaining = desc_text;
-        while (!remaining.empty()) {
-            std::string line;
-            if (remaining.size() <= 72) {
-                line = remaining;
-                remaining.clear();
-            } else {
-                auto brk = remaining.rfind(' ', 72);
-                if (brk == std::string::npos) brk = 72;
-                line = remaining.substr(0, brk);
-                remaining = remaining.substr(brk + 1);
-            }
-            std::cout << "  " << line << "\n";
-        }
-    }
+    if (desc_text.find("No description") == std::string::npos)
+        print_wrapped_text(desc_text);
 
     std::cout << "\n";
 }
@@ -207,7 +193,47 @@ void usage(const char* argv0) {
               << "\n"
               << "Shows the B/X stat block for a monster.\n"
               << "Indexes are 1-based (use list_monsters to find them).\n"
-              << "Name matches case-insensitive substrings.\n";
+              << "Name matches case-insensitive substrings.\n"
+              << "Examples:\n"
+              << "  " << argv0 << " 4\n"
+              << "  " << argv0 << " Bat, Giant\n"
+              << "  " << argv0 << " \"Bat, Giant\"\n";
+}
+
+void print_wrapped_text(const std::string& text) {
+    std::cout << "\n";
+    std::istringstream paragraphs(text);
+    std::string remaining;
+    bool first = true;
+    while (std::getline(paragraphs, remaining)) {
+        if (!first && remaining.empty()) {
+            std::cout << "\n";
+            continue;
+        }
+        first = false;
+        while (!remaining.empty()) {
+            std::string line;
+            if (remaining.size() <= 72) {
+                line = remaining;
+                remaining.clear();
+            } else {
+                auto brk = remaining.rfind(' ', 72);
+                if (brk == std::string::npos) brk = 72;
+                line = remaining.substr(0, brk);
+                remaining = remaining.substr(brk + 1);
+            }
+            std::cout << "  " << line << "\n";
+        }
+    }
+}
+
+std::string join_args(int argc, char** argv, int first) {
+    std::string result;
+    for (int i = first; i < argc; ++i) {
+        if (!result.empty()) result += ' ';
+        result += argv[i];
+    }
+    return result;
 }
 
 bool matches(const char* monster_name, const std::string& query) {
@@ -264,11 +290,16 @@ int main(int argc, char** argv) {
         sources.load_from_file(source_path.string());
     }
 
-    std::string query(argv[1]);
+    std::string query = join_args(argc, argv, 1);
+    if (query == "--help" || query == "-h") {
+        usage(argv[0]);
+        return 0;
+    }
+
     bool query_is_index = !query.empty()
         && std::all_of(query.begin(), query.end(), [](char c) { return c >= '0' && c <= '9'; });
 
-    if (query_is_index && std::string_view(argv[1]) == "0") {
+    if (query_is_index && query == "0") {
         usage(argv[0]);
         return 1;
     }
@@ -310,6 +341,7 @@ int main(int argc, char** argv) {
         for (int idx : matches_found) {
             std::cout << "  " << (idx + 1) << ". " << bx::monsters[static_cast<std::size_t>(idx)].name << "\n";
         }
+        std::cout << "Use an index or a more specific name.\n";
         return 1;
     }
 

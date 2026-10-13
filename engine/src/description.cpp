@@ -16,6 +16,29 @@ inline void trim_in_place(std::string& s) {
             s.end());
 }
 
+bool looks_like_key_line(const std::string& line, std::size_t& eq_pos) {
+    eq_pos = line.find('=');
+    if (eq_pos == std::string::npos) return false;
+
+    std::string before_eq = line.substr(0, eq_pos);
+    trim_in_place(before_eq);
+    return !before_eq.empty()
+        && std::isalpha(static_cast<unsigned char>(before_eq.front()))
+        && std::all_of(before_eq.begin(), before_eq.end(), [](char c) {
+            return std::isalnum(static_cast<unsigned char>(c))
+                || c == '-' || c == '_';
+        });
+}
+
+void append_description_text(std::string& value, const std::string& text) {
+    if (value.empty()) {
+        value = text;
+    } else if (!text.empty()) {
+        if (value.back() != '\n') value += ' ';
+        value += text;
+    }
+}
+
 } // namespace
 
 bool DescriptionStore::load_from_file(const std::string& path) {
@@ -27,6 +50,7 @@ bool DescriptionStore::load_from_file(const std::string& path) {
     std::string current_key;
     std::string current_val;
     bool in_value = false;
+    int pending_blank_lines = 0;
 
     auto flush = [&]() {
         if (!current_key.empty()) {
@@ -36,6 +60,7 @@ bool DescriptionStore::load_from_file(const std::string& path) {
         current_key.clear();
         current_val.clear();
         in_value = false;
+        pending_blank_lines = 0;
     };
 
     std::string line;
@@ -50,36 +75,25 @@ bool DescriptionStore::load_from_file(const std::string& path) {
         std::string trimmed = line;
         trim_in_place(trimmed);
         if (trimmed.empty()) {
-            flush();
+            if (in_value) ++pending_blank_lines;
             continue;
         }
 
-        auto eq_pos = line.find('=');
-        if (eq_pos != std::string::npos) {
-            // Check if text before '=' looks like a key (alphanumeric, hyphens, underscores)
+        std::size_t eq_pos = std::string::npos;
+        if (looks_like_key_line(line, eq_pos)) {
+            // New key=value line. Pending blanks were entry separators.
             std::string before_eq = line.substr(0, eq_pos);
             trim_in_place(before_eq);
-            bool looks_like_key = !before_eq.empty()
-                && std::isalpha(static_cast<unsigned char>(before_eq.front()))
-                && std::all_of(before_eq.begin(), before_eq.end(), [](char c) {
-                    return std::isalnum(static_cast<unsigned char>(c))
-                        || c == '-' || c == '_';
-                });
-            if (looks_like_key) {
-                // New key=value line
-                flush();
-                current_key = before_eq;
-                current_val = line.substr(eq_pos + 1);
-                in_value = true;
-            } else if (in_value) {
-                // Continuation line with '=' in the value text
-                if (!current_val.empty()) current_val += ' ';
-                current_val += trimmed;
-            }
+            flush();
+            current_key = before_eq;
+            current_val = line.substr(eq_pos + 1);
+            in_value = true;
         } else if (in_value) {
-            // Continuation line — append to current value
-            if (!current_val.empty()) current_val += ' ';
-            current_val += trimmed;
+            while (pending_blank_lines > 0) {
+                current_val += "\n\n";
+                --pending_blank_lines;
+            }
+            append_description_text(current_val, trimmed);
         }
     }
     flush();
@@ -133,4 +147,3 @@ std::string monster_description(const DescriptionStore& store, const std::string
         return store.get(name);
     return std::string{"(No description for " + name + ")"};
 }
-
