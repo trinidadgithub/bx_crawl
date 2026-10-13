@@ -24,19 +24,33 @@ Treasure Type A is only found when bandits are encountered in their
 wilderness lair. Bandits may have an NPC leader of any class, of a higher
 experience level than the bandits.
 
-bat-giant = Giant bats are carnivorous (meat-eaters) and may attack a
-party if extremely hungry. More dangerous still are giant vampire bats:
-5% of all giant bat encounters are vampire bats. Their bite does no
-extra damage but the victim must save vs. Paralysis or fall unconscious
-for 1-10 rounds, allowing the bat to drain blood (1-4 hp/round). Any
-victim who dies from blood loss must save vs. Spells or become undead
-24 hours later.
+bat-giant = Bats are nocturnal (sleeping during the day, moving about at
+night) flying mammals. They often live in caves or abandoned buildings. They
+don't use their eyes to see but find their way about by echolocation (a type
+of radar using hearing and echos to locate objects). Since they don't use
+their eyes, spells or abilities which depend on sight to affect their victims
+will not work on bats. A silence 15' radius spell will effectively blind a
+bat.
 
-bat-normal = Normal bats will not attack men but may confuse them by
-flying around their heads. At least ten bats are needed to confuse one
-character. Confused characters suffer -2 on attack rolls and saving
-throws and cannot cast spells. Normal bats must check morale each
-round unless controlled or summoned.
+Giant bats are carnivorous (meat eaters) and may attack a party if extremely
+hungry. More dangerous still are giant vampire bats: 5% of all giant bat
+encounters are vampire bats. Their bite does no extra damage but the victim
+must save vs. Paralysis or fall unconscious for 1-10 rounds, allowing the bat
+to drain blood (1-4 hp/round). Any victim who dies from blood loss must save
+vs. Spells or become undead 24 hours later.
+
+bat-normal = Bats are nocturnal (sleeping during the day, moving about at
+night) flying mammals. They often live in caves or abandoned buildings. They
+don't use their eyes to see but find their way about by echolocation (a type
+of radar using hearing and echos to locate objects). Since they don't use
+their eyes, spells or abilities which depend on sight to affect their victims
+will not work on bats. A silence 15' radius spell will effectively blind a
+bat.
+
+Normal bats will not attack men but may confuse them by flying around their
+heads. At least ten bats are needed to confuse one character. Confused
+characters suffer -2 on attack rolls and saving throws and cannot cast spells.
+Normal bats must check morale each round unless controlled or summoned.
 
 bear-black = Bears are well known to all adventurers. If a bear (of any
 type) hits with both paws on the same victim in one round of combat, the
