@@ -55,38 +55,44 @@ Normal bats must check morale each round unless controlled or summoned.
 bear-black = Bears are well known to all adventurers. If a bear (of any
 type) hits with both paws on the same victim in one round of combat, the
 bear has hugged its victim and will cause 2-16 (2d8) additional points of
-damage in the same round as the attack. Black bears have black fur and
-stand about 6' tall. They are omnivorous, but prefer roots and berries. A
-black bear will not usually attack unless cornered and unable to escape.
-Adult black bears fight to the death to protect their young. They have been
-known to raid camps seeking food, especially fresh fish and sweets.
+damage in the same round as the attack.
+
+Black bears have black fur and stand about 6' tall. They are omnivorous, but
+prefer roots and berries. A black bear will not usually attack unless cornered
+and unable to escape. Adult black bears fight to the death to protect their
+young. They have been known to raid camps seeking food, especially fresh fish
+and sweets.
 
 bear-cave = Bears are well known to all adventurers. If a bear (of any
 type) hits with both paws on the same victim in one round of combat, the
 bear has hugged its victim and will cause 2-16 (2d8) additional points of
-damage in the same round as the attack. Cave bears are a type of giant
-grizzly bear that live in caves and lost world areas. They stand about 15'
-tall and are the most ferocious of all bears. Though omnivorous, they
-prefer meat and enjoy human flesh. Cave bears have bad eyesight but a good
-sense of smell. If hungry, they will follow a trail of blood until they have
-eaten.
+damage in the same round as the attack.
+
+Cave bears are a type of giant grizzly bear that live in caves and lost world
+areas. They stand about 15' tall and are the most ferocious of all bears.
+Though omnivorous, they prefer meat and enjoy human flesh. Cave bears have bad
+eyesight but a good sense of smell. If hungry, they will follow a track of
+blood until they have eaten.
 
 bear-grizzly = Bears are well known to all adventurers. If a bear (of any
 type) hits with both paws on the same victim in one round of combat, the
 bear has hugged its victim and will cause 2-16 (2d8) additional points of
-damage in the same round as the attack. Grizzly bears have silver-tipped
-brown or reddish brown fur and stand about 9' tall. They are fond of meat
-and are much more likely to attack than black bears. Grizzlies are found in
-most climates, but are most common in mountains and forests.
+damage in the same round as the attack.
+
+Grizzly bears have silver-tipped brown or reddish brown fur and stand about 9'
+tall. They are fond of meat and are much more likely to attack than black
+bears. Grizzlies are found in most climates, but are most common in mountains
+and forests.
 
 bear-polar = Bears are well known to all adventurers. If a bear (of any
 type) hits with both paws on the same victim in one round of combat, the
 bear has hugged its victim and will cause 2-16 (2d8) additional points of
-damage in the same round as the attack. Polar bears have white fur and
-stand about 11' tall. They live in cold regions and usually eat fish, but
-are as likely to attack as grizzly bears. These huge bears are good
-swimmers, and their wide feet allow them to run across snow without
-sinking.
+damage in the same round as the attack.
+
+Polar bears have white fur and stand about 11' tall. They live in cold regions
+and usually eat fish, but are as likely to attack as grizzly bears. These huge
+bears are good swimmers, and their wide feet allow them to run across snow
+without sinking.
 
 beetle-fire = Fire beetles are 2 1/2' long creatures often found below
 ground. They are nocturnal, but may be active underground at any time.
