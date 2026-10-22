@@ -108,7 +108,7 @@ add("Beetle, Fire", 4, "1+2", "120' (40')", "1 bite", "2-8",
     "1-8 (2-8)", "Fighter: 1", 7, "Nil", "Neutral")
 add("Beetle, Giant", 3, "2+2", "90' (30')", "1 bite", "2-12",
     "1-6 (1-6)", "Fighter: 1", 8, "Nil", "Neutral")
-add("Beetle, Oil", 4, "1+2", "120' (40')", "1 bite (special)", "1-6",
+add("Beetle, Oil", 4, "1+2", "120' (40')", "1 bite + special", "1-6 + special",
     "1-8 (2-8)", "Fighter: 1", 7, "Nil", "Neutral")
 add("Beetle, Tiger", 3, "3+1", "150' (50')", "1 bite", "2-12",
     "1-6 (1-6)", "Fighter: 2", 9, "U", "Neutral")

@@ -339,6 +339,8 @@ void render_dungeon(const GameStateSnapshot& s) {
         oss << " CONFUSED!";
     if (s.hero.unconscious_turns > 0)
         oss << " UNCONSCIOUS!";
+    if (s.hero.blister_turns > 0)
+        oss << " BLISTERS (-2 to hit)";
     oss << " R:" << s.hero.rations;
     put_line(oss.str());
 

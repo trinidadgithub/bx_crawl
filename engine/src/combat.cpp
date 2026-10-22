@@ -194,6 +194,7 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
         extra_atk += 1;
     if (attacker.type == EntityType::Hero && hero_is_confused(g))
         extra_atk -= 2;
+    if (attacker.blister_turns > 0) extra_atk -= 2;
     if (attacker.type == EntityType::Hero) {
         if (attacker.turns_without_food >= 144)
             extra_atk -= 2;
@@ -492,6 +493,26 @@ void attack(Game& g, Entity& attacker, Entity& defender) {
     attack_internal(g, attacker, defender,
                     /*bonus_to_hit=*/0,
                     /*trigger_morale=*/true);
+
+    game_internal::retaliate_with_oil(g, attacker, defender);
+}
+
+void game_internal::retaliate_with_oil(Game& g, Entity& attacker, Entity& defender) {
+    if (attacker.type == EntityType::Hero && attacker.alive && defender.alive
+        && defender.sprays_oil
+        && std::abs(attacker.pos.x - defender.pos.x)
+           + std::abs(attacker.pos.y - defender.pos.y) <= 1) {
+        int total = roll_d(g, 20) + defender.attack_bonus;
+        int target = attacker.ac + (attacker.shield_turns > 0 ? 4 : 0)
+                     + (attacker.protection_turns > 0 ? 1 : 0)
+                     + (attacker.resist_cold_turns > 0 ? 1 : 0);
+        if (total >= target) {
+            attacker.blister_turns = 144;
+            log_event(g, "The oil beetle's spray hits! Painful blisters give you -2 to hit.");
+        } else {
+            log_event(g, "The oil beetle squirts oil, but misses you!");
+        }
+    }
 }
 
 SurpriseResult resolve_surprise(int hero_roll, int monster_roll,

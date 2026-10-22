@@ -102,6 +102,8 @@ struct Entity {
 
     // Paralysis: 0 = normal; >0 = number of turns the hero cannot act.
     int paralyzed_turns{0};
+    int blister_turns{0};
+    bool sprays_oil{false};
 
     // Unconscious (giant vampire bat bite): 0 = awake; >0 = the hero is
     // knocked out for N rounds and a vampire bat may drain blood.

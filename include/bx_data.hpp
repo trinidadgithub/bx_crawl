@@ -376,7 +376,7 @@ inline constexpr std::array<Monster, 105> monsters{{
     { "Bear, Polar", 6, "6", "120' (40')", "2 claws/1 bite", "1-6/1-6/1-10", "1-2 (1-2)", "Fighter: 3", 8, "U", "Neutral" },
     { "Beetle, Fire", 4, "1+2", "120' (40')", "1 bite", "2-8", "1-8 (2-8)", "Fighter: 1", 7, "Nil", "Neutral" },
     { "Beetle, Giant", 3, "2+2", "90' (30')", "1 bite", "2-12", "1-6 (1-6)", "Fighter: 1", 8, "Nil", "Neutral" },
-    { "Beetle, Oil", 4, "1+2", "120' (40')", "1 bite (special)", "1-6", "1-8 (2-8)", "Fighter: 1", 7, "Nil", "Neutral" },
+    { "Beetle, Oil", 4, "1+2", "120' (40')", "1 bite + special", "1-6 + special", "1-8 (2-8)", "Fighter: 1", 7, "Nil", "Neutral" },
     { "Beetle, Tiger", 3, "3+1", "150' (50')", "1 bite", "2-12", "1-6 (1-6)", "Fighter: 2", 9, "U", "Neutral" },
     { "Berserker", 7, "1+1", "120' (40')", "1 weapon", "1-8", "1-6 (3-18)", "Fighter: 1", 8, "P (B)", "Neutral" },
     { "Boar", 7, "2+2", "150' (50')", "1 tusk", "2-8", "1-6 (2-12)", "Fighter: 1", 9, "Nil", "Neutral" },
