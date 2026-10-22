@@ -591,6 +591,126 @@ static Entity make_monster(const std::string& name, EntityType type,
     return e;
 }
 
+TEST_CASE("Oil beetle spray causes blisters after an adjacent attack") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, -100, 1, 10);
+    auto beetle = make_monster("Beetle, Oil", EntityType::Monster,
+                               2, 1, 20, 100, 100, 6, 0);
+    beetle.sprays_oil = true;
+    g.monsters.push_back(beetle);
+
+    apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+    CHECK(g.hero.blister_turns == 144);
+    CHECK(g.hero.hp == 20);
+    CHECK(g.monsters[0].hp == 20);
+}
+
+TEST_CASE("Only oil beetles receive the oil spray trait at spawn") {
+    ScopedEnvVar no_monsters("BX_NO_MONSTERS", "0");
+    for (const auto* name : {"Beetle, Oil", "Beetle, Fire", "Beetle, Tiger"}) {
+        ScopedEnvVar selected("BX_TEST_MONSTER", name);
+        Game g;
+        init_game(g, make_hero(1, 1, 0, 1, 10));
+        REQUIRE_FALSE(g.monsters.empty());
+        CHECK(g.monsters[0].sprays_oil == (std::string(name) == "Beetle, Oil"));
+        if (g.monsters[0].sprays_oil)
+            CHECK(g.monsters[0].damage_die == 6);
+    }
+}
+
+TEST_CASE("Cure Light Wounds removes oil blisters instead of healing") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.hp = 5;
+    g.hero.blister_turns = 144;
+    g.hero.spells = {"Cure Light Wounds"};
+    g.hero.spell_slots[1] = 1;
+    apply_player_command(g, {PlayerCommandType::Cast, 0, 0, 0});
+    CHECK(g.hero.blister_turns == 0);
+    CHECK(g.hero.hp == 5);
+    CHECK(g.hero.spell_slots[1] == 0);
+}
+
+TEST_CASE("Oil spray misses and respects its short range") {
+    for (int distance : {1, 2}) {
+        Game g = make_minimal_game();
+        g.hero = make_hero(1, 1, -100, 1, 10);
+        g.hero.knives = 1;
+        auto beetle = make_monster("Beetle, Oil", EntityType::Monster,
+                                   1 + distance, 1, 20, 100,
+                                   distance == 1 ? -100 : 100, 6, 0);
+        beetle.sprays_oil = true;
+        g.monsters.push_back(beetle);
+        apply_player_command(g, {PlayerCommandType::ThrowKnife, 1, 0});
+        CHECK(g.hero.blister_turns == 0);
+    }
+}
+
+TEST_CASE("An adjacent thrown weapon provokes oil spray but a slain beetle cannot spray") {
+    for (bool lethal : {false, true}) {
+        Game g = make_minimal_game();
+        g.hero = make_hero(1, 1, 100, 1, 10);
+        g.hero.knives = 1;
+        auto beetle = make_monster("Beetle, Oil", EntityType::Monster,
+                                   2, 1, lethal ? 1 : 100, 0, 100, 6, 0);
+        beetle.sprays_oil = true;
+        g.monsters.push_back(beetle);
+        apply_player_command(g, {PlayerCommandType::ThrowKnife, 1, 0});
+        CHECK(g.hero.blister_turns == (lethal ? 0 : 144));
+        CHECK(g.monsters[0].alive == !lethal);
+    }
+}
+
+TEST_CASE("Oil blisters penalize melee and thrown weapon attack rolls") {
+    for (auto command : {PlayerCommandType::Move, PlayerCommandType::ThrowKnife}) {
+        bool changed_hit_to_miss = false;
+        for (unsigned seed = 1; seed < 100 && !changed_hit_to_miss; ++seed) {
+            Game clear = make_minimal_game();
+            clear.rng.seed(seed);
+            clear.hero = make_hero(1, 1, 0, 1, 10);
+            clear.hero.abilities.str = 10;
+            clear.hero.abilities.dex = 10;
+            clear.hero.knives = 1;
+            clear.monsters.push_back(make_monster("Target", EntityType::Monster,
+                                                  2, 1, 100, 10, 0, 1, 0));
+            Game blistered = clear;
+            blistered.hero.blister_turns = 144;
+            apply_player_command(clear, {command, 1, 0});
+            apply_player_command(blistered, {command, 1, 0});
+            changed_hit_to_miss = clear.monsters[0].hp < 100
+                                 && blistered.monsters[0].hp == 100;
+        }
+        CHECK(changed_hit_to_miss);
+    }
+}
+
+TEST_CASE("Oil blisters expire after 144 exploration turns") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.blister_turns = 144;
+    int turns = 0;
+    while (g.hero.blister_turns > 0 && turns < 10000) {
+        compute_visibility(g);
+        ++turns;
+    }
+    CHECK(g.hero.blister_turns == 0);
+    CHECK(turns == 144 * ticks_per_exploration_turn(g));
+}
+
+TEST_CASE("An adjacent oil beetle retaliates against Magic Missile") {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.spells = {"Magic Missile"};
+    g.hero.spell_slots[1] = 1;
+    auto beetle = make_monster("Beetle, Oil", EntityType::Monster,
+                               2, 1, 100, 10, 100, 6, 0);
+    beetle.sprays_oil = true;
+    g.monsters.push_back(beetle);
+    apply_player_command(g, {PlayerCommandType::Cast, 1, 0, 0});
+    CHECK(g.hero.blister_turns == 144);
+    CHECK(g.hero.hp == 20);
+}
+
 static unsigned find_d6_seed(int wanted_roll) {
     for (unsigned seed = 1; seed < 10000; ++seed) {
         Game g = make_minimal_game();

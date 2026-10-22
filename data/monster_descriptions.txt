@@ -104,10 +104,12 @@ beetle-giant = Giant beetles are large, armoured insects with powerful
 mandibles.
 
 beetle-oil = Oil beetles are 3' long giant beetles that sometimes burrow
-underground. When attacked, they squirt an oily fluid at one attacker. If
-the oil hits, it raises painful blisters, causing a penalty on attack rolls
+underground. When attacked, they squirt an oily fluid at one attacker within
+5 feet, requiring an attack roll. If
+the oil hits, it raises painful blisters, causing a -2 penalty on attack rolls
 until cure light wounds is used or 24 hours pass. Oil beetles can also
-attack with their mandibles.
+attack with their mandibles. A cure light wounds spell used to cure blisters
+does not also heal hit points.
 
 beetle-tiger = Tiger beetles are 4' long giant beetles with striped
 carapaces that look like tiger skin. They are carnivorous and usually prey

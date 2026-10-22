@@ -5,6 +5,7 @@
 #include <string>
 
 namespace game_internal {
+void retaliate_with_oil(Game& g, Entity& attacker, Entity& defender);
 
 void emit_log_event(Game& g, const std::string& msg);
 void emit_sound(Game& g, SoundEffect effect);

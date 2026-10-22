@@ -1301,6 +1301,7 @@ Entity spawn_bx_monster_by_index(Game& g, int idx) {
     e.morale     = m.morale;
     e.xp_value   = compute_xp_value(m.hit_dice);
     e.undead     = is_name_undead(m.name);
+    e.sprays_oil = std::string_view(m.name) == "Beetle, Oil";
     e.has_poison = is_name_poison(m.name);
     e.has_disease = is_name_disease(m.name);
     e.has_paralysis = is_name_paralysis(m.name);
@@ -1846,6 +1847,8 @@ void render(const Game& g) {
         // Green slime indicator
         if (g.hero.green_slime_turns > 0)
             oss << " GREEN SLIME!";
+        if (g.hero.blister_turns > 0)
+            oss << " BLISTERS (-2 to hit)";
         oss << " R:" << g.hero.rations;
         put_line(oss.str());
     }
@@ -1952,6 +1955,7 @@ GameStateSnapshot make_game_state_snapshot(const Game& g) {
     out.hero.resist_cold_turns = h.resist_cold_turns;
     out.hero.unconscious_turns = h.unconscious_turns;
     out.hero.green_slime_turns = h.green_slime_turns;
+    out.hero.blister_turns = h.blister_turns;
     out.hero.confused = hero_is_confused(g);
 
     out.monsters.reserve(g.monsters.size());
@@ -2139,7 +2143,8 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
                 if (attacker.turns_without_food >= 18) starvation_penalty = -2;
                 else if (attacker.turns_without_food >= 12) starvation_penalty = -1;
             }
-            int total  = roll + (attacker.attack_bonus - str_mod + dex_mod) + penalty + starvation_penalty;
+            int total  = roll + (attacker.attack_bonus - str_mod + dex_mod) + penalty + starvation_penalty
+                         - (attacker.blister_turns > 0 ? 2 : 0);
 
             {
                 std::ostringstream oss;
@@ -2192,6 +2197,7 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
             } else {
                 log_event(g, "Miss!");
             }
+            game_internal::retaliate_with_oil(g, attacker, *target);
             return true;
         }
 
@@ -2268,7 +2274,10 @@ static bool elemental_hits_monster(Game& g, Entity& target, int dmg,
                                    const std::string& source,
                                    std::vector<Entity>& spillover) {
     target.hp -= dmg;
-    if (target.hp > 0) return false;
+    if (target.hp > 0) {
+        game_internal::retaliate_with_oil(g, g.hero, target);
+        return false;
+    }
 
     if (target.splits_on_fire_or_lightning
         && (damage_type == DamageType::Fire

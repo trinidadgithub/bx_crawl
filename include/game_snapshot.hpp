@@ -67,6 +67,7 @@ struct HeroView {
     int resist_cold_turns{};
     int unconscious_turns{};
     int green_slime_turns{};
+    int blister_turns{};
     bool confused{false};
 };
 

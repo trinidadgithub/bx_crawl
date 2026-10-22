@@ -128,6 +128,7 @@ bool cast_spell(Game& g, int spell_index, int dx, int dy) {
                     award_treasure(g, *target);
                     check_level_up(g);
                 }
+                game_internal::retaliate_with_oil(g, hero, *target);
                 return true;
             }
             nx += dx;
@@ -166,6 +167,11 @@ bool cast_spell(Game& g, int spell_index, int dx, int dy) {
 
     if (spell == "Cure Light Wounds") {
         --hero.spell_slots[spell_level];
+        if (hero.blister_turns > 0) {
+            hero.blister_turns = 0;
+            log_event(g, "Cure Light Wounds removes your blisters without healing HP.");
+            return true;
+        }
         int heal = roll_d(g, 6) + 1;
         int actual = std::min(heal, hero.max_hp - hero.hp);
         hero.hp += actual;

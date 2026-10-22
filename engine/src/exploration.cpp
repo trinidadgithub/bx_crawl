@@ -93,6 +93,8 @@ void compute_visibility(Game& g) {
     bool is_turn_tick = (g.tick_clock % ticks_per_exploration_turn(g) == 0);
 
     if (is_turn_tick) {
+        if (hero.blister_turns > 0 && --hero.blister_turns == 0)
+            log_event(g, "Your oil blisters have healed.");
         // Check torch state before decrement (for message logic)
         bool torch_was_lit = hero.torch_turns > 0 && hero.light_spell_turns == 0;
 
