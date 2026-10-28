@@ -6,6 +6,15 @@ The game now includes character generation, a town layer, procedural dungeons,
 class-restricted equipment, hunger/rations, spells, thief skills, sound effects,
 save/load, and B/X-flavored combat.
 
+## Development Continuity
+
+Future OpenCode sessions should begin with
+[docs/DEVELOPMENT-CONTINUITY.md](docs/DEVELOPMENT-CONTINUITY.md) for approved
+decisions, current status, validation history, and the next authorized action.
+The current poison rules work is organized in the
+[implementation plan](docs/POISON-IMPLEMENTATION-PLAN.md), backed by the
+[rules-fidelity audit](docs/POISON-MECHANICS-AUDIT.md).
+
 ## Building
 
 Requires:
