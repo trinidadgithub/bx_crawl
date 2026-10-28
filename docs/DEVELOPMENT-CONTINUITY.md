@@ -6,7 +6,7 @@ next action in place; preserve accepted decisions and validated milestones.
 
 **Last reconciled:** 2026-10-28 (UTC).
 
-**Active work:** poison planning/continuity documentation; no poison
+**Active work:** review of the committed poison audit/planning package; no poison
 implementation phase started.
 
 **Next approved action:** review this documentation and obtain approval for the
@@ -91,22 +91,25 @@ silently overwriting their history.
 
 ## 4. Current Repository State
 
-Snapshot from this documentation session; re-check it at every resume:
+Snapshot verified after the authorized documentation commit and push; re-check
+it at every resume. This handoff-only follow-up records the confirmed package
+revision below rather than inventing its own future commit SHA.
 
 | Item | Verified state |
 |---|---|
-| Current branch | `main` |
-| HEAD | `afa59d66866b6c7c666a5e7b74771f3c6c4d2705` — merge PR #66, oil beetle spray |
-| Tracking | Local `main` equals the locally known `origin/main`; no fetch was performed for this planning task. |
+| Current branch | `feat/poison-audit-and-development-continuity` |
+| Confirmed documentation revision | `a62a5799146f92decfeeaed273252b0e2309d186` — `Document poison audit and implementation continuity` |
+| Gameplay baseline / parent | `afa59d66866b6c7c666a5e7b74771f3c6c4d2705` — merge PR #66; application source remains unchanged |
+| Tracking | Documentation branch pushed with upstream `origin/feat/poison-audit-and-development-continuity`. No changes merged into `main` by this session. |
 | Open PR query | `gh pr list --state open --json number,title,headRefName,baseRefName,url` returned `[]` during this session. Not a permanent statement about GitHub. |
 | Committed poison implementation | Still generic extra-d4 mechanics from the audited revision; none of the six poison implementation phases started. |
-| Pre-existing local work | `docs/POISON-MECHANICS-AUDIT.md` was untracked at task start. It is the completed earlier audit, not part of HEAD. Preserve and include it when an authorized documentation commit is made. |
-| This task's local work | New untracked `docs/POISON-IMPLEMENTATION-PLAN.md` and this continuity file; modified `README.md` entry point. Together with the audit, these are documentation-only, uncommitted work. |
-| Commit/push/PR | None performed for the audit/planning package. No new commit SHA exists for these files yet. |
+| Audit dependency | The previously untracked audit is now committed with the plan, continuity file, and README in `a62a579`; it can travel with the branch across machines. |
+| Working tree at verification | Clean immediately after the package commit. This subsequent continuity/plan handoff update is documentation-only; inspect Git for its final commit and any newer local work. |
+| Commit/push/PR | Owner authorized branch creation, commit, and push; `a62a579` and the remote branch were confirmed. No PR was created and no merge was performed. This follow-up updates the handoff; its final revision is discoverable with `git log`. |
 | Latest engine validation | Audit-session validation against `afa59d6`: Debug build, direct doctest 228/228 cases and 15265/15265 assertions, Debug CTest 1/1, sanitizer build and CTest 1/1 passed. Details in §9; not rerun for this documentation-only task. |
 | Save format | v7; no poison deadline/cause/clock extension implemented. v8 in the plan is a candidate, not current fact. |
 
-Limitations inherited from HEAD: missing source-specific poison outcomes,
+Limitations inherited from the gameplay baseline: missing source-specific poison outcomes,
 Killer Bee/Medusa poison activation, delayed state, Expert level-based saves,
 crab +2, qualifying protection modifiers, Neutralize Poison, and poison-death
 sound. Clock advancement is coupled to frame preparation. Some conditions are
@@ -123,8 +126,8 @@ or fabricated from this record's creation date.
 | Milestone | Files / commits | Validation evidence | Acceptance satisfied | Remaining limitations |
 |---|---|---|---|---|
 | Pre-poison baseline: Oil Beetle spray merged as PR #66 | `d52508f`, merge `afa59d6`; combat/time/spell/status code, beetle data, tests; see `docs/oil-beetle-blistering-spray.md` and `git show --stat afa59d6` for full file set | Subsequent audit rebuilt and ran the committed revision; §9 records actual results | Provides the audited baseline and an example timed blister condition | Not poison implementation; blisters are session-only and use the flawed exploration timing boundary |
-| Read-only Poison Mechanics Audit | Local `docs/POISON-MECHANICS-AUDIT.md`; **no commit yet** | Original-source checks, full runtime inventory/traces, Debug and sanitizer tests executed in audit session (§9) | Evidence baseline, findings P01-P11, exception matrix and proposed tests documented | Recommendations not implemented; original remaining questions partially superseded by owner decisions above |
-| Implementation planning and continuity bootstrap | Local plan, this file, README entry point; **no commit yet** | Documentation/Git checks only in this session (§9); no new engine validation claimed | Six-phase plan, accepted decisions, unresolved gates, handoff/update protocol and resume entry point recorded | Planning package awaits owner review; no implementation phase is complete |
+| Read-only Poison Mechanics Audit | `docs/POISON-MECHANICS-AUDIT.md`, committed in `a62a579` | Original-source checks, full runtime inventory/traces, Debug and sanitizer tests executed in audit session (§9) | Evidence baseline, findings P01-P11, exception matrix and proposed tests documented | Recommendations not implemented; original remaining questions partially superseded by owner decisions above |
+| Implementation planning and continuity bootstrap | Plan, this file, README entry point; committed in `a62a579` | Documentation/Git checks only in this session (§9); no new engine validation claimed | Six-phase plan, accepted decisions, unresolved gates, handoff/update protocol and resume entry point recorded | Planning package awaits owner review; no implementation phase is complete |
 
 Do not promote any poison phase to Completed until its plan acceptance criteria,
 tests, relevant manual checks, and remaining caveats are reconciled. Record a
@@ -136,11 +139,11 @@ partially complete slice separately, even after its PR merges.
 
 - **Objective:** make the verified audit and approved decisions durable, then
   prepare a bounded saving-throw/death-handling slice for review.
-- **Completed locally:** plan, continuity record, README entry point. Audit from
-  the preceding investigation remains a required local dependency of this package.
-- **Remaining now:** owner reviews documentation; commit/push or PR only when
-  authorized. Preserve the audit with the new documents so links work on another
-  machine. Update this snapshot after any authorized commit.
+- **Committed and pushed:** audit, plan, continuity record, README entry point
+  in `a62a579`. This handoff follow-up records the confirmed packaging result.
+- **Remaining now:** owner reviews the branch/documentation, optionally through
+  a PR, and approves a bounded implementation slice. Do not merge or begin coding
+  as part of the packaging request.
 - **Implementation blockers:** scope approval for Phase 1; context/interface
   choices required for qualifying modifiers. Later phase blockers are Q01-Q07,
   not a reason to re-audit all poison or change DEC-POISON-001..005.
@@ -251,12 +254,12 @@ ctest --test-dir build-sanitize --output-on-failure
 
 Executed Git status/HEAD/history inspection, the open-PR query, UTC record-date
 check, `git diff --check`, and separate `git diff --no-index --check /dev/null`
-checks for the new documents. The new plan/continuity documents and README
-pass whitespace checks. The pre-existing audit's lines 3-4 use Markdown
-two-space hard breaks, reported as trailing whitespace by the separate check;
-that baseline file was left unchanged. Documentation review only; no
-engine/test/data edits or new engine test run. These checks do not validate any
-planned phase.
+checks for the new documents. During authorized packaging, the audit's two
+Markdown hard-break lines were normalized to blank lines, and
+`git diff --cached --check` passed for all four staged documentation files.
+The package commit/push succeeded, followed by this handoff reconciliation.
+Documentation review only; no engine/test/data edits or new engine test run.
+These checks do not validate any planned implementation phase.
 
 ### Portable validation recipe — suggested, not newly executed results
 
@@ -295,6 +298,7 @@ inferred from commit timestamps or a previous machine's clock.
 |---|---|---|---|
 | Earlier audit session; separate date not recorded in report | Read-only poison rules/engine audit; local audit document created | Base `afa59d6`; audit itself uncommitted. Engine validation actually executed as detailed in §9 | Identified P01-P11 and clock/persistence/treatment gaps. Follow-up was owner rules decision and implementation planning. |
 | 2026-10-28 UTC — continuity record date | Review audit/README/ROADMAP/ADRs/test docs; create six-phase plan, continuity system, README entry point | Base still `afa59d6`; all new docs local/uncommitted. Git/doc checks only; engine tests not repeated | Record DEC-POISON-001..005 from owner directive; Q01-Q07 remain open. Next: owner review and bounded Phase 1 authorization. |
+| 2026-10-28 UTC — authorized packaging | Create `feat/poison-audit-and-development-continuity`; commit/push audit, plan, continuity and README; reconcile handoff in a follow-up | Package `a62a579` committed and pushed; staged whitespace check passed; no new engine test run | No new gameplay decisions, no PR/merge. Next: owner review of documentation and bounded Phase 1 approval. |
 
 For later sessions append a short row with actual date, objective, changed files
 or linked milestone, exact commits if any, executed tests/results, decisions,
@@ -313,9 +317,10 @@ the reader need not reconstruct current status from this history table.
    local diffs/untracked files, and relevant PR state. On another machine fetch
    and reconcile remote history appropriately before choosing a base. Do not
    overwrite another session's uncommitted work or force-push divergent history.
-5. Reconcile this snapshot with actual repository state. Untracked docs do not
-   travel to another machine until committed/pushed; a local file is not proof
-   it exists in GitHub. Preserve the uncommitted audit dependency.
+5. Reconcile this snapshot with actual repository state. The documentation
+   package is committed/pushed on the feature branch, not merged into `main` by
+   this session. Fetch/check out the branch or its later merged successor on a
+   new machine. Preserve any newer uncommitted work.
 6. Identify the active phase and its unmet acceptance criteria. Currently this
    is documentation review, **not implemented Phase 1**.
 7. Identify the next **approved** action. Currently seek scope approval for a
@@ -377,6 +382,7 @@ At the end of each future implementation session:
 10. Identify the **exact next approved development action** or the specific
     approval needed before further changes.
 
-This documentation task stops at the handoff. No gameplay implementation, source
-data edits, save-format changes, build configuration edits, commits, or PRs are
-part of its completed work.
+Work stops at the documentation handoff. The separately authorized packaging
+committed and pushed the documentation branch; no gameplay implementation,
+source-data edits, save-format changes, build configuration edits, PR creation,
+or merge was performed.

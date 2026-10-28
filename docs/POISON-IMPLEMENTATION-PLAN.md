@@ -408,7 +408,7 @@ the approved B/X baseline. No optional house-rule configuration is planned.
 - Proposed workflow: a narrow branch/PR per slice with detailed scope, source
   references, tests actually executed, outstanding gates, compatibility, and
   rollback notes. The owner handles merges. Commit/push/PR creation requires
-  authorization; this documentation task authorizes none of those operations.
+  separate authorization; the plan itself authorizes none of those operations.
 - At each handoff update [continuity](DEVELOPMENT-CONTINUITY.md), identifying
   both committed work and local changes. Do not close a phase just because its
   branch merged or tests passed.
