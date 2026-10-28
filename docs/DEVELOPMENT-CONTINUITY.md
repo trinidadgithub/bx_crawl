@@ -6,8 +6,8 @@ next action in place; preserve accepted decisions and validated milestones.
 
 **Last reconciled:** 2026-10-28 (UTC).
 
-**Active work:** review of the committed poison audit/planning package; no poison
-implementation phase started.
+**Active work:** Poison Phase 1 branch/baseline preparation on
+`feat/poison-phase-1-saves-and-death`; no gameplay implementation started.
 
 **Next approved action:** review this documentation and obtain approval for the
 bounded Poison Phase 1 implementation scope. Do not implement yet.
@@ -91,23 +91,37 @@ silently overwriting their history.
 
 ## 4. Current Repository State
 
-Snapshot verified after the authorized documentation commit and push; re-check
-it at every resume. This handoff-only follow-up records the confirmed package
-revision below rather than inventing its own future commit SHA.
+Snapshot verified after the owner merged PR #67, local cleanup completed, and
+the owner requested a new feature branch with a baseline handoff before
+implementation. The existing post-merge handoff edit was preserved on the new
+branch. The table captures the pre-commit preparation state. The owner has since
+authorized packaging this update; identify its resulting revision with
+`git log --oneline -- docs/DEVELOPMENT-CONTINUITY.md` (commit subject
+`Record merged baseline for poison Phase 1`, parent `4198886`). Reconcile live
+commit/push status with Git rather than treating the captured local state as
+permanent.
 
 | Item | Verified state |
 |---|---|
-| Current branch | `feat/poison-audit-and-development-continuity` |
+| Current branch | `feat/poison-phase-1-saves-and-death` — newly created locally; no upstream or push yet |
+| HEAD / branch base | `4198886c13ef506beceff4d3c7deba0dd4bfcf4d` — merge PR #67, same as local `main` at branch creation |
+| Verified merge | [PR #67](https://github.com/trinidadgithub/bx_crawl/pull/67) is MERGED; GitHub reports `2026-10-28T06:00:18Z` |
 | Confirmed documentation revision | `a62a5799146f92decfeeaed273252b0e2309d186` — `Document poison audit and implementation continuity` |
 | Gameplay baseline / parent | `afa59d66866b6c7c666a5e7b74771f3c6c4d2705` — merge PR #66; application source remains unchanged |
-| Tracking | Documentation branch pushed with upstream `origin/feat/poison-audit-and-development-continuity`. No changes merged into `main` by this session. |
+| Tracking / cleanup | Local `main` was fast-forwarded to `origin/main`; `feat/poison-audit-and-development-continuity` was deleted locally and remotely. The new Phase 1 branch starts at that merged baseline. |
 | Open PR query | `gh pr list --state open --json number,title,headRefName,baseRefName,url` returned `[]` during this session. Not a permanent statement about GitHub. |
 | Committed poison implementation | Still generic extra-d4 mechanics from the audited revision; none of the six poison implementation phases started. |
 | Audit dependency | The previously untracked audit is now committed with the plan, continuity file, and README in `a62a579`; it can travel with the branch across machines. |
-| Working tree at verification | Clean immediately after the package commit. This subsequent continuity/plan handoff update is documentation-only; inspect Git for its final commit and any newer local work. |
-| Commit/push/PR | Owner authorized branch creation, commit, and push; `a62a579` and the remote branch were confirmed. No PR was created and no merge was performed. This follow-up updates the handoff; its final revision is discoverable with `git log`. |
+| Working tree at verification | Only `docs/DEVELOPMENT-CONTINUITY.md` is modified: the preserved post-merge update plus current branch/baseline preparation. No staged files or implementation edits. |
+| Commit/push/PR | Documentation commits `a62a579` and `def8139` are merged through owner-merged PR #67. No merge was performed by the assistant. No commit, push, or PR was created for the new Phase 1 branch or this handoff update. |
 | Latest engine validation | Audit-session validation against `afa59d6`: Debug build, direct doctest 228/228 cases and 15265/15265 assertions, Debug CTest 1/1, sanitizer build and CTest 1/1 passed. Details in §9; not rerun for this documentation-only task. |
 | Save format | v7; no poison deadline/cause/clock extension implemented. v8 in the plan is a candidate, not current fact. |
+
+`git diff --name-only afa59d6..HEAD` lists only README and the three poison/
+continuity documents, confirming that the merged planning baseline has no
+application-code changes relative to the audited gameplay revision. Earlier
+engine test results still belong to `afa59d6`; no new baseline test execution is
+claimed for this branch-preparation step.
 
 Limitations inherited from the gameplay baseline: missing source-specific poison outcomes,
 Killer Bee/Medusa poison activation, delayed state, Expert level-based saves,
@@ -135,15 +149,17 @@ partially complete slice separately, even after its PR merges.
 
 ## 6. Active Development
 
-**Active stage:** documentation planning/handoff, not Poison Phase 1 coding.
+**Active stage:** Poison Phase 1 preparation/baseline handoff, not implementation.
 
 - **Objective:** make the verified audit and approved decisions durable, then
   prepare a bounded saving-throw/death-handling slice for review.
-- **Committed and pushed:** audit, plan, continuity record, README entry point
-  in `a62a579`. This handoff follow-up records the confirmed packaging result.
-- **Remaining now:** owner reviews the branch/documentation, optionally through
-  a PR, and approves a bounded implementation slice. Do not merge or begin coding
-  as part of the packaging request.
+- **Merged:** audit, plan, continuity record, README entry point via PR #67 at
+  `4198886`. Post-merge cleanup is complete; this continuity refresh is local.
+- **Prepared:** local branch `feat/poison-phase-1-saves-and-death` at `4198886`,
+  with the existing continuity refresh carried forward. Owner authorization now
+  includes committing/pushing this documentation update, not implementation.
+- **Remaining now:** obtain approval for a bounded Phase 1 implementation slice.
+  Documentation merge is not authorization to begin gameplay implementation.
 - **Implementation blockers:** scope approval for Phase 1; context/interface
   choices required for qualifying modifiers. Later phase blockers are Q01-Q07,
   not a reason to re-audit all poison or change DEC-POISON-001..005.
@@ -299,6 +315,9 @@ inferred from commit timestamps or a previous machine's clock.
 | Earlier audit session; separate date not recorded in report | Read-only poison rules/engine audit; local audit document created | Base `afa59d6`; audit itself uncommitted. Engine validation actually executed as detailed in §9 | Identified P01-P11 and clock/persistence/treatment gaps. Follow-up was owner rules decision and implementation planning. |
 | 2026-10-28 UTC — continuity record date | Review audit/README/ROADMAP/ADRs/test docs; create six-phase plan, continuity system, README entry point | Base still `afa59d6`; all new docs local/uncommitted. Git/doc checks only; engine tests not repeated | Record DEC-POISON-001..005 from owner directive; Q01-Q07 remain open. Next: owner review and bounded Phase 1 authorization. |
 | 2026-10-28 UTC — authorized packaging | Create `feat/poison-audit-and-development-continuity`; commit/push audit, plan, continuity and README; reconcile handoff in a follow-up | Package `a62a579` committed and pushed; staged whitespace check passed; no new engine test run | No new gameplay decisions, no PR/merge. Next: owner review of documentation and bounded Phase 1 approval. |
+| 2026-10-28 UTC — post-merge handoff | Verify owner-merged PR #67, fast-forward local `main`, delete merged branch locally/remotely, update this handoff locally | Merge `4198886`; Git status and whitespace checks; no engine tests rerun for documentation-only sync | No implementation phase started. Next: authorize bounded Phase 1 scope; this handoff edit remains uncommitted. |
+| 2026-10-28 UTC — Phase 1 branch preparation | Create `feat/poison-phase-1-saves-and-death` from `4198886`; preserve and update local continuity handoff with confirmed merge and baseline | `gh pr view 67`, Git status/HEAD/history, baseline file-list diff and whitespace check; no new engine tests | Branch/handoff only authorized. No code, tests, data, saves, commit, push, or PR changes. Next: approve bounded Phase 1 implementation scope. |
+| 2026-10-28 UTC — Phase 1 handoff packaging | Owner requests commit/push of the continuity update on the new branch | Documentation-only; commit subject `Record merged baseline for poison Phase 1`, parent `4198886`; confirm resulting SHA/upstream through Git | No implementation authorization or new rules decisions. Next: approve bounded Phase 1 implementation scope. |
 
 For later sessions append a short row with actual date, objective, changed files
 or linked milestone, exact commits if any, executed tests/results, decisions,
@@ -318,11 +337,13 @@ the reader need not reconstruct current status from this history table.
    and reconcile remote history appropriately before choosing a base. Do not
    overwrite another session's uncommitted work or force-push divergent history.
 5. Reconcile this snapshot with actual repository state. The documentation
-   package is committed/pushed on the feature branch, not merged into `main` by
-   this session. Fetch/check out the branch or its later merged successor on a
-   new machine. Preserve any newer uncommitted work.
+   package is merged into `main` through PR #67. Fetch/sync `main` appropriately
+   on a new machine and preserve any newer uncommitted work. The new Phase 1
+   branch was local at snapshot capture; commit/push was subsequently authorized.
+   Check remote branch availability and fetch the handoff commit before resuming
+   on another machine; do not rely on stale captured working-tree status.
 6. Identify the active phase and its unmet acceptance criteria. Currently this
-   is documentation review, **not implemented Phase 1**.
+   is Phase 1 branch/baseline preparation, **not implemented Phase 1**.
 7. Identify the next **approved** action. Currently seek scope approval for a
    bounded Phase 1 save/death slice; the plan is not permission to execute all six.
 8. Avoid repeating completed work. Re-run relevant tests when source/toolchain
