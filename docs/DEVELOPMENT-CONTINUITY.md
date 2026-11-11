@@ -4,13 +4,14 @@
 across machines, sessions, models, and interruptions. Update current status and
 next action in place; preserve accepted decisions and validated milestones.
 
-**Last reconciled:** 2026-10-28 (UTC).
+**Last reconciled:** 2026-11-11 (machine UTC record date).
 
-**Active work:** Poison Phase 1 branch/baseline preparation on
-`feat/poison-phase-1-saves-and-death`; no gameplay implementation started.
+**Active work:** validated local Poison Phase 1 save/death foundation and completed
+frontend-adaptability review on `feat/poison-expert-saves-and-death`.
 
-**Next approved action:** review this documentation and obtain approval for the
-bounded Poison Phase 1 implementation scope. Do not implement yet.
+**Next action:** review the local implementation and resolve alignment/source
+qualification (Q08) before full Phase 1 sign-off. Then scope the shared
+cross-frontend/Poison Phase 2 clock work; Q02/Q06 remain unresolved.
 
 ## 1. Project Identity
 
@@ -34,6 +35,10 @@ Authoritative documentation:
   dependencies, acceptance, tests, rollback, and unresolved questions.
 - [Poison Mechanics Audit](POISON-MECHANICS-AUDIT.md): original B/X evidence and
   implementation facts at `afa59d6`. Consult it rather than repeating the audit.
+- [Phase 1 validation report](poison-phase-1-saves-and-death.md): local implementation,
+  exact test results, and remaining qualification gate.
+- [Frontend adaptability review](FRONTEND-ADAPTABILITY-REVIEW.md): concrete evidence
+  and proposed small steps for non-text frontends.
 - [README](../README.md): build/run/tool entry point.
 - [ROADMAP](../ROADMAP.md): historical architecture/gameplay tracks. Its older
   recommended description-audit task is not the current poison priority.
@@ -80,6 +85,7 @@ the latter is not an invented historical approval timestamp.
 | DEC-POISON-003 | Approval date not supplied; recorded 2026-10-28 | Preserve monster-specific effects, delays, modifiers, and delivery. | Original centipede, crab, cobra, tarantella, bee, and medusa rules differ. | Existing catalog poison and source-specific exceptions. | Accepted — owner directive | Audit §§2/4; plan Phases 3/5. |
 | DEC-POISON-004 | Approval date not supplied; recorded 2026-10-28 | House-rule overrides are deferred until after baseline implementation. | Establish faithful rules before optional variants. | No reduced-lethality mode, generic extra-d4 override, or antidote design in this track. | Accepted — owner directive | Plan Status and Authority; audit's historical unresolved simplification question is now superseded. |
 | DEC-POISON-005 | Approval date not supplied; recorded 2026-10-28 | Implementation remains incremental, testable, and compatible with existing architecture. | Preserve known boundaries and reduce regression risk. | RulesCatalog/ContentId, DiceRoller, Game/GameSession, validated persistence; narrow reviewed phases. | Accepted — owner directive | Plan dependency map; ADRs 0001-0004. |
+| DEC-WORK-001 | Approval date not supplied; recorded 2026-11-11 UTC | Prioritize Poison Phase 1, then review support for non-text frontends. Description review is a human-assisted long-term effort, not automatic PDF/prose reconciliation. | Owner explicitly authorized Phase 1 and the subsequent engine adaptability review; described import mismatches requiring human intervention. | Current implementation/review scope; frontend implementation itself is not yet authorized. | Accepted — owner directive | Phase 1 report; frontend review; ROADMAP. |
 
 **Preservation rule:** do not reinterpret or repeatedly request baseline-lethality
 approval in later sessions. The audit's former baseline/house-rule approval
@@ -91,42 +97,37 @@ silently overwriting their history.
 
 ## 4. Current Repository State
 
-Snapshot verified after the owner merged PR #67, local cleanup completed, and
-the owner requested a new feature branch with a baseline handoff before
-implementation. The existing post-merge handoff edit was preserved on the new
-branch. The table captures the pre-commit preparation state. The owner has since
-authorized packaging this update; identify its resulting revision with
-`git log --oneline -- docs/DEVELOPMENT-CONTINUITY.md` (commit subject
-`Record merged baseline for poison Phase 1`, parent `4198886`). Reconcile live
-commit/push status with Git rather than treating the captured local state as
-permanent.
+Snapshot captured before packaging the validated Phase 1 foundation, based on
+owner-merged PR #68. The owner has now authorized committing/pushing this slice.
+The table retains that verified pre-commit state; locate the resulting checkpoint
+by commit subject `Implement Expert saves and shared hero death handling`, parent
+`29128b1`, using `git log`. Reconcile live Git status on resume rather than
+treating captured local-only status as permanent. No future commit SHA is guessed.
 
 | Item | Verified state |
 |---|---|
-| Current branch | `feat/poison-phase-1-saves-and-death` — newly created locally; no upstream or push yet |
-| HEAD / branch base | `4198886c13ef506beceff4d3c7deba0dd4bfcf4d` — merge PR #67, same as local `main` at branch creation |
-| Verified merge | [PR #67](https://github.com/trinidadgithub/bx_crawl/pull/67) is MERGED; GitHub reports `2026-10-28T06:00:18Z` |
+| Current branch | `feat/poison-expert-saves-and-death` — local; no upstream/push yet |
+| HEAD / branch base | `29128b195db445cf51975d3acb962c3eb71c6a79` — merge PR #68, same as local `main` at branch creation |
+| Earlier documentation merges | PR #67 `4198886` merged the audit/plan; PR #68 `29128b1` merged the baseline handoff. The old Phase 1 preparation branch was deleted after PR #68. |
 | Confirmed documentation revision | `a62a5799146f92decfeeaed273252b0e2309d186` — `Document poison audit and implementation continuity` |
-| Gameplay baseline / parent | `afa59d66866b6c7c666a5e7b74771f3c6c4d2705` — merge PR #66; application source remains unchanged |
-| Tracking / cleanup | Local `main` was fast-forwarded to `origin/main`; `feat/poison-audit-and-development-continuity` was deleted locally and remotely. The new Phase 1 branch starts at that merged baseline. |
-| Open PR query | `gh pr list --state open --json number,title,headRefName,baseRefName,url` returned `[]` during this session. Not a permanent statement about GitHub. |
-| Committed poison implementation | Still generic extra-d4 mechanics from the audited revision; none of the six poison implementation phases started. |
+| Committed gameplay baseline | `afa59d66866b6c7c666a5e7b74771f3c6c4d2705` — merge PR #66; later commits through HEAD contain documentation only. Local application changes now differ from that baseline. |
+| Tracking | Started from clean local `main` tracking its locally known `origin/main`; no fetch/remote synchronization was needed or claimed during this implementation task. |
+| PR status | No implementation PR created. Prior empty open-PR query belongs to the earlier planning session and was not refreshed here. |
+| Poison progress | Phase 1 foundation implemented/tested locally; full qualification integration awaits Q08. Phases 2-6 not started. Generic extra-d4 poison intentionally remains pending profile/timing/treatment integration. |
 | Audit dependency | The previously untracked audit is now committed with the plan, continuity file, and README in `a62a579`; it can travel with the branch across machines. |
-| Working tree at verification | Only `docs/DEVELOPMENT-CONTINUITY.md` is modified: the preserved post-merge update plus current branch/baseline preparation. No staged files or implementation edits. |
-| Commit/push/PR | Documentation commits `a62a579` and `def8139` are merged through owner-merged PR #67. No merge was performed by the assistant. No commit, push, or PR was created for the new Phase 1 branch or this handoff update. |
-| Latest engine validation | Audit-session validation against `afa59d6`: Debug build, direct doctest 228/228 cases and 15265/15265 assertions, Debug CTest 1/1, sanitizer build and CTest 1/1 passed. Details in §9; not rerun for this documentation-only task. |
+| Local files | Code: combat/exploration/game/internal/session/save, Entity/HeroView, new `include/saving_throws.hpp`, regression tests. Docs: ROADMAP, plan, continuity, new phase report and frontend review. Run Git status for the exact file list. No monster/source data or build configuration changed. |
+| Commit/push/PR at snapshot capture | No implementation commit or push yet at capture; the owner subsequently authorized packaging this validated slice. No PR creation or merge requested. Check Git for the resulting commit/upstream state. |
+| Latest engine validation | Current local tree: Debug build and direct doctest 236/236 cases / 15919/15919 assertions; Debug CTest 1/1; ASan+UBSan build/CTest 1/1; Hrothgar/Tomb Runner boot/quit smokes exit 0. See §9 for exact commands and warnings. |
 | Save format | v7; no poison deadline/cause/clock extension implemented. v8 in the plan is a candidate, not current fact. |
 
-`git diff --name-only afa59d6..HEAD` lists only README and the three poison/
-continuity documents, confirming that the merged planning baseline has no
-application-code changes relative to the audited gameplay revision. Earlier
-engine test results still belong to `afa59d6`; no new baseline test execution is
-claimed for this branch-preparation step.
+The validation below applies to the implementation tree prepared from `29128b1`.
+The packaging step changes only handoff text after those tests, not application
+code. It is not evidence of a merge or of full Phase 1 completion.
 
-Limitations inherited from the gameplay baseline: missing source-specific poison outcomes,
-Killer Bee/Medusa poison activation, delayed state, Expert level-based saves,
-crab +2, qualifying protection modifiers, Neutralize Poison, and poison-death
-sound. Clock advancement is coupled to frame preparation. Some conditions are
+Remaining limitations: source-specific poison outcomes, Killer Bee/Medusa poison
+activation, delayed state, automatic protection qualification, and Neutralize
+Poison. Expert level saves, crab +2 and poison-death sound are fixed locally.
+Clock advancement is still coupled to frame preparation. Some conditions are
 not serialized and can inherit receiving-Game residue on load. See audit rather
 than assuming historical README descriptions prove complete fidelity.
 
@@ -142,6 +143,8 @@ or fabricated from this record's creation date.
 | Pre-poison baseline: Oil Beetle spray merged as PR #66 | `d52508f`, merge `afa59d6`; combat/time/spell/status code, beetle data, tests; see `docs/oil-beetle-blistering-spray.md` and `git show --stat afa59d6` for full file set | Subsequent audit rebuilt and ran the committed revision; §9 records actual results | Provides the audited baseline and an example timed blister condition | Not poison implementation; blisters are session-only and use the flawed exploration timing boundary |
 | Read-only Poison Mechanics Audit | `docs/POISON-MECHANICS-AUDIT.md`, committed in `a62a579` | Original-source checks, full runtime inventory/traces, Debug and sanitizer tests executed in audit session (§9) | Evidence baseline, findings P01-P11, exception matrix and proposed tests documented | Recommendations not implemented; original remaining questions partially superseded by owner decisions above |
 | Implementation planning and continuity bootstrap | Plan, this file, README entry point; committed in `a62a579` | Documentation/Git checks only in this session (§9); no new engine validation claimed | Six-phase plan, accepted decisions, unresolved gates, handoff/update protocol and resume entry point recorded | Planning package awaits owner review; no implementation phase is complete |
+| Phase 1 save/death foundation (not full phase completion) | Local `include/saving_throws.hpp`, save/death interfaces, combat/trap/session/snapshot/load changes and tests; no commit yet | 236 cases / 15919 assertions, Debug and sanitizer CTest; boot smokes (current §9) | Expert X24 lookup, explicit modifiers, crab +2, cause-aware/idempotent death, session/snapshot reporting | Actual protection qualification lacks hero alignment/source input; full phase sign-off remains pending Q08. Death cause is not serialized in v7. |
+| Non-text frontend adaptability review | Local `docs/FRONTEND-ADAPTABILITY-REVIEW.md`; no commit yet | API/ownership/platform source inspection, no new GUI/platform implementation or tests | Concrete gaps and incremental frontend-neutral acceptance recommendations documented | Runtime clock, startup/load, choices, snapshots, platform backends still need scoped implementation. |
 
 Do not promote any poison phase to Completed until its plan acceptance criteria,
 tests, relevant manual checks, and remaining caveats are reconciled. Record a
@@ -149,27 +152,26 @@ partially complete slice separately, even after its PR merges.
 
 ## 6. Active Development
 
-**Active stage:** Poison Phase 1 preparation/baseline handoff, not implementation.
+**Active stage:** Phase 1 implemented foundation under review; source qualification
+integration remains open. The requested subsequent frontend review is complete.
 
-- **Objective:** make the verified audit and approved decisions durable, then
-  prepare a bounded saving-throw/death-handling slice for review.
-- **Merged:** audit, plan, continuity record, README entry point via PR #67 at
-  `4198886`. Post-merge cleanup is complete; this continuity refresh is local.
-- **Prepared:** local branch `feat/poison-phase-1-saves-and-death` at `4198886`,
-  with the existing continuity refresh carried forward. Owner authorization now
-  includes committing/pushing this documentation update, not implementation.
-- **Remaining now:** obtain approval for a bounded Phase 1 implementation slice.
-  Documentation merge is not authorization to begin gameplay implementation.
-- **Implementation blockers:** scope approval for Phase 1; context/interface
-  choices required for qualifying modifiers. Later phase blockers are Q01-Q07,
-  not a reason to re-audit all poison or change DEC-POISON-001..005.
+- **Completed locally:** Expert band lookup, source save context, crab +2,
+  shared cause-aware death handling, snapshot reporting, existing-dead-session
+  guard, v7 receiver reset for death cause, regression tests, frontend review.
+- **Remaining now:** review this slice and resolve Q08: how the engine gets and
+  preserves character/source alignment for protection qualification. No default
+  alignment or unconditional +1 was invented. Decide the next clock slice after
+  resolving its Q02/Q06 gates; no frontend implementation has been authorized.
+- **Blockers:** Q08 prevents claiming full Phase 1 qualification integration.
+  Later Q01-Q07 decisions remain open. This is not a reason to repeat the audit
+  or reopen original lethality decisions.
 - **Relevant source entry points for later work:** `game.cpp` `make_save`, spawn
   and `monsters_turn`; `combat.cpp` `attack_internal`; `exploration.cpp` trap/time;
   `game_session.cpp` action/death/frame boundaries; `save.cpp`; `spells.cpp`;
   `rules_catalog.cpp`, `ContentId`, `DiceRoller`; `tests/test_core.cpp`.
-- **Tests still required for implementation:** all new Phase 1 save-boundary,
-  source-modifier and death-parity tests. Existing passing suites do not cover
-  direct poison behavior; no proposed poison regression test has been added.
+- **Tests still required:** integration with actual character/source qualification
+  after Q08; later phase timer/profile/treatment/persistence tests. Known explicit
+  qualifying/nonqualifying save contexts already pass regression tests.
 
 Phase 1 should not replace generic d4 with universal death. Its first deliverable
 is the save/death foundation, preserving the path for later source-specific
@@ -180,7 +182,7 @@ activation once clock/persistence/treatment prerequisites exist.
 See the [implementation plan](POISON-IMPLEMENTATION-PLAN.md) for full criteria.
 
 1. **Saves/death:** Expert class-level tables, source modifiers, common death seam
-   and tests. Depends on scope review and applicable source-context choices.
+   and tests implemented locally; automatic qualification integration awaits Q08.
 2. **Clock:** explicit rounds/turns, no render-time advances, encounter accounting;
    depends on Phase 1 death boundary and Q02/Q06.
 3. **Profiles:** explicit ContentId/catalog poison/delivery definitions; depends
@@ -192,15 +194,15 @@ See the [implementation plan](POISON-IMPLEMENTATION-PLAN.md) for full criteria.
 6. **Traps/integration:** shared poison consequences and full-loop tests; depends
    on 1-5 and approved custom dart delivery.
 
-**Approved:** original rules direction and documentation preparation.
+**Approved:** original rules direction, Phase 1 implementation, and subsequent
+frontend-adaptability review (DEC-WORK-001).
 
-**Proposed, not yet approved to execute:** the implementation slices and concrete
-clock/state/wire-format designs.
+**Proposed, not yet approved to execute:** frontend changes and later poison
+phases' concrete clock/state/wire-format designs.
 
-**Exact next action:** review this package with the owner and obtain approval for
-a narrowly scoped Poison Phase 1 branch/PR. Stop before code edits until that
-approval. No further investigation of settled audit facts is needed unless code
-or sources changed or a specific discrepancy is found.
+**Exact next action:** review the local foundation and frontend report; resolve
+Q08 before full Phase 1 sign-off. Then scope action-owned time shared by Poison
+Phase 2 and non-text frontend support. Do not repeat the completed audit.
 
 ## 8. Known Issues and Technical Debt
 
@@ -208,14 +210,14 @@ or sources changed or a specific discrepancy is found.
 |---|---|
 | Current poison gives extra d4, including incorrect centipede physical damage | Audit P01/P04; approved direction is replacement with source-specific behavior, not a house-rule toggle |
 | Name matching misses Bee/Medusa and cannot represent delays/delivery | Audit P02/P03/P05; poison phases 3-5 |
-| Fixed class saves, missing qualifying protection/save context | Audit P06/P07; phase 1; Expert low-level demihuman 8 is intentional source selection, not a typo for 10 |
-| Poison HP death omits PlayerDeath sound | Audit P08; phase 1 death parity; normal session termination does work |
+| Expert saves and protection | P06 fixed locally with Expert X24 bands; crab +2 and explicit context tested. P07 automatic qualification remains Q08 because current heroes lack alignment. |
+| Poison death notification | P08 fixed locally by common cause-aware/idempotent death handling; no death-cause disk persistence until Phase 4 |
 | Render-driven clock; incompatible existing duration units | Audit §7; phase 2 before delayed-poison activation |
 | No poison persistence, treatment, cause-aware revival | Audit §§7-8, P10; phase 4; old condition carry-over is not real saved-state support |
 | PoisonDart has documented extra-damage approximation | Audit §5/P09; consequence must become original lethal poison; exact dart delivery remains Q07 |
 | Purify Food and Water currently heals HP | Audit P11; supplies purification is not victim venom treatment; review the smallest correction scope |
 | Source/codegen drift and duplicate/malformed catalog rows | Audit §3; curated compiled table is runtime authority; leave regeneration OFF and avoid unrelated data loss |
-| Test gaps | Audit §9: no direct monster-poison assertions; module PoisonDart test places dart but walks onto pit; new phase tests required |
+| Test gaps | New tests now cover actual poison damage/death and actual PoisonDart activation/attribution. Delayed/profile/treatment/save-state tests remain future work; audit results describe the earlier baseline. |
 | Historical docs can be stale | ROADMAP's description-audit priority, old phase save versions/counts, thief checklist assumptions; consult actual code, not old text as current proof |
 | Compatibility | Candidate v8 must preserve v1-v7 readability and failed-load non-mutation; old executables may reject new saves; never silently downgrade them |
 
@@ -229,6 +231,9 @@ Unresolved plan questions, with no invented answers:
   of gaze/immunity integration without adding absent monsters.
 - **Q06:** town/rest/travel durations for multi-day illness and deadlines.
 - **Q07:** custom PoisonDart activation/hit/base damage and compatibility.
+- **Q08:** engine-owned character/source alignment or equivalent qualification
+  input for Protection from Evil; selection/preservation across frontends and
+  saves. Source modifiers work, but no alignment information is guessed.
 
 These are elaborated and dependency-gated in the plan. Basic-only versus faithful
 B/X poison lethality is **not** still an open choice. Use Expert progression as
@@ -239,7 +244,7 @@ catalog/codegen cleanup, new dependencies, and unrelated gameplay rebalancing.
 
 ## 9. Validation and Test History
 
-### Last executed engine validation — audit session, revision `afa59d6`
+### Historical engine validation — audit session, revision `afa59d6`
 
 The following commands **were executed in the preceding audit investigation**,
 from the repository root, and are recorded in audit §9:
@@ -266,7 +271,7 @@ ctest --test-dir build-sanitize --output-on-failure
   documentation task. Source tracing is not a claim that every monster was
   manually exercised.
 
-### This planning/documentation session
+### Historical planning/documentation session — 2026-10-28 record
 
 Executed Git status/HEAD/history inspection, the open-PR query, UTC record-date
 check, `git diff --check`, and separate `git diff --no-index --check /dev/null`
@@ -276,6 +281,35 @@ Markdown hard-break lines were normalized to blank lines, and
 The package commit/push succeeded, followed by this handoff reconciliation.
 Documentation review only; no engine/test/data edits or new engine test run.
 These checks do not validate any planned implementation phase.
+
+### Current Phase 1 working-tree validation — 2026-11-11 UTC
+
+Executed from the repository root:
+
+```sh
+cmake --build build -j 2
+./build/tests/bx_crawl_tests
+ctest --test-dir build --output-on-failure
+cmake --build build-sanitize -j 2
+ctest --test-dir build-sanitize --output-on-failure
+```
+
+- Debug build passed, no compiler warnings shown; direct doctest **236/236 cases,
+  15919/15919 assertions** passed. Existing description-load warnings remain.
+- Debug CTest **1/1 passed**, 2.83 seconds; ASan+UBSan build/CTest **1/1 passed**,
+  15.77 seconds, no sanitizer errors reported.
+- `printf 'x' | timeout 30 env BX_LOAD_SAVE=Hrothgar ./build/frontends/text/bx_crawl_text >/dev/null`
+  exited 0.
+- `printf 'x' | timeout 30 env BX_LOAD_SAVE='Tomb Runner' ./build/frontends/text/bx_crawl_text >/dev/null`
+  exited 0, with the existing description-load warning. No save command was used.
+- Initial new-test compilation used an unsupported DiceRoller equality operator;
+  corrected the test to compare the deterministic stream without modifying the
+  RNG implementation. The final commands above passed.
+- No interactive poison rescue, alignment-selection, GUI, Windows, WebAssembly,
+  or new frontend test was performed. Review findings are source inspection,
+  not proof those deployments work. Phase 1's Q08 gate is not cleared by tests.
+- Expert table source image X24 was rechecked for implementation transcription;
+  the prior audit was not repeated. No data generator or dependency change.
 
 ### Portable validation recipe — suggested, not newly executed results
 
@@ -318,6 +352,8 @@ inferred from commit timestamps or a previous machine's clock.
 | 2026-10-28 UTC — post-merge handoff | Verify owner-merged PR #67, fast-forward local `main`, delete merged branch locally/remotely, update this handoff locally | Merge `4198886`; Git status and whitespace checks; no engine tests rerun for documentation-only sync | No implementation phase started. Next: authorize bounded Phase 1 scope; this handoff edit remains uncommitted. |
 | 2026-10-28 UTC — Phase 1 branch preparation | Create `feat/poison-phase-1-saves-and-death` from `4198886`; preserve and update local continuity handoff with confirmed merge and baseline | `gh pr view 67`, Git status/HEAD/history, baseline file-list diff and whitespace check; no new engine tests | Branch/handoff only authorized. No code, tests, data, saves, commit, push, or PR changes. Next: approve bounded Phase 1 implementation scope. |
 | 2026-10-28 UTC — Phase 1 handoff packaging | Owner requests commit/push of the continuity update on the new branch | Documentation-only; commit subject `Record merged baseline for poison Phase 1`, parent `4198886`; confirm resulting SHA/upstream through Git | No implementation authorization or new rules decisions. Next: approve bounded Phase 1 implementation scope. |
+| 2026-11-11 UTC — Phase 1 implementation and frontend review | Owner authorizes Phase 1 then non-text engine review; local Expert saves/context/crab +2, shared death/cause/snapshot/load reset and tests; frontend review; roadmap priorities updated | Branch `feat/poison-expert-saves-and-death`, base `29128b1`; 236 cases / 15919 assertions; Debug/sanitizer CTest and two boot smokes passed; no commit/push | DEC-WORK-001 records ordering and human-assisted description backlog. Q08 alignment/source qualification discovered as remaining integration gate. Next: review slice, resolve Q08, then scope clock work. |
+| 2026-11-11 UTC — authorized Phase 1 packaging | Owner requests commit/push of the tested foundation and frontend review | Commit subject `Implement Expert saves and shared hero death handling`, parent `29128b1`; verify resulting SHA/upstream with Git. Whitespace checks; no application changes after the recorded tests | No new rules decisions, PR creation, or merge authorized. Q08 remains open; full Phase 1 sign-off is not claimed. |
 
 For later sessions append a short row with actual date, objective, changed files
 or linked milestone, exact commits if any, executed tests/results, decisions,
@@ -337,19 +373,20 @@ the reader need not reconstruct current status from this history table.
    and reconcile remote history appropriately before choosing a base. Do not
    overwrite another session's uncommitted work or force-push divergent history.
 5. Reconcile this snapshot with actual repository state. The documentation
-   package is merged into `main` through PR #67. Fetch/sync `main` appropriately
-   on a new machine and preserve any newer uncommitted work. The new Phase 1
-   branch was local at snapshot capture; commit/push was subsequently authorized.
-   Check remote branch availability and fetch the handoff commit before resuming
-   on another machine; do not rely on stale captured working-tree status.
+   package/handoff are merged into `main` through PRs #67/#68. The *implementation*
+   branch `feat/poison-expert-saves-and-death` was local/uncommitted at snapshot
+   capture and subsequently authorized for commit/push. Check remote availability
+   and fetch its implementation checkpoint on another machine. Preserve newer
+   local edits and inspect current Git status before resuming.
 6. Identify the active phase and its unmet acceptance criteria. Currently this
-   is Phase 1 branch/baseline preparation, **not implemented Phase 1**.
-7. Identify the next **approved** action. Currently seek scope approval for a
-   bounded Phase 1 save/death slice; the plan is not permission to execute all six.
+   is the validated Phase 1 foundation with Q08 outstanding, not a completed
+   six-phase poison implementation.
+7. Identify the next approved scope: review the implementation/frontend report
+   and resolve Q08; Phase 2/frontend implementation needs a bounded follow-up.
 8. Avoid repeating completed work. Re-run relevant tests when source/toolchain
    changes justify validation, not to imply the original audit never happened.
 9. Preserve DEC-POISON-001..005. Report discrepancies and resolve open details;
-   do not weaken original lethality or invent answers to Q01-Q07.
+   do not weaken original lethality or invent answers to Q01-Q08.
 10. Resume only approved scope. The owner merges PRs. Commit/push/PR operations
     require authorization; do not assume a successful test run authorizes them.
 
@@ -403,7 +440,7 @@ At the end of each future implementation session:
 10. Identify the **exact next approved development action** or the specific
     approval needed before further changes.
 
-Work stops at the documentation handoff. The separately authorized packaging
-committed and pushed the documentation branch; no gameplay implementation,
-source-data edits, save-format changes, build configuration edits, PR creation,
-or merge was performed.
+Current handoff packages the authorized Phase 1 foundation, validation, and
+frontend review for the requested commit/push. No PR creation, merge, new UI
+implementation, save-format change, monster-data change, or build-configuration
+change is part of this slice. Next work must preserve the explicit remaining gate.

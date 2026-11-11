@@ -11,6 +11,8 @@
 #include "chargen.hpp"
 #include "item_catalog.hpp"
 #include "inventory.hpp"
+#include "saving_throws.hpp"
+#include "../engine/src/game_internal.hpp"
 
 #include <cstdint>
 #include <cstdlib>
@@ -709,6 +711,288 @@ TEST_CASE("An adjacent oil beetle retaliates against Magic Missile") {
     apply_player_command(g, {PlayerCommandType::Cast, 1, 0, 0});
     CHECK(g.hero.blister_turns == 144);
     CHECK(g.hero.hp == 20);
+}
+
+TEST_CASE("Expert X24 saves cover all printed class and level bands") {
+    struct Expected { CharacterClass cc; int first; int last; bx::SaveRow row; };
+    const Expected expected[] = {
+        {CharacterClass::Cleric,1,4,{11,12,14,16,15}},
+        {CharacterClass::Cleric,5,8,{9,10,12,14,12}},
+        {CharacterClass::Cleric,9,12,{6,7,9,11,9}},
+        {CharacterClass::Cleric,13,16,{3,5,7,8,7}},
+        {CharacterClass::Fighter,1,3,{12,13,14,15,16}},
+        {CharacterClass::Fighter,4,6,{10,11,12,13,14}},
+        {CharacterClass::Fighter,7,9,{8,9,10,10,12}},
+        {CharacterClass::Fighter,10,12,{6,7,8,8,10}},
+        {CharacterClass::Fighter,13,15,{4,5,6,5,8}},
+        {CharacterClass::MagicUser,1,5,{13,14,13,16,15}},
+        {CharacterClass::MagicUser,6,10,{11,12,11,14,12}},
+        {CharacterClass::MagicUser,11,15,{8,9,8,11,8}},
+        {CharacterClass::Thief,1,4,{13,14,13,16,15}},
+        {CharacterClass::Thief,5,8,{12,13,11,14,13}},
+        {CharacterClass::Thief,9,12,{10,11,9,12,10}},
+        {CharacterClass::Thief,13,16,{8,9,7,10,8}},
+        {CharacterClass::Dwarf,1,3,{8,9,10,13,12}},
+        {CharacterClass::Dwarf,4,6,{6,7,8,10,10}},
+        {CharacterClass::Dwarf,7,9,{4,5,6,7,8}},
+        {CharacterClass::Dwarf,10,12,{2,3,4,4,6}},
+        {CharacterClass::Halfling,1,3,{8,9,10,13,12}},
+        {CharacterClass::Halfling,4,6,{6,7,8,10,10}},
+        {CharacterClass::Halfling,7,9,{4,5,6,7,8}},
+        {CharacterClass::Elf,1,3,{12,13,13,15,15}},
+        {CharacterClass::Elf,4,6,{10,11,11,13,12}},
+        {CharacterClass::Elf,7,9,{8,9,9,10,10}},
+        {CharacterClass::Elf,10,10,{6,7,8,8,8}},
+    };
+    for (const auto& e : expected) {
+        for (int level = e.first; level <= e.last; ++level) {
+            CAPTURE(level);
+            auto actual = bx::expert_save_row(e.cc, level);
+            REQUIRE(actual.has_value());
+            CHECK(actual->death_ray_poison == e.row.death_ray_poison);
+            CHECK(actual->magic_wands == e.row.magic_wands);
+            CHECK(actual->paralysis_petrify == e.row.paralysis_petrify);
+            CHECK(actual->dragon_breath == e.row.dragon_breath);
+            CHECK(actual->rods_spells == e.row.rods_spells);
+        }
+    }
+    CHECK(bx::expert_save_row(CharacterClass::None, 1)->death_ray_poison == 14);
+    CHECK_FALSE(bx::expert_save_row(CharacterClass::None, 2));
+    CHECK_FALSE(bx::expert_save_row(CharacterClass::Fighter, 0));
+    CHECK_FALSE(bx::expert_save_row(CharacterClass::Fighter, 16));
+    CHECK_FALSE(bx::expert_save_row(CharacterClass::Dwarf, 13));
+    CHECK_FALSE(bx::expert_save_row(CharacterClass::Halfling, 10));
+    CHECK_FALSE(bx::expert_save_row(CharacterClass::Elf, 11));
+    CHECK_FALSE(bx::expert_save_row(static_cast<CharacterClass>(99), 1));
+}
+
+static Game game_with_save_roll(int wanted) {
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 1, 10);
+    g.hero.char_class = CharacterClass::Fighter;
+    g.hero.abilities.wis = 10;
+    for (unsigned seed = 1; seed < 10000; ++seed) {
+        g.rng.seed(seed);
+        if (roll_d(g, 20) == wanted) {
+            g.rng.seed(seed);
+            return g;
+        }
+    }
+    FAIL("No seed for requested saving throw roll");
+    return g;
+}
+
+TEST_CASE("Live saving throws use level bands and explicit source modifiers") {
+    auto g = game_with_save_roll(11);
+    CHECK_FALSE(game_internal::make_save(g, CharacterClass::Fighter, 0));
+    g = game_with_save_roll(12);
+    CHECK(game_internal::make_save(g, CharacterClass::Fighter, 0));
+    g = game_with_save_roll(6);
+    g.hero_level = 10;
+    CHECK(game_internal::make_save(g, CharacterClass::Cleric, 0));
+    g = game_with_save_roll(5);
+    g.hero_level = 10;
+    CHECK_FALSE(game_internal::make_save(g, CharacterClass::Cleric, 0));
+    const int fighter_seven[] = {8, 9, 10, 10, 12};
+    for (int category = 0; category < 5; ++category) {
+        g = game_with_save_roll(fighter_seven[category]);
+        g.hero_level = 7;
+        CHECK(game_internal::make_save(g, CharacterClass::Fighter, category));
+        g = game_with_save_roll(fighter_seven[category] - 1);
+        g.hero_level = 7;
+        CHECK_FALSE(game_internal::make_save(g, CharacterClass::Fighter, category));
+    }
+    g = game_with_save_roll(10);
+    CHECK(game_internal::make_save(g, CharacterClass::Fighter, 0, {2}));
+
+    for (bool qualifies : {false, true}) {
+        g = game_with_save_roll(11);
+        g.hero.protection_turns = 10;
+        CHECK(game_internal::make_save(g, CharacterClass::Fighter, 0,
+                                       {0, false, qualifies}) == qualifies);
+    }
+    g = game_with_save_roll(11);
+    CHECK_FALSE(game_internal::make_save(g, CharacterClass::Fighter, 0, {0, false, true}));
+
+    g = game_with_save_roll(9);
+    g.hero.abilities.wis = 18;
+    CHECK_FALSE(game_internal::make_save(g, CharacterClass::Fighter, 0));
+    g = game_with_save_roll(9);
+    g.hero.abilities.wis = 18;
+    CHECK(game_internal::make_save(g, CharacterClass::Fighter, 0, {0, true}));
+    g = game_with_save_roll(10);
+    g.hero.abilities.wis = 18;
+    CHECK(game_internal::make_save(g, CharacterClass::Fighter, 1));
+    g = game_with_save_roll(13);
+    g.hero.abilities.wis = 18;
+    CHECK(game_internal::make_save(g, CharacterClass::Fighter, 4));
+    g = game_with_save_roll(12);
+    g.hero.abilities.wis = 18;
+    CHECK_FALSE(game_internal::make_save(g, CharacterClass::Fighter, 3, {0, true}));
+
+    g = game_with_save_roll(13);
+    auto bats = make_monster("Bat, Normal", EntityType::Monster, 2, 1, 10, 10, 0, 1, 0);
+    bats.count = 10;
+    g.monsters.push_back(bats);
+    CHECK_FALSE(game_internal::make_save(g, CharacterClass::Fighter, 0));
+
+    g = game_with_save_roll(20);
+    auto before = g.rng;
+    CHECK_FALSE(game_internal::make_save(g, CharacterClass::Fighter, 99));
+    auto after = g.rng;
+    CHECK(after() == before());
+    g.hero_level = 0;
+    before = g.rng;
+    CHECK_FALSE(game_internal::make_save(g, CharacterClass::Fighter, 0));
+    after = g.rng;
+    CHECK(after() == before());
+}
+
+static int player_death_sounds(const Game& g) {
+    int result = 0;
+    for (const auto& e : g.events)
+        if (e.type == GameEventType::Sound && e.sound == SoundEffect::PlayerDeath)
+            ++result;
+    return result;
+}
+
+TEST_CASE("Hero death finalization is cause-aware and idempotent at high HP") {
+    Game g = game_with_save_roll(1);
+    g.state = GameState::Dungeon;
+    g.hero.hp = g.hero.max_hp = 500;
+    REQUIRE_FALSE(game_internal::make_save(g, CharacterClass::Fighter, 0));
+    game_internal::kill_hero(g, DeathCause::Poison, "Poison kills you.");
+    CHECK(g.hero.hp == 0);
+    CHECK_FALSE(g.hero.alive);
+    CHECK(g.hero.death_cause == DeathCause::Poison);
+    CHECK(player_death_sounds(g) == 1);
+    auto count = g.events.size();
+    game_internal::kill_hero(g, DeathCause::PhysicalDamage, "Duplicate death");
+    CHECK(g.events.size() == count);
+    CHECK(g.hero.death_cause == DeathCause::Poison);
+    GameSession session(g);
+    auto result = session.apply({PlayerCommandType::Wait});
+    CHECK_FALSE(result.keep_playing);
+    CHECK(result.hero_died);
+    CHECK(session.snapshot().hero.death_cause == DeathCause::Poison);
+    CHECK(session.events().size() == count);
+}
+
+TEST_CASE("Crab spider weak venom applies its plus two saving throw modifier") {
+    bool observed = false;
+    for (unsigned seed = 1; seed < 1000 && !observed; ++seed) {
+        Game weak = make_minimal_game();
+        weak.rng.seed(seed);
+        weak.hero = make_hero(1, 1, 0, 1, 10);
+        weak.hero.char_class = CharacterClass::Fighter;
+        auto crab = make_monster("Spider, Crab", EntityType::Monster, 2, 1, 20, 10, 100, 1, 0);
+        crab.has_poison = true;
+        weak.monsters.push_back(crab);
+        Game normal = weak;
+        normal.monsters[0].name = "Other venom";
+        attack(weak, weak.monsters[0], weak.hero);
+        attack(normal, normal.monsters[0], normal.hero);
+        observed = weak.hero.hp == 19 && normal.hero.hp < 19;
+    }
+    CHECK(observed);
+}
+
+TEST_CASE("Session reports hero death in either initiative order") {
+    for (int scenario = 0; scenario < 4; ++scenario) {
+        const bool poison = scenario >= 2;
+        const bool monsters_first = scenario % 2 != 0;
+        bool observed = false;
+        for (unsigned seed = 1; seed < 100 && !observed; ++seed) {
+            Game g = make_minimal_game();
+            g.rng.seed(seed);
+            g.state = GameState::Dungeon;
+            g.hero = make_hero(1, 1, 0, 1, 10);
+            g.hero.char_class = CharacterClass::Fighter;
+            g.hero.hp = poison ? 2 : 1;
+            g.monsters.push_back(make_monster("Killer", EntityType::Monster,
+                                              2, 1, 20, 10, 100, 1, 0));
+            g.monsters[0].has_poison = poison;
+            Game probe = g;
+            if (roll_initiative(probe) != monsters_first) continue;
+            GameSession session(g);
+            auto result = session.apply({PlayerCommandType::Wait});
+            if (!result.hero_died) continue;
+            CHECK(result.hero_died);
+            CHECK_FALSE(result.keep_playing);
+            CHECK(result.died_before_action == monsters_first);
+            CHECK(player_death_sounds(session.game()) == 1);
+            CHECK(session.snapshot().hero.death_cause ==
+                  (poison ? DeathCause::Poison : DeathCause::PhysicalDamage));
+            observed = true;
+        }
+        CHECK(observed);
+    }
+}
+
+TEST_CASE("Loading a living v7 hero clears the receiving session death cause") {
+    Game saved = make_minimal_game();
+    saved.hero = make_hero(1, 1, 0, 1, 10);
+    saved.hero.char_class = CharacterClass::Fighter;
+    const auto path = std::filesystem::path{"/tmp/opencode/bx_death_cause_reset.dat"};
+    REQUIRE(save_game(saved, path));
+    Game receiving = saved;
+    game_internal::kill_hero(receiving, DeathCause::Poison, "Poison death");
+    REQUIRE(load_game(receiving, path));
+    CHECK(receiving.hero.alive);
+    CHECK(receiving.hero.hp == saved.hero.hp);
+    CHECK(receiving.hero.death_cause == DeathCause::None);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("Poison and ordinary attack deaths share notification and stop monster turns") {
+    for (bool poison : {false, true}) {
+        bool observed = false;
+        for (unsigned seed = 1; seed < 100 && !observed; ++seed) {
+            Game g = make_minimal_game();
+            g.rng.seed(seed);
+            g.hero = make_hero(1, 1, 0, 1, 10);
+            g.hero.char_class = CharacterClass::Fighter;
+            g.hero.hp = poison ? 2 : 1;
+            auto m = make_monster("Venom test", EntityType::Monster, 2, 1, 20, 10, 100, 1, 0);
+            m.has_poison = poison;
+            g.monsters.push_back(m);
+            g.monsters.push_back(make_monster("Later attacker", EntityType::Monster,
+                                              1, 2, 20, 10, 100, 1, 0));
+            monsters_turn(g);
+            observed = !g.hero.alive && g.hero.death_cause ==
+                (poison ? DeathCause::Poison : DeathCause::PhysicalDamage);
+            if (observed) {
+                CHECK(player_death_sounds(g) == 1);
+                for (const auto& line : g.event_log)
+                    CHECK(line.find("Later attacker attacks") == std::string::npos);
+            }
+        }
+        CHECK(observed);
+    }
+}
+
+TEST_CASE("Trap death records whether physical damage or poison killed the hero") {
+    for (bool poison_kills : {false, true}) {
+        bool observed = false;
+        for (unsigned seed = 1; seed < 100 && !observed; ++seed) {
+            Game g = make_minimal_game();
+            g.rng.seed(seed);
+            g.hero = make_hero(1, 1, 0, 1, 10);
+            g.hero.char_class = CharacterClass::Fighter;
+            g.hero.hp = poison_kills ? 5 : 1;
+            auto& tile = g.map[static_cast<std::size_t>(g.width + 2)];
+            tile.has_trap = true;
+            tile.trap_type = TrapType::PoisonDart;
+            apply_player_command(g, {PlayerCommandType::Move, 1, 0});
+            observed = !g.hero.alive;
+            if (observed) {
+                CHECK(g.hero.death_cause == (poison_kills ? DeathCause::Poison : DeathCause::Trap));
+                CHECK(player_death_sounds(g) == 1);
+                CHECK_FALSE(tile.has_trap);
+            }
+        }
+        CHECK(observed);
+    }
 }
 
 static unsigned find_d6_seed(int wanted_roll) {

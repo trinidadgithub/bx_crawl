@@ -64,6 +64,12 @@ ActionResult GameSession::apply(const PlayerCommand& cmd) {
     Game& g = game_;
     ActionResult result;
 
+    if (!g.hero.alive) {
+        result.keep_playing = false;
+        result.hero_died = true;
+        return result;
+    }
+
     // Non-dungeon flow: single-command delegation into the town handler. This
     // is the counterpart of the former town branch of the text-frontend loop.
     if (g.state != GameState::Dungeon) {

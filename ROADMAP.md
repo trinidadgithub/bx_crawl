@@ -1,7 +1,9 @@
 # Roadmap
 
 This file tracks the next practical work for BX Crawl. The current priority is
-finishing the architecture-review follow-up before expanding new gameplay.
+faithful B/X poison implementation, followed by frontend-neutral engine readiness.
+Start with [development continuity](docs/DEVELOPMENT-CONTINUITY.md) for the actual
+branch, validation, decisions, and next scoped action.
 
 ## Current State
 
@@ -241,7 +243,15 @@ High-value gameplay items still known:
   splitting). Lightning Bolt now provides a lightning damage source and triggers
   the same ochre jelly split rule; black pudding remains blocked on missing
   monster data.
-- Continue reviewing monster descriptions and stat data against the Basic Box PDF.
+- Implement the [six-phase poison plan](docs/POISON-IMPLEMENTATION-PLAN.md).
+  Phase 1's save/death foundation is validated locally; alignment/source
+  qualification integration remains open before full phase sign-off.
+- Review frontend-neutral engine readiness: [review completed](docs/FRONTEND-ADAPTABILITY-REVIEW.md).
+  Prioritize action-owned time, reusable startup/load policy, action/targeting
+  metadata, and platform backend separation before a new UI deployment.
+- Continue reviewing monster descriptions and stat data against the Basic Box PDF
+  as a **human-assisted, long-term backlog**. PDF imports do not reliably correlate
+  to documented descriptions; do not assume automatic import verifies prose.
 - Replace stale `Monsters.md` with a generated reference or a pointer to the
   monster tools and data files.
 
@@ -277,6 +287,8 @@ the backlog.)
 
 ## Recommended Next Task
 
-**Monster description/stat review** — continue checking monster descriptions and
-stat data against the Basic Box PDF, then replace stale `Monsters.md` with a
-generated reference or a pointer to the monster tools and data files.
+Review the [Poison Phase 1 foundation](docs/poison-phase-1-saves-and-death.md) and
+resolve engine-owned alignment/source qualification (Q08). Then scope the
+authoritative clock work shared by Poison Phase 2 and non-text frontend support.
+Use the [frontend review](docs/FRONTEND-ADAPTABILITY-REVIEW.md) for concrete gaps;
+description/stat review remains human-assisted backlog, not the next coding task.

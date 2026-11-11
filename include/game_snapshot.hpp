@@ -34,6 +34,7 @@ struct HeroView {
     std::string class_name;
     Vec2 pos{};
     bool alive{true};
+    DeathCause death_cause{DeathCause::None};
 
     int hp{};
     int max_hp{};

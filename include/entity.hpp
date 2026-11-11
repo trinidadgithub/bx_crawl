@@ -47,6 +47,14 @@ enum class DamageType {
     Lightning
 };
 
+enum class DeathCause {
+    None,
+    PhysicalDamage,
+    Poison,
+    Trap,
+    Other
+};
+
 struct Abilities {
     int str{};
     int dex{};
@@ -71,6 +79,7 @@ struct Entity {
     int morale{};          // 2–12 for monsters; 0 = no morale checks
     bool fleeing{false};   // if true, tries to escape instead of fight
     bool alive{true};
+    DeathCause death_cause{DeathCause::None};
     int attacks_per_turn{1}; // number of attacks per turn
 
     // New: character generation bits

@@ -2,8 +2,12 @@
 
 ## Status and Authority
 
-Planning document; **no poison implementation phase has begun**. Prepared against
-`afa59d66866b6c7c666a5e7b74771f3c6c4d2705`, reconciled 2026-10-28.
+Original planning baseline: `afa59d66866b6c7c666a5e7b74771f3c6c4d2705`.
+Progress reconciled 2026-11-11 UTC: the owner authorized Phase 1 and a subsequent
+frontend-adaptability review. The [Phase 1 foundation](poison-phase-1-saves-and-death.md)
+is implemented and validated locally against branch base `29128b1`; full phase
+sign-off awaits alignment/source qualification integration (Q08). Phases 2-6
+have not begun. The [frontend review](FRONTEND-ADAPTABILITY-REVIEW.md) is complete.
 
 Start each session with [Development Continuity](DEVELOPMENT-CONTINUITY.md).
 Use [Poison Mechanics Audit](POISON-MECHANICS-AUDIT.md) for primary-source
@@ -47,7 +51,7 @@ reopen those questions or interpret all poison as immediate death.
 
 | Poison phase | Depends on | Intended deliverable | Current status |
 |---|---|---|---|
-| 1. Saving throws and death | Planning review; applicable source-modifier contract | Expert saves, consistent cause-aware death, deterministic tests | Not started |
+| 1. Saving throws and death | Owner-authorized; alignment/source qualification contract still needed | Expert saves, consistent cause-aware death, deterministic tests | Validated local foundation; full sign-off pending Q08 |
 | 2. Authoritative clock | Phase 1 death seam; Q02/Q06 below | Explicit round/turn advancement independent of rendering | Not started |
 | 3. Poison profiles | Phase 1 save context; Phase 2 time units; Q01/Q04/Q05 where relevant | Explicit catalog-backed profiles and distinct deliveries | Not started |
 | 4. Persistence and treatment | Phases 1-3; Q01/Q02/Q03/Q06 | Validated saved poison/time/death state and original treatment | Not started |
@@ -67,6 +71,13 @@ generic path once all current sources are integrated. Temporary retention during
 staging is not an approved house-rule mode.
 
 ## Phase 1 — Saving Throws and Death Handling
+
+Current evidence: [implementation/validation report](poison-phase-1-saves-and-death.md).
+Expert tables, source-modifier interface, crab +2, and common death handling are
+implemented locally. Protection qualification accepts explicit source context;
+the current character model supplies no alignment to derive it automatically.
+Keep that outstanding integration visible rather than marking the entire phase
+complete because its tests pass.
 
 ### Scope
 
@@ -392,6 +403,7 @@ to unblock implementation.
 | Q05 | Minimal representations for six-foot spit on the grid, multiple attack deliveries, bee queen (no new catalog monster authorized), onlooker targets, and scope/dependencies of Medusa gaze and broader monster immunity. | Relevant Phase 3/5 slices |
 | Q06 | Rest/town/travel elapsed-time contract needed for ten-day illness and cross-location deadlines; no invented day advancement. | Phase 2/4 and Centipede completion |
 | Q07 | PoisonDart hit/activation/base damage contract and any module compatibility implications. The original lethal poison consequence is already settled. | Phase 6 |
+| Q08 | Engine-owned character/source alignment or equivalent qualification input for Protection from Evil, including how it is collected and preserved. No default alignment or unconditional protection bonus has been assumed. | Full Phase 1 qualification integration; frontend startup/state contract |
 
 Table transcription checks and validation of unsupported character levels are
 implementation prerequisites under Expert progression, **not** a reopening of
@@ -413,8 +425,7 @@ the approved B/X baseline. No optional house-rule configuration is planned.
   both committed work and local changes. Do not close a phase just because its
   branch merged or tests passed.
 
-**Exact next action:** review this plan and continuity with the owner. Request
-approval for a bounded **Poison Phase 1** slice: Expert saving-throw selection
-and common cause-aware death handling with deterministic tests. Resolve only
-the source-context questions needed for that slice. Until that review/approval,
-do not edit application code, data, tests, save formats, or build configuration.
+**Exact next action:** review the local Phase 1 foundation and frontend review.
+Resolve Q08 before claiming full Phase 1 completion. Then scope the next
+cross-frontend/Poison Phase 2 clock slice and resolve its Q02/Q06 gates. Do not
+repeat the audit or request renewed approval of the original lethality decision.
