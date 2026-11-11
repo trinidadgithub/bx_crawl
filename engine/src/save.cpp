@@ -366,6 +366,7 @@ bool read_game_from(std::istream& in, Game& out) {
     // Restore runtime-only fields
     h.type  = EntityType::Hero;
     h.alive = true;
+    h.death_cause = DeathCause::None;
     h.hidden = false;
     h.charmed = false;
     h.gold_pieces = 0;

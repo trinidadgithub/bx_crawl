@@ -4,6 +4,7 @@
 #include "map.hpp"
 #include "bx_data.hpp"
 #include "item_catalog.hpp"
+#include "saving_throws.hpp"
 #include "item_effects.hpp"
 #include "inventory.hpp"
 
@@ -1053,20 +1054,14 @@ static void promote_lair_leaders(Game& g) {
 }
 
 // Saving throw helper
-static bool make_save(Game& g, CharacterClass cc, int category) {
-    bx::SaveClass sc = [&]() {
-        switch (cc) {
-            case CharacterClass::Cleric:    return bx::SaveClass::cleric;
-            case CharacterClass::Fighter:   return bx::SaveClass::fighter;
-            case CharacterClass::Dwarf:     return bx::SaveClass::dwarf;
-            case CharacterClass::Elf:       return bx::SaveClass::elf;
-            case CharacterClass::Halfling:  return bx::SaveClass::halfling;
-            case CharacterClass::MagicUser: return bx::SaveClass::magicUser;
-            case CharacterClass::Thief:     return bx::SaveClass::thief;
-            default:                        return bx::SaveClass::fighter;
-        }
-    }();
-    const bx::SaveRow& row = bx::saving_throws[static_cast<int>(sc)];
+static bool make_save(Game& g, CharacterClass cc, int category,
+                      game_internal::SaveContext context) {
+    const auto selected = bx::expert_save_row(cc, g.hero_level);
+    if (!selected || category < 0 || category > 4) {
+        log_event(g, "Saving throw rejected: unsupported class, level, or category.");
+        return false;
+    }
+    const auto& row = *selected;
     int target = 0;
     switch (category) {
         case 0: target = row.death_ray_poison; break;
@@ -1074,13 +1069,16 @@ static bool make_save(Game& g, CharacterClass cc, int category) {
         case 2: target = row.paralysis_petrify; break;
         case 3: target = row.dragon_breath; break;
         case 4: target = row.rods_spells; break;
-        default: target = row.death_ray_poison; break;
+        default: return false;
     }
     int roll = roll_d(g, 20);
     // Confused by bats: -2 on saves
     if (hero_is_confused(g)) roll -= 2;
     int wis_mod = bx::get_wisdom(g.hero.abilities.wis).savingThrowMagic;
-    if (category == 4) roll += wis_mod;
+    if (category != 3 && (context.magical || category == 1 || category == 4))
+        roll += wis_mod;
+    roll += context.modifier;
+    if (g.hero.protection_turns > 0 && context.protection_applies) ++roll;
     return roll >= target;
 }
 
@@ -1372,8 +1370,17 @@ void check_level_up(Game& g) {
     ::check_level_up(g);
 }
 
-bool make_save(Game& g, CharacterClass cc, int category) {
-    return ::make_save(g, cc, category);
+bool make_save(Game& g, CharacterClass cc, int category, SaveContext context) {
+    return ::make_save(g, cc, category, context);
+}
+
+void kill_hero(Game& g, DeathCause cause, const std::string& message) {
+    if (!g.hero.alive) return;
+    g.hero.hp = 0;
+    g.hero.alive = false;
+    g.hero.death_cause = cause;
+    ::queue_sound(g, SoundEffect::PlayerDeath);
+    ::log_event(g, message);
 }
 
 void apply_level_drain(Game& g, const Entity& draining) {
@@ -1956,6 +1963,7 @@ GameStateSnapshot make_game_state_snapshot(const Game& g) {
     out.hero.unconscious_turns = h.unconscious_turns;
     out.hero.green_slime_turns = h.green_slime_turns;
     out.hero.blister_turns = h.blister_turns;
+    out.hero.death_cause = h.death_cause;
     out.hero.confused = hero_is_confused(g);
 
     out.monsters.reserve(g.monsters.size());
@@ -2049,10 +2057,8 @@ void monsters_turn(Game& g) {
                     log_event(g, oss.str());
                 }
                 if (g.hero.hp <= 0) {
-                    g.hero.hp = 0;
-                    g.hero.alive = false;
-                    log_event(g, "The vampire bat drains you dry!");
-                    queue_sound(g, SoundEffect::PlayerDeath);
+                    game_internal::kill_hero(g, DeathCause::Other,
+                                             "The vampire bat drains you dry!");
                 }
                 continue;
             }
@@ -2504,9 +2510,8 @@ bool apply_player_command(Game& g, const PlayerCommand& cmd) {
             log_event(g, oss.str());
         }
         if (g.hero.hp <= 0) {
-            g.hero.hp = 0;
-            g.hero.alive = false;
-            log_event(g, "The green slime devours you!");
+            game_internal::kill_hero(g, DeathCause::Other,
+                                     "The green slime devours you!");
             return true;
         }
     }

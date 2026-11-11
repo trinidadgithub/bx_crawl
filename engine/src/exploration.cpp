@@ -130,9 +130,8 @@ void compute_visibility(Game& g) {
                 hero.hp -= dmg;
                 log_event(g, "You suffer " + std::to_string(dmg) + " damage from starvation!");
                 if (hero.hp <= 0) {
-                    hero.hp = 0;
-                    hero.alive = false;
-                    log_event(g, "You have starved to death.");
+                    game_internal::kill_hero(g, DeathCause::Other,
+                                             "You have starved to death.");
                 }
             }
         }
@@ -191,6 +190,7 @@ static void trigger_trap(Game& g, Entity& hero, Tile& tile) {
     if (!tile.has_trap || tile.trap_type == TrapType::None) return;
     queue_sound(g, SoundEffect::Trap);
     int dmg = 0;
+    DeathCause cause = DeathCause::Trap;
     const char* msg = "";
     switch (tile.trap_type) {
         case TrapType::Pit:
@@ -212,6 +212,7 @@ static void trigger_trap(Game& g, Entity& hero, Tile& tile) {
             msg = "A poisoned dart hits you!";
             // Poison save
             if (!make_save(g, hero.char_class, 0)) {
+                if (hero.hp > dmg) cause = DeathCause::Poison;
                 dmg += roll_d(g, 4); // extra poison damage
             }
             break;
@@ -226,10 +227,7 @@ static void trigger_trap(Game& g, Entity& hero, Tile& tile) {
             log_event(g, oss.str());
         }
         if (hero.hp <= 0) {
-            hero.hp    = 0;
-            hero.alive = false;
-            queue_sound(g, SoundEffect::PlayerDeath);
-            log_event(g, "You have died.");
+            game_internal::kill_hero(g, cause, "You have died.");
         }
     }
     tile.has_trap  = false;

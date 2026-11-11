@@ -16,7 +16,13 @@ int effective_morale(const Game& g, const Entity& m);
 
 void award_treasure(Game& g, Entity& monster);
 void check_level_up(Game& g);
-bool make_save(Game& g, CharacterClass cc, int category);
+struct SaveContext {
+    int modifier{0};
+    bool magical{false};
+    bool protection_applies{false};
+};
+bool make_save(Game& g, CharacterClass cc, int category, SaveContext context = {});
+void kill_hero(Game& g, DeathCause cause, const std::string& message);
 
 void apply_level_drain(Game& g, const Entity& draining);
 void apply_strength_drain(Game& g, const Entity& draining);

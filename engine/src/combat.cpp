@@ -30,8 +30,9 @@ int effective_morale(const Game& g, const Entity& m) {
     return game_internal::effective_morale(g, m);
 }
 
-bool make_save(Game& g, CharacterClass cc, int category) {
-    return game_internal::make_save(g, cc, category);
+bool make_save(Game& g, CharacterClass cc, int category,
+               game_internal::SaveContext context = {}) {
+    return game_internal::make_save(g, cc, category, context);
 }
 
 void award_treasure(Game& g, Entity& monster) {
@@ -148,10 +149,7 @@ bool resolve_bear_attack(Game& g, Entity& attacker, Entity& defender,
         }
 
         if (defender.hp <= 0) {
-            defender.hp = 0;
-            defender.alive = false;
-            queue_sound(g, SoundEffect::PlayerDeath);
-            log_event(g, defender.name + " is slain!");
+            game_internal::kill_hero(g, DeathCause::PhysicalDamage, defender.name + " is slain!");
         }
     };
 
@@ -169,10 +167,7 @@ bool resolve_bear_attack(Game& g, Entity& attacker, Entity& defender,
             log_event(g, oss.str());
         }
         if (defender.hp <= 0) {
-            defender.hp = 0;
-            defender.alive = false;
-            queue_sound(g, SoundEffect::PlayerDeath);
-            log_event(g, defender.name + " is slain!");
+            game_internal::kill_hero(g, DeathCause::PhysicalDamage, defender.name + " is slain!");
         }
     }
 
@@ -265,16 +260,13 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
             }
 
             if (defender.hp <= 0) {
-                defender.hp = 0;
-                defender.alive = false;
-
                 if (defender.type == EntityType::Hero) {
-                    queue_sound(g, SoundEffect::PlayerDeath);
+                    game_internal::kill_hero(g, DeathCause::PhysicalDamage,
+                                             defender.name + " is slain!");
                 } else {
+                    defender.hp = 0;
+                    defender.alive = false;
                     queue_sound(g, SoundEffect::MonsterDeath);
-                }
-
-                {
                     std::ostringstream oss;
                     oss << defender.name << " is slain!";
                     log_event(g, oss.str());
@@ -301,7 +293,9 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
             } else {
                 if (defender.type == EntityType::Hero && attacker.type != EntityType::Hero) {
                     if (attacker.has_poison) {
-                        if (make_save(g, g.hero.char_class, 0)) {
+                        game_internal::SaveContext context;
+                        if (attacker.name == "Spider, Crab") context.modifier = 2;
+                        if (game_internal::make_save(g, g.hero.char_class, 0, context)) {
                             log_event(g, "You resist the poison!");
                         } else {
                             int poison_dmg = roll_d(g, 4);
@@ -312,9 +306,8 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
                                 log_event(g, oss.str());
                             }
                             if (defender.hp <= 0) {
-                                defender.hp = 0;
-                                defender.alive = false;
-                                log_event(g, "You succumb to the poison!");
+                                game_internal::kill_hero(g, DeathCause::Poison,
+                                                         "You succumb to the poison!");
                             }
                         }
                     } else if (attacker.has_disease) {
@@ -323,8 +316,8 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
                             int disease_dmg = 1;
                             defender.hp -= disease_dmg;
                             if (defender.hp <= 0) {
-                                defender.hp = 0;
-                                defender.alive = false;
+                                game_internal::kill_hero(g, DeathCause::Other,
+                                                         "You succumb to the disease!");
                             }
                         }
                     } else if (attacker.has_paralysis) {
