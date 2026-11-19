@@ -77,6 +77,10 @@ bool apply_town_command(Game& g, const PlayerCommand& cmd) {
     switch (g.state) {
     // ─── Character Sheet ───────────────────────────────────
     case GameState::CharacterSheet:
+        if (cmd.type == PlayerCommandType::UnequipShield) {
+            game_internal::unequip_shield(g);
+            return true;
+        }
         if (cmd.type == PlayerCommandType::Help) {
             if (g.town_submenu != 0) g.town_submenu = 0;
             else return_from_character_sheet(g);

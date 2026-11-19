@@ -266,6 +266,8 @@ static PlayerCommand read_town_command(const Game& g) {
                 if (c >= '1' && c <= '9')
                     return PlayerCommand{PlayerCommandType::Get, 0, 0, c - '1'};
             } else if (g.town_submenu == 7) {
+                if (c == '5')
+                    return PlayerCommand{PlayerCommandType::UnequipShield};
                 if (c >= '0' && c <= '4')
                     return PlayerCommand{PlayerCommandType::Get, 0, 0, c - '1'};
             }

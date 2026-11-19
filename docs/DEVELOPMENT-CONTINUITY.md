@@ -4,14 +4,15 @@
 across machines, sessions, models, and interruptions. Update current status and
 next action in place; preserve accepted decisions and validated milestones.
 
-**Last reconciled:** 2026-11-11 (machine UTC record date).
+**Last reconciled:** 2026-11-19 (machine UTC record date).
 
-**Active work:** validated local Poison Phase 1 save/death foundation and completed
-frontend-adaptability review on `feat/poison-expert-saves-and-death`.
+**Active work:** playtest bug fix on `fix/shield-unequip`: dedicated shield
+removal from the character sheet. Poison Phase 1 foundation/frontend review are
+merged through PR #69; full Phase 1 qualification still awaits Q08.
 
-**Next action:** review the local implementation and resolve alignment/source
-qualification (Q08) before full Phase 1 sign-off. Then scope the shared
-cross-frontend/Poison Phase 2 clock work; Q02/Q06 remain unresolved.
+**Next action:** review/playtest the rebuilt shield control (`b` -> `2` -> `5`),
+then commit/push only when authorized. Resume Q08 after the playtest fix; clock
+questions Q02/Q06 remain unresolved.
 
 ## 1. Project Identity
 
@@ -97,36 +98,37 @@ silently overwriting their history.
 
 ## 4. Current Repository State
 
-Snapshot captured before packaging the validated Phase 1 foundation, based on
-owner-merged PR #68. The owner has now authorized committing/pushing this slice.
-The table retains that verified pre-commit state; locate the resulting checkpoint
-by commit subject `Implement Expert saves and shared hero death handling`, parent
-`29128b1`, using `git log`. Reconcile live Git status on resume rather than
-treating captured local-only status as permanent. No future commit SHA is guessed.
+Snapshot captured during shield-fix validation, before packaging. PR #69's
+Phase 1 foundation is merged. The owner subsequently authorized committing and
+pushing this shield slice; identify the resulting checkpoint by commit subject
+`Add explicit shield unequip action`, parent `5e52301`, using Git history. The
+captured local/uncommitted status below is not a permanent statement about the
+branch. No future commit SHA is guessed.
 
 | Item | Verified state |
 |---|---|
-| Current branch | `feat/poison-expert-saves-and-death` — local; no upstream/push yet |
-| HEAD / branch base | `29128b195db445cf51975d3acb962c3eb71c6a79` — merge PR #68, same as local `main` at branch creation |
+| Current branch | `fix/shield-unequip` — local; no upstream/push yet |
+| HEAD / branch base | `5e5230196611631a35d78c3bfe46d7a8568bddb1` — merge PR #69, same as local `main` at branch creation |
 | Earlier documentation merges | PR #67 `4198886` merged the audit/plan; PR #68 `29128b1` merged the baseline handoff. The old Phase 1 preparation branch was deleted after PR #68. |
 | Confirmed documentation revision | `a62a5799146f92decfeeaed273252b0e2309d186` — `Document poison audit and implementation continuity` |
-| Committed gameplay baseline | `afa59d66866b6c7c666a5e7b74771f3c6c4d2705` — merge PR #66; later commits through HEAD contain documentation only. Local application changes now differ from that baseline. |
+| Committed gameplay | `f33eb89` implements the validated Phase 1 foundation/review; merged via PR #69 at `5e52301`. The earlier audit baseline remains `afa59d6`, not the current gameplay revision. |
 | Tracking | Started from clean local `main` tracking its locally known `origin/main`; no fetch/remote synchronization was needed or claimed during this implementation task. |
 | PR status | No implementation PR created. Prior empty open-PR query belongs to the earlier planning session and was not refreshed here. |
-| Poison progress | Phase 1 foundation implemented/tested locally; full qualification integration awaits Q08. Phases 2-6 not started. Generic extra-d4 poison intentionally remains pending profile/timing/treatment integration. |
+| Poison progress | Phase 1 foundation merged/tested; full qualification integration awaits Q08. Phases 2-6 not started. Generic extra-d4 poison remains pending profile/timing/treatment integration. |
 | Audit dependency | The previously untracked audit is now committed with the plan, continuity file, and README in `a62a579`; it can travel with the branch across machines. |
-| Local files | Code: combat/exploration/game/internal/session/save, Entity/HeroView, new `include/saving_throws.hpp`, regression tests. Docs: ROADMAP, plan, continuity, new phase report and frontend review. Run Git status for the exact file list. No monster/source data or build configuration changed. |
-| Commit/push/PR at snapshot capture | No implementation commit or push yet at capture; the owner subsequently authorized packaging this validated slice. No PR creation or merge requested. Check Git for the resulting commit/upstream state. |
-| Latest engine validation | Current local tree: Debug build and direct doctest 236/236 cases / 15919/15919 assertions; Debug CTest 1/1; ASan+UBSan build/CTest 1/1; Hrothgar/Tomb Runner boot/quit smokes exit 0. See §9 for exact commands and warnings. |
+| Local files | Shield fix: inventory/town/internal helper and command enum, frontend input/snapshot menu, legacy menu, regression test, and this continuity record. No monster data, save format, or build configuration changed. |
+| Commit/push/PR | Phase 1 commit is already merged. No commit/push/PR/merge for the shield branch yet. |
+| Latest engine validation | Shield working tree: Debug build and CTest 1/1 passed, 2.68 seconds. Phase 1's earlier direct 236-case and sanitizer results remain historical, not a new sanitizer run for this shield fix. |
 | Save format | v7; no poison deadline/cause/clock extension implemented. v8 in the plan is a candidate, not current fact. |
 
-The validation below applies to the implementation tree prepared from `29128b1`.
-The packaging step changes only handoff text after those tests, not application
-code. It is not evidence of a merge or of full Phase 1 completion.
+The shield test validates explicit removal through a camp-origin GameSession
+character sheet, retained inventory/armor/weapon state, unarmed removal, repeated
+removal, re-equipping, and return to camp. It does not claim a new interactive
+keypress playtest or full Phase 1 completion.
 
 Remaining limitations: source-specific poison outcomes, Killer Bee/Medusa poison
 activation, delayed state, automatic protection qualification, and Neutralize
-Poison. Expert level saves, crab +2 and poison-death sound are fixed locally.
+Poison. Expert level saves, crab +2 and poison-death sound are fixed in merged code.
 Clock advancement is still coupled to frame preparation. Some conditions are
 not serialized and can inherit receiving-Game residue on load. See audit rather
 than assuming historical README descriptions prove complete fidelity.
@@ -143,8 +145,10 @@ or fabricated from this record's creation date.
 | Pre-poison baseline: Oil Beetle spray merged as PR #66 | `d52508f`, merge `afa59d6`; combat/time/spell/status code, beetle data, tests; see `docs/oil-beetle-blistering-spray.md` and `git show --stat afa59d6` for full file set | Subsequent audit rebuilt and ran the committed revision; §9 records actual results | Provides the audited baseline and an example timed blister condition | Not poison implementation; blisters are session-only and use the flawed exploration timing boundary |
 | Read-only Poison Mechanics Audit | `docs/POISON-MECHANICS-AUDIT.md`, committed in `a62a579` | Original-source checks, full runtime inventory/traces, Debug and sanitizer tests executed in audit session (§9) | Evidence baseline, findings P01-P11, exception matrix and proposed tests documented | Recommendations not implemented; original remaining questions partially superseded by owner decisions above |
 | Implementation planning and continuity bootstrap | Plan, this file, README entry point; committed in `a62a579` | Documentation/Git checks only in this session (§9); no new engine validation claimed | Six-phase plan, accepted decisions, unresolved gates, handoff/update protocol and resume entry point recorded | Planning package awaits owner review; no implementation phase is complete |
-| Phase 1 save/death foundation (not full phase completion) | Local `include/saving_throws.hpp`, save/death interfaces, combat/trap/session/snapshot/load changes and tests; no commit yet | 236 cases / 15919 assertions, Debug and sanitizer CTest; boot smokes (current §9) | Expert X24 lookup, explicit modifiers, crab +2, cause-aware/idempotent death, session/snapshot reporting | Actual protection qualification lacks hero alignment/source input; full phase sign-off remains pending Q08. Death cause is not serialized in v7. |
-| Non-text frontend adaptability review | Local `docs/FRONTEND-ADAPTABILITY-REVIEW.md`; no commit yet | API/ownership/platform source inspection, no new GUI/platform implementation or tests | Concrete gaps and incremental frontend-neutral acceptance recommendations documented | Runtime clock, startup/load, choices, snapshots, platform backends still need scoped implementation. |
+| Phase 1 save/death foundation (not full phase completion) | `f33eb89`: save tables/interfaces, combat/trap/session/snapshot/load changes and tests | 236 cases / 15919 assertions, Debug and sanitizer CTest; boot smokes (historical §9) | Expert X24 lookup, explicit modifiers, crab +2, cause-aware/idempotent death, session/snapshot reporting | Actual protection qualification lacks hero alignment/source input; full phase sign-off remains pending Q08. Death cause is not serialized in v7. |
+| Non-text frontend adaptability review | `docs/FRONTEND-ADAPTABILITY-REVIEW.md`, committed in `f33eb89` | API/ownership/platform source inspection, no new GUI/platform implementation or tests | Concrete gaps and incremental frontend-neutral acceptance recommendations documented | Runtime clock, startup/load, choices, snapshots, platform backends still need scoped implementation. |
+| Phase 1/review merge | `f33eb89`, owner-merged PR #69 `5e52301`; old feature branch deleted locally/remotely | Implementation-session test evidence above; merge/cleanup verified separately | Foundation and review available on main/across machines | Q08 remains open; merge does not mean full Phase 1 sign-off |
+| Dedicated shield removal playtest fix | Local `UnequipShield` command/helper, menus/input and regression test; no commit yet | Debug build and CTest 1/1 passed (current §9) | Explicit `5` removal in armor/shield menu; retains owned shield, allows unarmed removal and later re-equip | Running game must restart to load rebuilt code; interactive user confirmation pending |
 
 Do not promote any poison phase to Completed until its plan acceptance criteria,
 tests, relevant manual checks, and remaining caveats are reconciled. Record a
@@ -152,16 +156,17 @@ partially complete slice separately, even after its PR merges.
 
 ## 6. Active Development
 
-**Active stage:** Phase 1 implemented foundation under review; source qualification
-integration remains open. The requested subsequent frontend review is complete.
+**Active stage:** shield playtest bug fix. Phase 1 foundation and frontend review
+are merged; source qualification integration remains open.
 
-- **Completed locally:** Expert band lookup, source save context, crab +2,
-  shared cause-aware death handling, snapshot reporting, existing-dead-session
-  guard, v7 receiver reset for death cause, regression tests, frontend review.
-- **Remaining now:** review this slice and resolve Q08: how the engine gets and
-  preserves character/source alignment for protection qualification. No default
-  alignment or unconditional +1 was invented. Decide the next clock slice after
-  resolving its Q02/Q06 gates; no frontend implementation has been authorized.
+- **Completed locally:** explicit `UnequipShield` action routed by the engine
+  character sheet; `5` binding and matching menu labels; camp/session regression.
+- **Remaining now:** user restarts rebuilt game and confirms `b` -> `2` -> `5`,
+  then authorize packaging if desired. The user's clarification asks for explicit
+  removal, so equipping Shield remains separate rather than becoming a toggle.
+- **Poison follow-up:** resolve Q08: how the engine gets/preserves character/source
+  alignment for protection qualification. No default alignment or unconditional
+  +1 was invented. Later clock work still needs Q02/Q06 decisions.
 - **Blockers:** Q08 prevents claiming full Phase 1 qualification integration.
   Later Q01-Q07 decisions remain open. This is not a reason to repeat the audit
   or reopen original lethality decisions.
@@ -200,9 +205,9 @@ frontend-adaptability review (DEC-WORK-001).
 **Proposed, not yet approved to execute:** frontend changes and later poison
 phases' concrete clock/state/wire-format designs.
 
-**Exact next action:** review the local foundation and frontend report; resolve
-Q08 before full Phase 1 sign-off. Then scope action-owned time shared by Poison
-Phase 2 and non-text frontend support. Do not repeat the completed audit.
+**Exact next action:** verify the dedicated shield control in the rebuilt game;
+package the local fix when authorized. Then return to Q08 before full Phase 1
+sign-off and scope action-owned time for Phase 2/non-text frontend support.
 
 ## 8. Known Issues and Technical Debt
 
@@ -282,7 +287,7 @@ The package commit/push succeeded, followed by this handoff reconciliation.
 Documentation review only; no engine/test/data edits or new engine test run.
 These checks do not validate any planned implementation phase.
 
-### Current Phase 1 working-tree validation — 2026-11-11 UTC
+### Historical Phase 1 validation — 2026-11-11 UTC
 
 Executed from the repository root:
 
@@ -310,6 +315,18 @@ ctest --test-dir build-sanitize --output-on-failure
   not proof those deployments work. Phase 1's Q08 gate is not cleared by tests.
 - Expert table source image X24 was rechecked for implementation transcription;
   the prior audit was not repeated. No data generator or dependency change.
+
+### Current shield playtest fix validation — 2026-11-19 UTC
+
+Executed `cmake --build build -j 2`,
+`ctest --test-dir build --output-on-failure`, and `git diff --check`.
+Build passed without compiler warnings shown; Debug CTest passed **1/1**,
+2.68 seconds. The new regression tests removal through camp/character-sheet
+commands, retained equipment, unarmed removal, repeat removal, and re-equipping.
+No new direct-doctest count or sanitizer run is claimed for this small fix.
+The frontend key binding/menu was inspected; interactive user verification of
+`b` -> `2` -> `5` after restarting remains pending. No source changes followed
+the successful build/test run; only this handoff was updated.
 
 ### Portable validation recipe — suggested, not newly executed results
 
@@ -354,6 +371,8 @@ inferred from commit timestamps or a previous machine's clock.
 | 2026-10-28 UTC — Phase 1 handoff packaging | Owner requests commit/push of the continuity update on the new branch | Documentation-only; commit subject `Record merged baseline for poison Phase 1`, parent `4198886`; confirm resulting SHA/upstream through Git | No implementation authorization or new rules decisions. Next: approve bounded Phase 1 implementation scope. |
 | 2026-11-11 UTC — Phase 1 implementation and frontend review | Owner authorizes Phase 1 then non-text engine review; local Expert saves/context/crab +2, shared death/cause/snapshot/load reset and tests; frontend review; roadmap priorities updated | Branch `feat/poison-expert-saves-and-death`, base `29128b1`; 236 cases / 15919 assertions; Debug/sanitizer CTest and two boot smokes passed; no commit/push | DEC-WORK-001 records ordering and human-assisted description backlog. Q08 alignment/source qualification discovered as remaining integration gate. Next: review slice, resolve Q08, then scope clock work. |
 | 2026-11-11 UTC — authorized Phase 1 packaging | Owner requests commit/push of the tested foundation and frontend review | Commit subject `Implement Expert saves and shared hero death handling`, parent `29128b1`; verify resulting SHA/upstream with Git. Whitespace checks; no application changes after the recorded tests | No new rules decisions, PR creation, or merge authorized. Q08 remains open; full Phase 1 sign-off is not claimed. |
+| 2026-11-19 UTC — shield playtest bug | Owner reports inability to unequip shield and asks for explicit removal; add dedicated command/helper, key `5` in armor/shield menu, regression test and handoff | Branch `fix/shield-unequip`, base `5e52301`; Debug build and CTest 1/1 passed; no commit/push | Distinct unequip action, not toggle. Next: restart rebuilt game, check `b` -> `2` -> `5`, package when authorized; Q08 remains paused. |
+| 2026-11-19 UTC — authorized shield packaging | Owner requests commit/push of the tested shield fix | Commit subject `Add explicit shield unequip action`, parent `5e52301`; confirm resulting revision/upstream with Git. No source changes after the passing tests | No PR/merge requested. Interactive user confirmation remains pending; Q08 remains open. |
 
 For later sessions append a short row with actual date, objective, changed files
 or linked milestone, exact commits if any, executed tests/results, decisions,
@@ -373,16 +392,15 @@ the reader need not reconstruct current status from this history table.
    and reconcile remote history appropriately before choosing a base. Do not
    overwrite another session's uncommitted work or force-push divergent history.
 5. Reconcile this snapshot with actual repository state. The documentation
-   package/handoff are merged into `main` through PRs #67/#68. The *implementation*
-   branch `feat/poison-expert-saves-and-death` was local/uncommitted at snapshot
-   capture and subsequently authorized for commit/push. Check remote availability
-   and fetch its implementation checkpoint on another machine. Preserve newer
-   local edits and inspect current Git status before resuming.
+   package/handoff and Phase 1 foundation are merged into `main` through PRs
+   #67/#68/#69. The shield fix was local at validation capture and subsequently
+   authorized for packaging on `fix/shield-unequip`. Check its remote availability
+   and resulting checkpoint, preserve newer edits, and inspect Git before resuming.
 6. Identify the active phase and its unmet acceptance criteria. Currently this
-   is the validated Phase 1 foundation with Q08 outstanding, not a completed
-   six-phase poison implementation.
-7. Identify the next approved scope: review the implementation/frontend report
-   and resolve Q08; Phase 2/frontend implementation needs a bounded follow-up.
+   is the explicit shield-removal playtest fix. Phase 1 qualification is still
+   gated by Q08; the six-phase poison implementation is not complete.
+7. Identify the next approved scope: review/playtest the shield fix; commit/push
+   requires authorization. Resume Q08 afterward, not automatic Phase 2 coding.
 8. Avoid repeating completed work. Re-run relevant tests when source/toolchain
    changes justify validation, not to imply the original audit never happened.
 9. Preserve DEC-POISON-001..005. Report discrepancies and resolve open details;
@@ -440,7 +458,7 @@ At the end of each future implementation session:
 10. Identify the **exact next approved development action** or the specific
     approval needed before further changes.
 
-Current handoff packages the authorized Phase 1 foundation, validation, and
-frontend review for the requested commit/push. No PR creation, merge, new UI
-implementation, save-format change, monster-data change, or build-configuration
-change is part of this slice. Next work must preserve the explicit remaining gate.
+Current handoff packages the validated dedicated shield-removal fix for the
+owner-requested commit/push. No PR creation, merge, save-format change,
+monster-data change, or build-configuration change is part of the shield slice.
+Preserve the outstanding poison qualification gate when returning to roadmap work.

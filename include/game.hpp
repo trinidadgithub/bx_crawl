@@ -195,7 +195,8 @@ enum class PlayerCommandType {
     Hide,
     Search,
     Listen,
-    Scrape
+    Scrape,
+    UnequipShield
 };
 
 struct PlayerCommand {
