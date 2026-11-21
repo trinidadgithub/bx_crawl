@@ -1697,6 +1697,7 @@ static void render_town_screen(const Game& g) {
                 std::cout << "  [" << (i + 1) << "] " << a.name << " owned:"
                           << g.hero.armor_counts[i] << "\r\n";
             }
+            if (g.hero.has_shield) menu_item("5", "Unequip shield");
             menu_item("t", "Back");
         } else {
             std::cout << "--- Inventory ---\r\n";

@@ -51,6 +51,7 @@ bool can_use_shield(CharacterClass cc);
 bool can_wear_heavy_armor(CharacterClass cc);
 void equip_owned_weapon(Game& g, int inventory_index);
 void equip_owned_armor(Game& g, int armor_index);
+void unequip_shield(Game& g);
 
 } // namespace game_internal
 

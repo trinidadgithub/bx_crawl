@@ -113,6 +113,15 @@ void equip_owned_armor(Game& g, int armor_index) {
     log_event(g, std::string("Equipped ") + a.name + ".");
 }
 
+void unequip_shield(Game& g) {
+    if (!g.hero.has_shield) {
+        log_event(g, "You have no shield equipped.");
+        return;
+    }
+    g.hero.has_shield = false;
+    log_event(g, "Unequipped shield.");
+}
+
 } // namespace game_internal
 
 // ── ID-based inventory access ─────────────────────────────

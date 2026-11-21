@@ -5015,6 +5015,53 @@ TEST_CASE("Character sheet equips owned weapons and armor") {
     CHECK(g.state == GameState::Town);
 }
 
+TEST_CASE("Character sheet can explicitly unequip a shield from camp") {
+    Game g = make_minimal_game();
+    g.state = GameState::Camp;
+    g.hero = make_hero(1, 1, 0, 8, 5);
+    g.hero.char_class = CharacterClass::Fighter;
+    g.hero.weapon_id = "sword";
+    g.hero.armor_id = "chain-mail";
+    g.hero.has_shield = true;
+    give_item(g.hero, "sword", 1);
+    give_item(g.hero, "chain-mail", 1);
+    give_item(g.hero, "shield", 1);
+
+    SUBCASE("with a weapon") {}
+    SUBCASE("while unarmed") { g.hero.weapon_id.clear(); }
+
+    const auto weapon = g.hero.weapon_id;
+    const auto weight = carried_weight_cn(g);
+    GameSession session(g);
+    session.apply({PlayerCommandType::Inventory});
+    session.apply({PlayerCommandType::Get, 0, 0, 1});
+    REQUIRE(session.game().town_submenu == 7);
+    auto result = session.apply({PlayerCommandType::UnequipShield});
+    CHECK(result.keep_playing);
+    CHECK_FALSE(session.snapshot().hero.has_shield);
+    CHECK(item_count(session.game().hero, "shield") == 1);
+    CHECK(session.game().hero.armor_id == "chain-mail");
+    CHECK(session.game().hero.ac == 5);
+    CHECK(session.game().hero.weapon_id == weapon);
+    CHECK(carried_weight_cn(session.game()) == weight);
+    CHECK(session.game().event_log.back() == "Unequipped shield.");
+
+    session.apply({PlayerCommandType::UnequipShield});
+    CHECK_FALSE(session.game().hero.has_shield);
+    CHECK(session.game().event_log.back() == "You have no shield equipped.");
+
+    if (!weapon.empty()) {
+        const auto shield = bx::armor_index("shield");
+        REQUIRE(shield.has_value());
+        session.apply({PlayerCommandType::Get, 0, 0, static_cast<int>(*shield)});
+        CHECK(session.game().hero.has_shield);
+        CHECK(item_count(session.game().hero, "shield") == 1);
+    }
+    session.apply({PlayerCommandType::Help});
+    session.apply({PlayerCommandType::Help});
+    CHECK(session.game().state == GameState::Camp);
+}
+
 TEST_CASE("B/X encumbrance uses coin weight movement tiers") {
     Game g = make_minimal_game();
     g.hero = make_hero(5, 3, 0, 4, 9);
