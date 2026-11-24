@@ -5,6 +5,7 @@
 #include "bx_data.hpp"
 #include "item_catalog.hpp"
 #include "saving_throws.hpp"
+#include "armor_class.hpp"
 #include "item_effects.hpp"
 #include "inventory.hpp"
 
@@ -350,7 +351,7 @@ void apply_rust_corrosion(Game& g, const Entity& rusting) {
                 rusts(std::string("your ") + bx::armor_items[*slot].name);
                 g.hero.armor_counts[static_cast<std::size_t>(*slot)]--;
                 g.hero.armor_id.clear();
-                g.hero.ac = 9;
+                g.hero.ac = unarmored_armor_class(g.hero);
                 return;
             }
         }
@@ -408,7 +409,7 @@ void apply_green_slime(Game& g, const Entity&) {
             eaten.push_back(bx::armor_items[*slot].name);
             g.hero.armor_counts[static_cast<std::size_t>(*slot)]--;
             g.hero.armor_id.clear();
-            g.hero.ac = 9;
+            g.hero.ac = unarmored_armor_class(g.hero);
         }
     }
     if (g.hero.has_shield) {
@@ -1289,7 +1290,7 @@ Entity spawn_bx_monster_by_index(Game& g, int idx) {
     e.name       = m.name;
     e.type       = EntityType::Monster;
     e.glyph      = monster_glyph(m.name);
-    e.ac         = m.ac;
+    e.ac         = ascending_armor_class(m.ac);
 
     auto hd = parse_hit_dice(m.hit_dice);
     e.max_hp     = hd.avg_hp;
@@ -1659,7 +1660,7 @@ static void render_town_screen(const Game& g) {
                   << "  Move " << exploration_move_feet(g) << "' ("
                   << encounter_move_feet(g) << "')\r\n";
         std::cout << "HP " << g.hero.hp << "/" << g.hero.max_hp
-                  << "  AC " << g.hero.ac
+                  << "  AC (ascending) " << effective_armor_class(g.hero)
                   << "  Attack +" << g.hero.attack_bonus
                   << "  Damage 1d" << g.hero.damage_die;
         if (g.hero.damage_bonus != 0) std::cout << (g.hero.damage_bonus > 0 ? "+" : "") << g.hero.damage_bonus;
@@ -1806,26 +1807,23 @@ void render(const Game& g) {
         if (m.alive) ++monster_count;
     int next_level_xp = xp_for_level(g.hero.char_class, g.hero_level + 1);
     // Compute effective AC from buffs
-    int effective_ac = g.hero.ac;
+    int effective_ac = effective_armor_class(g.hero);
     int buff_turns = 999;
     if (g.hero.shield_turns > 0) {
-        effective_ac += 4;
         buff_turns = std::min(buff_turns, g.hero.shield_turns);
     }
     if (g.hero.protection_turns > 0) {
-        effective_ac += 1;
         buff_turns = std::min(buff_turns, g.hero.protection_turns);
     }
     if (g.hero.resist_cold_turns > 0) {
-        effective_ac += 1;
         buff_turns = std::min(buff_turns, g.hero.resist_cold_turns);
     }
     {
         std::ostringstream oss;
         oss << g.hero.name << "(" << class_name(g.hero.char_class) << ")"
             << " HP:" << g.hero.hp << "/" << g.hero.max_hp
-            << " AC:" << g.hero.ac;
-        if (effective_ac != g.hero.ac)
+            << " AC(asc):" << equipped_armor_class(g.hero);
+        if (effective_ac != equipped_armor_class(g.hero))
             oss << "(" << effective_ac << ":" << buff_turns << ")";
         oss << " Lv." << g.hero_level
             << " D:" << g.dungeon_level
@@ -1924,19 +1922,16 @@ GameStateSnapshot make_game_state_snapshot(const Game& g) {
     out.hero.alive = h.alive;
     out.hero.hp = h.hp;
     out.hero.max_hp = h.max_hp;
-    out.hero.ac = h.ac;
-    out.hero.effective_ac = h.ac;
+    out.hero.ac = equipped_armor_class(h);
+    out.hero.effective_ac = effective_armor_class(h);
     out.hero.buff_turns = 999;
     if (h.shield_turns > 0) {
-        out.hero.effective_ac += 4;
         out.hero.buff_turns = std::min(out.hero.buff_turns, h.shield_turns);
     }
     if (h.protection_turns > 0) {
-        out.hero.effective_ac += 1;
         out.hero.buff_turns = std::min(out.hero.buff_turns, h.protection_turns);
     }
     if (h.resist_cold_turns > 0) {
-        out.hero.effective_ac += 1;
         out.hero.buff_turns = std::min(out.hero.buff_turns, h.resist_cold_turns);
     }
     out.hero.attack_bonus = h.attack_bonus;
@@ -2159,11 +2154,11 @@ static bool ranged_attack(Game& g, Entity& attacker, int dx, int dy,
                     << " at " << target->name
                     << " (d20=" << roll
                     << ", total " << total
-                    << " vs AC " << target->ac << ")";
+                    << " vs AC " << effective_armor_class(*target) << ")";
                 log_event(g, oss.str());
             }
 
-            if (total >= target->ac) {
+            if (total >= effective_armor_class(*target)) {
                 if (target->weapon_immunity != WeaponImmunity::None
                     && !hero_weapon_can_wound(g, target->weapon_immunity)) {
                     if (target->weapon_immunity == WeaponImmunity::FireOnly) {

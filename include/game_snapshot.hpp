@@ -38,7 +38,7 @@ struct HeroView {
 
     int hp{};
     int max_hp{};
-    int ac{};
+    int ac{}; // ascending equipped AC (including physical shield, before spell buffs)
     int effective_ac{};
     int buff_turns{};
     int attack_bonus{};

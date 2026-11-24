@@ -4,15 +4,15 @@
 across machines, sessions, models, and interruptions. Update current status and
 next action in place; preserve accepted decisions and validated milestones.
 
-**Last reconciled:** 2026-11-19 (machine UTC record date).
+**Last reconciled:** 2026-11-21 (machine UTC record date).
 
-**Active work:** playtest bug fix on `fix/shield-unequip`: dedicated shield
-removal from the character sheet. Poison Phase 1 foundation/frontend review are
-merged through PR #69; full Phase 1 qualification still awaits Q08.
+**Active work:** validated local full AC-convention/shield fix on
+`fix/armor-class-consistency`. Dedicated shield removal is merged through
+PR #70. Full poison Phase 1 qualification still awaits Q08.
 
-**Next action:** review/playtest the rebuilt shield control (`b` -> `2` -> `5`),
-then commit/push only when authorized. Resume Q08 after the playtest fix; clock
-questions Q02/Q06 remain unresolved.
+**Next action:** review the AC/save-v8 correction and playtest it with a copy of
+an older character save; commit/push only when authorized. Then resume Q08;
+clock questions Q02/Q06 remain unresolved.
 
 ## 1. Project Identity
 
@@ -40,6 +40,8 @@ Authoritative documentation:
   exact test results, and remaining qualification gate.
 - [Frontend adaptability review](FRONTEND-ADAPTABILITY-REVIEW.md): concrete evidence
   and proposed small steps for non-text frontends.
+- [AC consistency and migration](armor-class-consistency.md): current local fix,
+  ascending/display contract, v1-v7 migration and save-v8 compatibility.
 - [README](../README.md): build/run/tool entry point.
 - [ROADMAP](../ROADMAP.md): historical architecture/gameplay tracks. Its older
   recommended description-audit task is not the current poison priority.
@@ -87,6 +89,7 @@ the latter is not an invented historical approval timestamp.
 | DEC-POISON-004 | Approval date not supplied; recorded 2026-10-28 | House-rule overrides are deferred until after baseline implementation. | Establish faithful rules before optional variants. | No reduced-lethality mode, generic extra-d4 override, or antidote design in this track. | Accepted — owner directive | Plan Status and Authority; audit's historical unresolved simplification question is now superseded. |
 | DEC-POISON-005 | Approval date not supplied; recorded 2026-10-28 | Implementation remains incremental, testable, and compatible with existing architecture. | Preserve known boundaries and reduce regression risk. | RulesCatalog/ContentId, DiceRoller, Game/GameSession, validated persistence; narrow reviewed phases. | Accepted — owner directive | Plan dependency map; ADRs 0001-0004. |
 | DEC-WORK-001 | Approval date not supplied; recorded 2026-11-11 UTC | Prioritize Poison Phase 1, then review support for non-text frontends. Description review is a human-assisted long-term effort, not automatic PDF/prose reconciliation. | Owner explicitly authorized Phase 1 and the subsequent engine adaptability review; described import mismatches requiring human intervention. | Current implementation/review scope; frontend implementation itself is not yet authorized. | Accepted — owner directive | Phase 1 report; frontend review; ROADMAP. |
+| DEC-AC-001 | Approval date not supplied; recorded 2026-11-21 UTC | Correct the full AC inconsistency: ascending internally, conversion from original B/X armor/monster AC at the data boundary, clearly labelled display, and reviewed save compatibility. | Owner selected "Full AC fix" after the mixed ascending/descending implementation and missing shield bonus were identified. | Armor, shields, Dexterity, hit targets and display. Does not authorize unrelated attack-matrix/spell-rule changes. | Accepted — owner selection | `armor-class-consistency.md`; this session's explicit scope question/answer. |
 
 **Preservation rule:** do not reinterpret or repeatedly request baseline-lethality
 approval in later sessions. The audit's former baseline/house-rule approval
@@ -98,33 +101,32 @@ silently overwriting their history.
 
 ## 4. Current Repository State
 
-Snapshot captured during shield-fix validation, before packaging. PR #69's
-Phase 1 foundation is merged. The owner subsequently authorized committing and
-pushing this shield slice; identify the resulting checkpoint by commit subject
-`Add explicit shield unequip action`, parent `5e52301`, using Git history. The
-captured local/uncommitted status below is not a permanent statement about the
-branch. No future commit SHA is guessed.
+Snapshot captured during validation of the owner-approved full AC correction,
+before packaging from PR #70's baseline. The owner subsequently requested
+add/commit/push for playtesting. Identify the resulting checkpoint by commit
+subject `Fix ascending armor class and shield defense`, parent `d8d7f96`, using
+Git history. The captured local/uncommitted state below is not permanent; verify
+live Git/upstream state on resume instead of inventing a future commit SHA.
 
 | Item | Verified state |
 |---|---|
-| Current branch | `fix/shield-unequip` — local; no upstream/push yet |
-| HEAD / branch base | `5e5230196611631a35d78c3bfe46d7a8568bddb1` — merge PR #69, same as local `main` at branch creation |
+| Current branch | `fix/armor-class-consistency` — local; no upstream/push yet |
+| HEAD / branch base | `d8d7f961b028978ba2f8937ce96275c4ee3d9227` — merge PR #70, same as local `main` at branch creation |
 | Earlier documentation merges | PR #67 `4198886` merged the audit/plan; PR #68 `29128b1` merged the baseline handoff. The old Phase 1 preparation branch was deleted after PR #68. |
 | Confirmed documentation revision | `a62a5799146f92decfeeaed273252b0e2309d186` — `Document poison audit and implementation continuity` |
-| Committed gameplay | `f33eb89` implements the validated Phase 1 foundation/review; merged via PR #69 at `5e52301`. The earlier audit baseline remains `afa59d6`, not the current gameplay revision. |
+| Committed gameplay | Phase 1 foundation `f33eb89` via PR #69; explicit shield removal `3df0f35` via PR #70. The earlier poison audit baseline remains `afa59d6`, not the current revision. |
 | Tracking | Started from clean local `main` tracking its locally known `origin/main`; no fetch/remote synchronization was needed or claimed during this implementation task. |
 | PR status | No implementation PR created. Prior empty open-PR query belongs to the earlier planning session and was not refreshed here. |
 | Poison progress | Phase 1 foundation merged/tested; full qualification integration awaits Q08. Phases 2-6 not started. Generic extra-d4 poison remains pending profile/timing/treatment integration. |
 | Audit dependency | The previously untracked audit is now committed with the plan, continuity file, and README in `a62a579`; it can travel with the branch across machines. |
-| Local files | Shield fix: inventory/town/internal helper and command enum, frontend input/snapshot menu, legacy menu, regression test, and this continuity record. No monster data, save format, or build configuration changed. |
-| Commit/push/PR | Phase 1 commit is already merged. No commit/push/PR/merge for the shield branch yet. |
-| Latest engine validation | Shield working tree: Debug build and CTest 1/1 passed, 2.68 seconds. Phase 1's earlier direct 236-case and sanitizer results remain historical, not a new sanitizer run for this shield fix. |
-| Save format | v7; no poison deadline/cause/clock extension implemented. v8 in the plan is a candidate, not current fact. |
+| Local files | AC rules/header, chargen/inventory/town/spawn/combat/display, save semantic-version migration, pregen/show tools, regression tests and docs. Source monster/armor data and build configuration remain unchanged. |
+| Commit/push/PR | No commit/push/PR/merge for the AC branch yet. |
+| Latest engine validation | AC working tree: Debug 244/244 cases / 16251 assertions, Debug CTest 1/1 (0.72 s), sanitizer build/CTest 1/1 (5.18 s), isolated legacy Hrothgar text smoke AC 15 -> 14 passed. |
+| Save format | Local writer/reader v8 marks corrected base-AC semantics; v1-v7 migrate on load. Committed main is still v7. No poison deadline/cause/clock payload added; future poison extension candidate is v9. |
 
-The shield test validates explicit removal through a camp-origin GameSession
-character sheet, retained inventory/armor/weapon state, unarmed removal, repeated
-removal, re-equipping, and return to camp. It does not claim a new interactive
-keypress playtest or full Phase 1 completion.
+The AC smoke used an isolated HOME and the shipped legacy Hrothgar template,
+sent `b25ttx`, asserted both displayed AC values and shield-removal message, and
+sent no save command. No user's campaign file was rewritten by the smoke.
 
 Remaining limitations: source-specific poison outcomes, Killer Bee/Medusa poison
 activation, delayed state, automatic protection qualification, and Neutralize
@@ -148,7 +150,9 @@ or fabricated from this record's creation date.
 | Phase 1 save/death foundation (not full phase completion) | `f33eb89`: save tables/interfaces, combat/trap/session/snapshot/load changes and tests | 236 cases / 15919 assertions, Debug and sanitizer CTest; boot smokes (historical §9) | Expert X24 lookup, explicit modifiers, crab +2, cause-aware/idempotent death, session/snapshot reporting | Actual protection qualification lacks hero alignment/source input; full phase sign-off remains pending Q08. Death cause is not serialized in v7. |
 | Non-text frontend adaptability review | `docs/FRONTEND-ADAPTABILITY-REVIEW.md`, committed in `f33eb89` | API/ownership/platform source inspection, no new GUI/platform implementation or tests | Concrete gaps and incremental frontend-neutral acceptance recommendations documented | Runtime clock, startup/load, choices, snapshots, platform backends still need scoped implementation. |
 | Phase 1/review merge | `f33eb89`, owner-merged PR #69 `5e52301`; old feature branch deleted locally/remotely | Implementation-session test evidence above; merge/cleanup verified separately | Foundation and review available on main/across machines | Q08 remains open; merge does not mean full Phase 1 sign-off |
-| Dedicated shield removal playtest fix | Local `UnequipShield` command/helper, menus/input and regression test; no commit yet | Debug build and CTest 1/1 passed (current §9) | Explicit `5` removal in armor/shield menu; retains owned shield, allows unarmed removal and later re-equip | Running game must restart to load rebuilt code; interactive user confirmation pending |
+| Dedicated shield removal playtest fix | `3df0f35`: `UnequipShield` command/helper, menus/input and regression test | Debug build and CTest 1/1 passed (historical §9) | Explicit `5` removal in armor/shield menu; retains owned shield, allows unarmed removal and later re-equip | Subsequent user playtest exposed the separate AC-convention bug |
+| Shield action merge | `3df0f35`, owner-merged PR #70 `d8d7f96` | Prior slice's Debug validation; merge/pull verified | Dedicated shield removal available on main | User playtest exposed missing/inconsistent AC defense; next row addresses that separately |
+| Full AC-convention/shield correction | Local `include/armor_class.hpp`, data-boundary conversions, effective AC, equipment/display paths, v8 migration and tests; no commit yet | 244 cases / 16251 assertions, Debug/sanitizer CTest, isolated Hrothgar UI smoke (current §9) | Shared ascending AC and derived physical shield; legacy migration and stable v8 reload verified | Old binaries reject v8 saves; unmodelled ad hoc legacy AC adjustments cannot be inferred. Poison Q08/clock/treatment remain open. |
 
 Do not promote any poison phase to Completed until its plan acceptance criteria,
 tests, relevant manual checks, and remaining caveats are reconciled. Record a
@@ -156,14 +160,15 @@ partially complete slice separately, even after its PR merges.
 
 ## 6. Active Development
 
-**Active stage:** shield playtest bug fix. Phase 1 foundation and frontend review
-are merged; source qualification integration remains open.
+**Active stage:** full AC-convention/shield correction under review. Phase 1
+foundation, frontend review and explicit shield action are merged.
 
-- **Completed locally:** explicit `UnequipShield` action routed by the engine
-  character sheet; `5` binding and matching menu labels; camp/session regression.
-- **Remaining now:** user restarts rebuilt game and confirms `b` -> `2` -> `5`,
-  then authorize packaging if desired. The user's clarification asks for explicit
-  removal, so equipping Shield remains separate rather than becoming a toggle.
+- **Completed locally:** ascending armor/monster conversion, derived physical
+  shield bonus, shared combat/snapshot/display defense, retained DEX on equipment
+  changes, old-save migration, v8 writer semantics and regression/UI smoke tests.
+- **Remaining now:** owner reviews the AC change and v8 compatibility, playtests
+  the rebuilt game and authorizes packaging if desired. Shield removal remains a
+  dedicated action (`b` -> `2` -> `5`), not an equip toggle.
 - **Poison follow-up:** resolve Q08: how the engine gets/preserves character/source
   alignment for protection qualification. No default alignment or unconditional
   +1 was invented. Later clock work still needs Q02/Q06 decisions.
@@ -205,9 +210,9 @@ frontend-adaptability review (DEC-WORK-001).
 **Proposed, not yet approved to execute:** frontend changes and later poison
 phases' concrete clock/state/wire-format designs.
 
-**Exact next action:** verify the dedicated shield control in the rebuilt game;
-package the local fix when authorized. Then return to Q08 before full Phase 1
-sign-off and scope action-owned time for Phase 2/non-text frontend support.
+**Exact next action:** review/playtest the AC correction and compatibility, then
+package when authorized. Return to Q08 before full Phase 1 sign-off and scope
+action-owned time for Phase 2/non-text frontend support afterward.
 
 ## 8. Known Issues and Technical Debt
 
@@ -224,7 +229,7 @@ sign-off and scope action-owned time for Phase 2/non-text frontend support.
 | Source/codegen drift and duplicate/malformed catalog rows | Audit §3; curated compiled table is runtime authority; leave regeneration OFF and avoid unrelated data loss |
 | Test gaps | New tests now cover actual poison damage/death and actual PoisonDart activation/attribution. Delayed/profile/treatment/save-state tests remain future work; audit results describe the earlier baseline. |
 | Historical docs can be stale | ROADMAP's description-audit priority, old phase save versions/counts, thief checklist assumptions; consult actual code, not old text as current proof |
-| Compatibility | Candidate v8 must preserve v1-v7 readability and failed-load non-mutation; old executables may reject new saves; never silently downgrade them |
+| Compatibility | Local AC fix uses v8; v1-v7 load by equipment/DEX reconstruction, unknown legacy armor rejects without mutation, older executables reject v8. Future poison persistence must use the next available version (candidate v9). Never silently downgrade saves. |
 
 Unresolved plan questions, with no invented answers:
 
@@ -316,7 +321,7 @@ ctest --test-dir build-sanitize --output-on-failure
 - Expert table source image X24 was rechecked for implementation transcription;
   the prior audit was not repeated. No data generator or dependency change.
 
-### Current shield playtest fix validation — 2026-11-19 UTC
+### Historical shield action validation — 2026-11-19 UTC
 
 Executed `cmake --build build -j 2`,
 `ctest --test-dir build --output-on-failure`, and `git diff --check`.
@@ -327,6 +332,26 @@ No new direct-doctest count or sanitizer run is claimed for this small fix.
 The frontend key binding/menu was inspected; interactive user verification of
 `b` -> `2` -> `5` after restarting remains pending. No source changes followed
 the successful build/test run; only this handoff was updated.
+
+### Current AC-consistency validation — 2026-11-21 UTC
+
+Executed `cmake --build build -j 2`, `./build/tests/bx_crawl_tests`,
+`ctest --test-dir build --output-on-failure`,
+`cmake --build build-sanitize -j 2`, and
+`ctest --test-dir build-sanitize --output-on-failure`.
+
+- Debug **244/244 cases / 16251 assertions** passed; CTest **1/1**, 0.72 seconds.
+- Sanitizer build initially hit the 120-second tool timeout during test
+  compilation; resumed with 300 seconds and passed. Sanitizer CTest **1/1**,
+  5.18 seconds; no sanitizer errors. Cache checked ON, regeneration OFF.
+- Existing tests that asserted descending runtime AC were updated to the
+  explicitly corrected convention. Neutral test heroes now use STR/DEX 10.
+- A Python subprocess smoke ran the text binary with isolated HOME and
+  BX_LOAD_SAVE=Hrothgar, input `b25ttx`, and asserted ascending character AC
+  **15 -> 14**, shield removal log, and exit 0. No save command or template
+  regeneration was run. Existing root-test description warnings remain.
+- Manual user playtesting of longer combat is still recommended; this does not
+  certify attack-matrix/spell-rule fidelity beyond the AC-convention scope.
 
 ### Portable validation recipe — suggested, not newly executed results
 
@@ -373,6 +398,8 @@ inferred from commit timestamps or a previous machine's clock.
 | 2026-11-11 UTC — authorized Phase 1 packaging | Owner requests commit/push of the tested foundation and frontend review | Commit subject `Implement Expert saves and shared hero death handling`, parent `29128b1`; verify resulting SHA/upstream with Git. Whitespace checks; no application changes after the recorded tests | No new rules decisions, PR creation, or merge authorized. Q08 remains open; full Phase 1 sign-off is not claimed. |
 | 2026-11-19 UTC — shield playtest bug | Owner reports inability to unequip shield and asks for explicit removal; add dedicated command/helper, key `5` in armor/shield menu, regression test and handoff | Branch `fix/shield-unequip`, base `5e52301`; Debug build and CTest 1/1 passed; no commit/push | Distinct unequip action, not toggle. Next: restart rebuilt game, check `b` -> `2` -> `5`, package when authorized; Q08 remains paused. |
 | 2026-11-19 UTC — authorized shield packaging | Owner requests commit/push of the tested shield fix | Commit subject `Add explicit shield unequip action`, parent `5e52301`; confirm resulting revision/upstream with Git. No source changes after the passing tests | No PR/merge requested. Interactive user confirmation remains pending; Q08 remains open. |
+| 2026-11-21 UTC — AC playtest correction | Owner reports no AC change after shield removal, then selects full ascending-AC consistency fix; update data-boundary conversion, shared defenses, equipment paths, v8 migration, tests and docs | Branch `fix/armor-class-consistency`, base `d8d7f96`; 244 cases / 16251 assertions; Debug/sanitizer CTest and isolated Hrothgar AC smoke passed; no commit/push | DEC-AC-001 records scope. Next: owner review/playtest and packaging authorization; future poison save version must not reuse v8. |
+| AC packaging — after validation | Owner requests staging, commit and push to origin for playtesting | Commit subject `Fix ascending armor class and shield defense`, parent `d8d7f96`; resolve final SHA/upstream with Git. No behavior changes after the passing tests | No PR/merge requested. Next: owner playtest with v8-compatible build; Q08 remains open. |
 
 For later sessions append a short row with actual date, objective, changed files
 or linked milestone, exact commits if any, executed tests/results, decisions,
@@ -393,13 +420,14 @@ the reader need not reconstruct current status from this history table.
    overwrite another session's uncommitted work or force-push divergent history.
 5. Reconcile this snapshot with actual repository state. The documentation
    package/handoff and Phase 1 foundation are merged into `main` through PRs
-   #67/#68/#69. The shield fix was local at validation capture and subsequently
-   authorized for packaging on `fix/shield-unequip`. Check its remote availability
-   and resulting checkpoint, preserve newer edits, and inspect Git before resuming.
+   #67/#68/#69 and shield action #70. AC-consistency work was local at validation
+   capture and subsequently authorized for packaging on `fix/armor-class-consistency`.
+   Check remote availability and fetch its checkpoint on another machine;
+   preserve newer local edits and reconcile Git status.
 6. Identify the active phase and its unmet acceptance criteria. Currently this
-   is the explicit shield-removal playtest fix. Phase 1 qualification is still
+   is the full AC-convention/shield playtest fix. Phase 1 qualification is still
    gated by Q08; the six-phase poison implementation is not complete.
-7. Identify the next approved scope: review/playtest the shield fix; commit/push
+7. Identify the next approved scope: review/playtest the AC fix; commit/push
    requires authorization. Resume Q08 afterward, not automatic Phase 2 coding.
 8. Avoid repeating completed work. Re-run relevant tests when source/toolchain
    changes justify validation, not to imply the original audit never happened.
@@ -458,7 +486,7 @@ At the end of each future implementation session:
 10. Identify the **exact next approved development action** or the specific
     approval needed before further changes.
 
-Current handoff packages the validated dedicated shield-removal fix for the
-owner-requested commit/push. No PR creation, merge, save-format change,
-monster-data change, or build-configuration change is part of the shield slice.
-Preserve the outstanding poison qualification gate when returning to roadmap work.
+Current handoff packages the validated full AC-convention fix, including save-v8
+semantics and legacy migration, for the owner-requested commit/push. No PR/merge,
+source monster-data change, template regeneration or build-configuration change
+is part of this slice. Preserve the outstanding poison qualification gate afterward.

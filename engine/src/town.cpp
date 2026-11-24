@@ -1,4 +1,5 @@
 #include "game.hpp"
+#include "armor_class.hpp"
 #include "game_internal.hpp"
 #include "inventory.hpp"
 #include "bx_data.hpp"
@@ -286,33 +287,23 @@ bool apply_town_command(Game& g, const PlayerCommand& cmd) {
                             }
                             if (!allowed) {
                                 log_event(g, std::string("Your class cannot wear ") + a.name + ".");
-                            } else if (a.ac > 0 && g.hero.ac <= a.ac) {
+                            } else if (a.ac > 0 && g.hero.ac >=
+                                       ascending_armor_class(a.ac) + dexterity_armor_bonus(g.hero)) {
                                 log_event(g, std::string("You already have armor as good as or better than ") + a.name + ".");
-                            } else if (std::string_view(a.id) == "shield") {
-                                if (g.hero.weapon_id.empty()) {
-                                    log_event(g, "You need a weapon to use a shield.");
+                             } else if (std::string_view(a.id) == "shield") {
+                                if (!weapon_allows_shield(g.hero)) {
+                                    log_event(g, "You can't use a shield with a two-handed weapon.");
                                 } else {
-                                    // Check if current weapon is two-handed
-                                    bool two_handed = false;
-                                    for (const auto& w : bx::weapons) {
-                                        if (w.id == g.hero.weapon_id && w.two_handed) {
-                                            two_handed = true; break;
-                                        }
-                                    }
-                                    if (two_handed) {
-                                        log_event(g, "You can't use a shield with a two-handed weapon.");
-                                    } else {
-                                        g.total_gold -= a.cost_gp;
-                                        g.hero.armor_counts[static_cast<std::size_t>(idx)]++;
-                                        g.hero.has_shield = true;
-                                        log_event(g, std::string("You buy a ") + a.name + " for " + std::to_string(a.cost_gp) + " gp.");
-                                    }
+                                    g.total_gold -= a.cost_gp;
+                                    g.hero.armor_counts[static_cast<std::size_t>(idx)]++;
+                                    g.hero.has_shield = true;
+                                    log_event(g, std::string("You buy a ") + a.name + " for " + std::to_string(a.cost_gp) + " gp.");
                                 }
                             } else {
                                 g.total_gold -= a.cost_gp;
                                 g.hero.armor_counts[static_cast<std::size_t>(idx)]++;
                                 g.hero.armor_id = a.id;
-                                g.hero.ac = a.ac;
+                                g.hero.ac = ascending_armor_class(a.ac) + dexterity_armor_bonus(g.hero);
                                 log_event(g, std::string("You buy ") + a.name + " for " + std::to_string(a.cost_gp) + " gp.");
                             }
                         } else {
@@ -341,7 +332,7 @@ bool apply_town_command(Game& g, const PlayerCommand& cmd) {
                                 g.total_gold += price;
                                 log_event(g, std::string("You sell your ") + a.name + " for " + std::to_string(price) + " gp.");
                                 g.hero.armor_id.clear();
-                                g.hero.ac = 9; // unarmored
+                                g.hero.ac = unarmored_armor_class(g.hero);
                                 break;
                             }
                         }

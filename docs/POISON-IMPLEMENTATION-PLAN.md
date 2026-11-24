@@ -255,7 +255,7 @@ complete because its tests pass.
 - Add authoritative victim-side records for pending poison/effect source,
   deadlines/durations, relevant symptom/treatment state, and poison death cause/
   revival eligibility. Use only the state required by approved profiles.
-- Design a versioned save extension (candidate **v8**, if still unused at that
+- Design a versioned save extension (candidate **v9**, if still unused at that
   time), with explicit migration defaults for older saves and bounded, validated
   fields. Preserve partial-time state so reload does not postpone death.
 - Implement original Neutralize Poison as a fourth-level clerical spell with
@@ -284,8 +284,10 @@ complete because its tests pass.
   if needed, not the entire audit.
 - Save/load across fresh and already-poisoned receiving Games preserves the
   *saved* victim, clock remainder, deadlines, and cause, not receiver residue.
-- v1-v7 remain readable with explicitly clean poison defaults; unsupported new
-  versions reject safely. A v7 executable is not expected to read new saves.
+- v1-v8 remain readable with explicitly clean poison defaults; unsupported new
+  versions reject safely. The local AC-consistency fix uses v8 solely to mark
+  ascending base-AC semantics, not poison state. Older executables are not
+  expected to read a newer format revision.
 - Invalid counts, enums/IDs, negative or overflowing times, inconsistent alive/
   death state, and truncated tails fail without modifying the live Game.
 - Neutralize Poison before expiry removes applicable current effects; later

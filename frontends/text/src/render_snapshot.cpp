@@ -183,7 +183,7 @@ void render_town_screen(const GameStateSnapshot& s) {
                   << "  Move " << s.exploration_move_feet << "' ("
                   << s.encounter_move_feet << "')\r\n";
         std::cout << "HP " << s.hero.hp << "/" << s.hero.max_hp
-                  << "  AC " << s.hero.ac
+                  << "  AC (ascending) " << s.hero.effective_ac
                   << "  Attack +" << s.hero.attack_bonus
                   << "  Damage 1d" << s.hero.damage_die;
         if (s.hero.damage_bonus != 0)
@@ -315,7 +315,7 @@ void render_dungeon(const GameStateSnapshot& s) {
     std::ostringstream oss;
     oss << s.hero.name << "(" << s.hero.class_name << ")"
         << " HP:" << s.hero.hp << "/" << s.hero.max_hp
-        << " AC:" << s.hero.ac;
+        << " AC(asc):" << s.hero.ac;
     if (s.hero.effective_ac != s.hero.ac)
         oss << "(" << s.hero.effective_ac << ":" << s.hero.buff_turns << ")";
     oss << " Lv." << s.hero_level

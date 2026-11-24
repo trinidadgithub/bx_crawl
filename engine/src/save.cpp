@@ -2,6 +2,7 @@
 #include "item_catalog.hpp"
 
 #include "bx_data.hpp"
+#include "armor_class.hpp"
 
 #include <cstdint>
 #include <cstdlib>
@@ -41,9 +42,9 @@ constexpr int32_t kMaxSerializedRumorCount = 100;
 // A module declares at most a handful of doors; the cap mirrors the rumor cap.
 constexpr int32_t kMaxSerializedDoorCount = 100;
 
-// The current on-disk format. Bump this when a field is added to the tail so a
-// reader knows how much of the trailing payload to consume.
-constexpr int32_t kCurrentSaveVersion = 7;
+// Bump for payload or semantic changes. V8 keeps the v7 layout but stores
+// ascending base AC without the physical shield bonus.
+constexpr int32_t kCurrentSaveVersion = 8;
 
 // Byte-exact stream helpers. Every persistence read/write goes through these
 // so a short-read or a failed write is never silently ignored.
@@ -361,6 +362,20 @@ bool read_game_from(std::istream& in, Game& out) {
             return false;
     } else {
         h.pos = {0, 0};
+    }
+
+    if (version <= 7) {
+        if (h.armor_id == "shield") {
+            h.armor_id.clear();
+            h.has_shield = true;
+        }
+        h.ac = unarmored_armor_class(h);
+        if (!h.armor_id.empty() && h.armor_id != "none") {
+            const auto armor = bx::armor_index(h.armor_id);
+            if (!armor) return false;
+            h.ac = ascending_armor_class(bx::armor_items[*armor].ac) + dexterity_armor_bonus(h);
+        }
+        if (!weapon_allows_shield(h)) h.has_shield = false;
     }
 
     // Restore runtime-only fields
