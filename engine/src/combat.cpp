@@ -1,6 +1,7 @@
 #include "game.hpp"
 #include "game_internal.hpp"
 #include "map.hpp"
+#include "armor_class.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -113,10 +114,7 @@ bool resolve_bear_attack(Game& g, Entity& attacker, Entity& defender,
         return false;
     }
 
-    int target = defender.ac;
-    if (defender.shield_turns > 0)         target += 4;
-    if (defender.protection_turns > 0)     target += 1;
-    if (defender.resist_cold_turns > 0)    target += 1;
+    int target = effective_armor_class(defender);
 
     bool claw_hits[2] = {false, false};
 
@@ -199,11 +197,7 @@ void attack_internal(Game& g, Entity& attacker, Entity& defender,
     extra_atk -= daylight_to_hit_penalty(g, attacker);
     int backstab_bonus = (attacker.type == EntityType::Hero && attacker.hidden) ? 4 : 0;
     int total = roll + attacker.attack_bonus + extra_atk + backstab_bonus;
-    int target = defender.ac;
-
-    if (defender.shield_turns > 0)         target += 4;
-    if (defender.protection_turns > 0)     target += 1;
-    if (defender.resist_cold_turns > 0)    target += 1;
+    int target = effective_armor_class(defender);
 
     {
         std::ostringstream oss;
@@ -496,9 +490,7 @@ void game_internal::retaliate_with_oil(Game& g, Entity& attacker, Entity& defend
         && std::abs(attacker.pos.x - defender.pos.x)
            + std::abs(attacker.pos.y - defender.pos.y) <= 1) {
         int total = roll_d(g, 20) + defender.attack_bonus;
-        int target = attacker.ac + (attacker.shield_turns > 0 ? 4 : 0)
-                     + (attacker.protection_turns > 0 ? 1 : 0)
-                     + (attacker.resist_cold_turns > 0 ? 1 : 0);
+        int target = effective_armor_class(attacker);
         if (total >= target) {
             attacker.blister_turns = 144;
             log_event(g, "The oil beetle's spray hits! Painful blisters give you -2 to hit.");

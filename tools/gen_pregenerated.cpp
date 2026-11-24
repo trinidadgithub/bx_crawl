@@ -1,4 +1,5 @@
 #include "bx_data.hpp"
+#include "armor_class.hpp"
 #include "game.hpp"
 #include "game_session.hpp"
 #include "module_content.hpp"
@@ -61,7 +62,7 @@ static Entity make_pregenerated_hero(
     h.attack_bonus   = atk_bonus;
     h.damage_die     = dmg_die;
     h.damage_bonus   = dmg_bonus;
-    h.ac             = ac;
+    (void)ac; // Old template AC numbers are superseded by equipment-derived AC.
     h.abilities      = abilities;
     h.char_class     = cc;
     h.torch_turns    = 60;
@@ -81,6 +82,10 @@ static Entity make_pregenerated_hero(
         h.armor_id = "none";
     }
     h.has_shield = has_shield;
+    h.ac = unarmored_armor_class(h);
+    if (auto ai = bx::armor_index(h.armor_id))
+        h.ac = ascending_armor_class(bx::armor_items[*ai].ac) + dexterity_armor_bonus(h);
+    if (!weapon_allows_shield(h)) h.has_shield = false;
     if (has_shield) h.armor_counts[*bx::armor_index("shield")] = 1;
 
     // Starting gear

@@ -106,7 +106,7 @@ void show_stat_block(const bx::Monster& monster, int index,
     {
         std::ostringstream oss;
         oss << monster.ac;
-        print_field("AC:", oss.str().c_str());
+        print_field("AC (B/X):", oss.str().c_str());
     }
     print_field("HD:", monster.hit_dice);
 
@@ -192,6 +192,7 @@ void usage(const char* argv0) {
     std::cout << "Usage: " << argv0 << " <name or index>\n"
               << "\n"
               << "Shows the B/X stat block for a monster.\n"
+              << "AC uses original descending B/X values; the game uses ascending AC.\n"
               << "Indexes are 1-based (use list_monsters to find them).\n"
               << "Name matches case-insensitive substrings.\n"
               << "Examples:\n"

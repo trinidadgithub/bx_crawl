@@ -75,7 +75,7 @@ struct Entity {
     int attack_bonus{};    // +to-hit (melee: includes STR)
     int damage_die{};      // e.g. 6 for 1d6
     int damage_bonus{};    // STR damage modifier (melee)
-    int ac{};              // ascending AC (higher = harder to hit)
+    int ac{};              // ascending base AC including DEX, excluding shield/buffs
     int morale{};          // 2–12 for monsters; 0 = no morale checks
     bool fleeing{false};   // if true, tries to escape instead of fight
     bool alive{true};

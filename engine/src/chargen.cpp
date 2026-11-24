@@ -1,5 +1,6 @@
 #include "chargen.hpp"
 #include "game.hpp"
+#include "armor_class.hpp"
 #include "bx_data.hpp"
 #include "item_catalog.hpp"
 #include "game_internal.hpp"
@@ -67,17 +68,8 @@ int damage_die(CharacterClass cc) {
     }
 }
 
-int base_ac(CharacterClass cc) {
-    switch (cc) {
-        case CharacterClass::Fighter:   return 14;
-        case CharacterClass::Cleric:    return 14;
-        case CharacterClass::Thief:     return 12;
-        case CharacterClass::MagicUser: return 10;
-        case CharacterClass::Dwarf:     return 14;
-        case CharacterClass::Elf:       return 12;
-        case CharacterClass::Halfling:  return 12;
-        default:                        return 14;
-    }
+int base_ac(CharacterClass) {
+    return ascending_armor_class(9);
 }
 
 int attack_bonus_base(CharacterClass cc) {
@@ -168,8 +160,10 @@ std::vector<int> class_armor_options(CharacterClass cc) {
     std::vector<int> result;
     result.push_back(0); // "None"
     if (game_internal::can_wear_heavy_armor(cc)) {
-        for (int i = 0; i < static_cast<int>(bx::armor_items.size()); ++i)
-            result.push_back(i + 1); // +1 because index 0 = None
+        for (int i = 0; i < static_cast<int>(bx::armor_items.size()); ++i) {
+            if (std::string_view(bx::armor_items[i].id) == "shield") continue;
+            result.push_back(i + 1);
+        }
     } else {
         // Thieves & Magic-Users: leather only (armor_items[0] = leather)
         result.push_back(1);
@@ -200,15 +194,17 @@ bool buy_starting_armor(Entity& hero, int bx_armor_index, int& purse_gp, int dex
         bx_armor_index >= static_cast<int>(bx::armor_items.size()))
         return false;
     const auto& a = bx::armor_items[static_cast<std::size_t>(bx_armor_index)];
+    if (std::string_view(a.id) == "shield") return false;
     if (purse_gp < a.cost_gp) return false;
     purse_gp -= a.cost_gp;
     hero.armor_id = a.id;
     hero.armor_counts[static_cast<std::size_t>(bx_armor_index)]++;
-    hero.ac = a.ac + dex_mod;
+    hero.ac = ascending_armor_class(a.ac) + dex_mod;
     return true;
 }
 
 bool buy_starting_shield(Entity& hero, int& purse_gp) {
+    if (!weapon_allows_shield(hero)) return false;
     const auto shield_slot = bx::armor_index("shield");
     if (!shield_slot) return false;
     const auto& shield = bx::armor_items[*shield_slot];
@@ -216,7 +212,6 @@ bool buy_starting_shield(Entity& hero, int& purse_gp) {
     purse_gp -= shield.cost_gp;
     hero.has_shield = true;
     hero.armor_counts[*shield_slot]++;
-    hero.ac += shield.ac;   // B/X: shield gives a -1 AC bonus
     return true;
 }
 

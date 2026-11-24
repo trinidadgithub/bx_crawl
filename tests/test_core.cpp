@@ -12,12 +12,14 @@
 #include "item_catalog.hpp"
 #include "inventory.hpp"
 #include "saving_throws.hpp"
+#include "armor_class.hpp"
 #include "../engine/src/game_internal.hpp"
 
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -568,6 +570,8 @@ static Entity make_hero(int x, int y, int atk_bonus, int dmg_die, int ac) {
     e.morale           = 0;
     e.fleeing          = false;
     e.attacks_per_turn = 1;
+    e.abilities.str = 10;
+    e.abilities.dex = 10;
     return e;
 }
 
@@ -2062,7 +2066,7 @@ TEST_CASE("Rust monster touch corrodes metal equipment") {
         g.hero.max_hp = 40;
         give_item(g.hero, "chain-mail", 1);
         g.hero.armor_id = "chain-mail";
-        g.hero.ac = 5;
+        g.hero.ac = 14;
         give_item(g.hero, "shield", 1);
         g.hero.has_shield = true;
         give_item(g.hero, "sword", 1);
@@ -2076,7 +2080,7 @@ TEST_CASE("Rust monster touch corrodes metal equipment") {
 
         monsters_turn(g);  // touch 1
         CHECK(g.hero.armor_id.empty());
-        CHECK(g.hero.ac == 9);
+        CHECK(g.hero.ac == 10);
         CHECK(item_count(g.hero, "chain-mail") == 0);
         CHECK(g.hero.has_shield == true);
         CHECK(g.hero.weapon_id == "sword");
@@ -2111,7 +2115,7 @@ TEST_CASE("Rust monster touch corrodes metal equipment") {
         g.hero.damage_die = 4;
         give_item(g.hero, "leather-armor", 1);
         g.hero.armor_id = "leather-armor";
-        g.hero.ac = 7;
+        g.hero.ac = 12;
         give_item(g.hero, "club", 1);  // wooden, carried
 
         auto rust = make_monster("Rust Monster", EntityType::Monster,
@@ -2172,7 +2176,7 @@ TEST_CASE("Rust monster touch corrodes metal equipment") {
         g.hero.max_hp = 40;
         give_item(g.hero, "chain-mail", 1);
         g.hero.armor_id = "chain-mail";
-        g.hero.ac = 5;
+        g.hero.ac = 14;
         give_item(g.hero, "shield", 1);
         g.hero.has_shield = true;
 
@@ -2190,7 +2194,7 @@ TEST_CASE("Rust monster touch corrodes metal equipment") {
         Game loaded;
         CHECK(load_game(loaded, path));
         CHECK(loaded.hero.armor_id.empty());
-        CHECK(loaded.hero.ac == 9);
+        CHECK(loaded.hero.ac == 10);
         CHECK(item_count(loaded.hero, "chain-mail") == 0);
         CHECK(loaded.hero.has_shield == true);
         CHECK(item_count(loaded.hero, "shield") == 1);
@@ -2229,7 +2233,7 @@ TEST_CASE("Green Slime contact eats gear and clings") {
         g.hero.max_hp = 20;
         give_item(g.hero, "leather-armor", 1);
         g.hero.armor_id = "leather-armor";
-        g.hero.ac = 7;
+        g.hero.ac = 12;
         give_item(g.hero, "shield", 1);
         g.hero.has_shield = true;
         give_item(g.hero, "club", 1);  // wood — the slime dissolves it too
@@ -2244,7 +2248,7 @@ TEST_CASE("Green Slime contact eats gear and clings") {
         monsters_turn(g);
 
         CHECK(g.hero.armor_id.empty());
-        CHECK(g.hero.ac == 9);
+        CHECK(g.hero.ac == 10);
         CHECK(item_count(g.hero, "leather-armor") == 0);
         CHECK(g.hero.has_shield == false);
         CHECK(item_count(g.hero, "shield") == 0);
@@ -5008,7 +5012,7 @@ TEST_CASE("Character sheet equips owned weapons and armor") {
     CHECK(g.town_submenu == 7);
     apply_town_command(g, {PlayerCommandType::Get, 0, 0, 0});
     CHECK(g.hero.armor_id == "leather-armor");
-    CHECK(g.hero.ac == 7);
+    CHECK(g.hero.ac == 12);
 
     apply_town_command(g, {PlayerCommandType::Help, 0, 0, 0});
     apply_town_command(g, {PlayerCommandType::Help, 0, 0, 0});
@@ -5018,7 +5022,7 @@ TEST_CASE("Character sheet equips owned weapons and armor") {
 TEST_CASE("Character sheet can explicitly unequip a shield from camp") {
     Game g = make_minimal_game();
     g.state = GameState::Camp;
-    g.hero = make_hero(1, 1, 0, 8, 5);
+    g.hero = make_hero(1, 1, 0, 8, 14);
     g.hero.char_class = CharacterClass::Fighter;
     g.hero.weapon_id = "sword";
     g.hero.armor_id = "chain-mail";
@@ -5041,7 +5045,7 @@ TEST_CASE("Character sheet can explicitly unequip a shield from camp") {
     CHECK_FALSE(session.snapshot().hero.has_shield);
     CHECK(item_count(session.game().hero, "shield") == 1);
     CHECK(session.game().hero.armor_id == "chain-mail");
-    CHECK(session.game().hero.ac == 5);
+    CHECK(session.game().hero.ac == 14);
     CHECK(session.game().hero.weapon_id == weapon);
     CHECK(carried_weight_cn(session.game()) == weight);
     CHECK(session.game().event_log.back() == "Unequipped shield.");
@@ -5086,6 +5090,131 @@ TEST_CASE("B/X encumbrance uses coin weight movement tiers") {
     CHECK(exploration_move_feet(g) == 30);
     CHECK(encounter_move_feet(g) == 10);
     CHECK(ticks_per_exploration_turn(g) == 3);
+}
+
+TEST_CASE("Armor class uses one ascending convention for equipment and shields") {
+    CHECK(ascending_armor_class(9) == 10);
+    CHECK(ascending_armor_class(7) == 12);
+    CHECK(ascending_armor_class(5) == 14);
+    CHECK(ascending_armor_class(3) == 16);
+    CHECK(ascending_armor_class(-1) == 20);
+    Game g = make_minimal_game();
+    g.hero = make_hero(1, 1, 0, 8, 10);
+    g.hero.abilities.dex = 14;
+    give_item(g.hero, "chain-mail");
+    give_item(g.hero, "plate-mail");
+    give_item(g.hero, "shield");
+    auto chain = bx::armor_index("chain-mail");
+    auto plate = bx::armor_index("plate-mail");
+    auto shield = bx::armor_index("shield");
+    REQUIRE(chain);
+    REQUIRE(plate);
+    REQUIRE(shield);
+    game_internal::equip_owned_armor(g, static_cast<int>(*chain));
+    CHECK(g.hero.ac == 15);
+    game_internal::equip_owned_armor(g, static_cast<int>(*shield));
+    auto snapshot = make_game_state_snapshot(g);
+    CHECK(snapshot.hero.ac == 16);
+    CHECK(snapshot.hero.effective_ac == 16);
+    CHECK(g.hero.ac == 15);
+    game_internal::unequip_shield(g);
+    CHECK(make_game_state_snapshot(g).hero.effective_ac == 15);
+    game_internal::equip_owned_armor(g, static_cast<int>(*shield));
+    game_internal::equip_owned_armor(g, static_cast<int>(*plate));
+    CHECK(make_game_state_snapshot(g).hero.effective_ac == 18);
+    game_internal::equip_owned_armor(g, -1);
+    CHECK(g.hero.ac == 11);
+    CHECK(make_game_state_snapshot(g).hero.effective_ac == 12);
+    g.hero.shield_turns = 5;
+    g.hero.protection_turns = 5;
+    g.hero.resist_cold_turns = 5;
+    CHECK(make_game_state_snapshot(g).hero.effective_ac == 18);
+    g.hero.weapon_id = "two-handed-sword";
+    CHECK(make_game_state_snapshot(g).hero.ac == 11);
+}
+
+TEST_CASE("Shield defense changes actual melee and thrown attack results") {
+    Game bare = game_with_save_roll(14);
+    bare.hero.ac = 14;
+    bare.monsters.push_back(make_monster("Attacker", EntityType::Monster, 2, 1, 20, 14, 0, 1, 0));
+    Game shielded = bare;
+    shielded.hero.has_shield = true;
+    attack(bare, bare.monsters[0], bare.hero);
+    attack(shielded, shielded.monsters[0], shielded.hero);
+    CHECK(bare.hero.hp == 19);
+    CHECK(shielded.hero.hp == 20);
+
+    bare = game_with_save_roll(14);
+    bare.hero.knives = 1;
+    bare.monsters.push_back(make_monster("Defender", EntityType::Monster, 2, 1, 20, 14, 0, 1, 0));
+    shielded = bare;
+    shielded.monsters[0].has_shield = true;
+    apply_player_command(bare, {PlayerCommandType::ThrowKnife, 1, 0});
+    apply_player_command(shielded, {PlayerCommandType::ThrowKnife, 1, 0});
+    CHECK(bare.monsters[0].hp < 20);
+    CHECK(shielded.monsters[0].hp == 20);
+}
+
+TEST_CASE("Starting armor and normal equipping give identical AC") {
+    Entity hero = make_hero(1, 1, 0, 8, 10);
+    hero.char_class = CharacterClass::Fighter;
+    hero.abilities.dex = 14;
+    int purse = 100;
+    auto chain = bx::armor_index("chain-mail");
+    REQUIRE(chain);
+    REQUIRE(buy_starting_armor(hero, static_cast<int>(*chain), purse, dexterity_ac_modifier(hero.abilities)));
+    REQUIRE(buy_starting_shield(hero, purse));
+    CHECK(hero.ac == 15);
+    CHECK(effective_armor_class(hero) == 16);
+    Game g = make_minimal_game();
+    g.hero = hero;
+    for (int i = 0; i < 3; ++i) {
+        game_internal::unequip_shield(g);
+        CHECK(effective_armor_class(g.hero) == 15);
+        game_internal::equip_owned_armor(g, static_cast<int>(*bx::armor_index("shield")));
+        CHECK(effective_armor_class(g.hero) == 16);
+    }
+    g.hero.weapon_id = "two-handed-sword";
+    const auto before = purse;
+    CHECK_FALSE(buy_starting_shield(g.hero, purse));
+    CHECK(purse == before);
+}
+
+TEST_CASE("Spawned monster AC converts original B/X values only once") {
+    Game g = make_minimal_game();
+    for (const auto* name : {"Goblin", "Dragon, Red"}) {
+        auto slot = bx::monster_index(name);
+        REQUIRE(slot.has_value());
+        auto monster = game_internal::spawn_bx_monster_by_index(g, static_cast<int>(*slot));
+        CHECK(monster.ac == (std::string(name) == "Goblin" ? 13 : 20));
+    }
+}
+
+TEST_CASE("Bear attacks and oil spray use the same physical shield defense") {
+    Game bare = game_with_save_roll(14);
+    bare.hero.ac = 14;
+    bare.hero.hp = bare.hero.max_hp = 100;
+    bare.monsters.push_back(make_monster("Bear, Black", EntityType::Monster,
+                                        2, 1, 20, 14, 0, 1, 0));
+    Game shielded = bare;
+    shielded.hero.has_shield = true;
+    attack(bare, bare.monsters[0], bare.hero);
+    attack(shielded, shielded.monsters[0], shielded.hero);
+    REQUIRE(bare.event_log.size() >= 2);
+    REQUIRE(shielded.event_log.size() >= 2);
+    CHECK(bare.event_log[1].find("Hit!") != std::string::npos);
+    CHECK(shielded.event_log[1] == "Miss!");
+
+    bare = game_with_save_roll(14);
+    bare.hero.ac = 14;
+    auto oil = make_monster("Beetle, Oil", EntityType::Monster, 2, 1, 20, 14, 0, 1, 0);
+    oil.sprays_oil = true;
+    shielded = bare;
+    shielded.hero.has_shield = true;
+    game_internal::retaliate_with_oil(bare, bare.hero, oil);
+    game_internal::retaliate_with_oil(shielded, shielded.hero, oil);
+    CHECK(bare.hero.blister_turns == 144);
+    CHECK(shielded.hero.blister_turns == 0);
 }
 
 TEST_CASE("Encumbrance includes owned equipment and gear") {
@@ -5471,6 +5600,63 @@ TEST_CASE("Crafted v7 payload loads hero position from the format tail") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("Legacy saves rebuild armor and v8 round trips do not double apply shields") {
+    const auto path = std::filesystem::path{"/tmp/opencode/bx_ac_migration.dat"};
+    for (int version = 1; version <= 7; ++version) {
+        for (int old_ac : {4, 5, 14}) {
+            Game source = make_minimal_game();
+            source.hero = make_hero(1, 1, 0, 8, old_ac);
+            source.hero.char_class = CharacterClass::Fighter;
+            source.hero.abilities.dex = 14;
+            source.hero.armor_id = "chain-mail";
+            source.hero.has_shield = true;
+            give_item(source.hero, "chain-mail");
+            give_item(source.hero, "shield");
+            REQUIRE(save_game(source, path));
+            std::ifstream in(path, std::ios::binary);
+            std::string bytes((std::istreambuf_iterator<char>(in)), {});
+            in.close();
+            REQUIRE(bytes.substr(4, 4) == pack_i32(8));
+            patch_i32(bytes, 4, version);
+            write_save_file(bytes, path);
+            Game migrated = make_minimal_game();
+            REQUIRE(load_game(migrated, path));
+            CHECK(migrated.hero.ac == 15);
+            CHECK(effective_armor_class(migrated.hero) == 16);
+            REQUIRE(save_game(migrated, path));
+            Game reloaded = make_minimal_game();
+            REQUIRE(load_game(reloaded, path));
+            CHECK(reloaded.hero.ac == 15);
+            CHECK(effective_armor_class(reloaded.hero) == 16);
+            game_internal::unequip_shield(reloaded);
+            CHECK(effective_armor_class(reloaded.hero) == 15);
+            CHECK(item_count(reloaded.hero, "shield") == 1);
+        }
+    }
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("Legacy AC migration rejects unknown armor without mutating the game") {
+    const auto path = std::filesystem::path{"/tmp/opencode/bx_bad_ac_migration.dat"};
+    Game source = make_minimal_game();
+    source.hero = make_hero(1, 1, 0, 1, 10);
+    source.hero.armor_id = "unknown-armor";
+    REQUIRE(save_game(source, path));
+    std::ifstream in(path, std::ios::binary);
+    std::string bytes((std::istreambuf_iterator<char>(in)), {});
+    in.close();
+    patch_i32(bytes, 4, 7);
+    write_save_file(bytes, path);
+    Game receiving = make_known_game_state();
+    const auto before = receiving;
+    CHECK_FALSE(load_game(receiving, path));
+    CHECK(receiving.hero.hp == before.hero.hp);
+    CHECK(receiving.hero.ac == before.hero.ac);
+    CHECK(receiving.hero.armor_id == before.hero.armor_id);
+    CHECK(receiving.total_gold == before.total_gold);
+    std::filesystem::remove(path);
+}
+
 TEST_CASE("Malformed saves: v7 files truncated in the position tail are rejected") {
     Game g = make_known_game_state();
     auto crafted = make_valid_save_v7();
@@ -5537,7 +5723,7 @@ TEST_CASE("Malformed saves: bad magic and unsupported versions are rejected") {
     assert_load_rejected_cleanly(g, path);
     std::filesystem::remove(path);
 
-    for (int32_t bad_version : {-1, 0, 8, 1000000}) {
+    for (int32_t bad_version : {-1, 0, 9, 1000000}) {
         auto c = make_valid_save_v5();
         patch_i32(c.bytes, 4, bad_version);
         auto p = std::filesystem::path{"/tmp/opencode/bx_crawl_bad_version.dat"};
@@ -5933,7 +6119,7 @@ TEST_CASE("Armorer: buy armor via apply_town_command") {
         g.town_submenu = 2;
         apply_town_command(g, {PlayerCommandType::Get, 0, 0, 0}); // buy leather (index 0)
         CHECK(g.hero.armor_id == "leather-armor");
-        CHECK(g.hero.ac == 7);
+        CHECK(g.hero.ac == 12);
         CHECK(g.hero.armor_counts[0] == 1);
         CHECK(g.total_gold == 80);
         CHECK(g.town_submenu == 2);
@@ -5963,7 +6149,7 @@ TEST_CASE("Armorer: sell equipment via apply_town_command") {
     g.hero.char_class = CharacterClass::Fighter;
     g.hero.weapon_id = "sword";
     g.hero.armor_id = "leather-armor";
-    g.hero.ac = 7;
+    g.hero.ac = 12;
     g.hero.has_shield = true;
     g.total_gold = 0;
     g.state = GameState::Armorer;
@@ -5979,7 +6165,7 @@ TEST_CASE("Armorer: sell equipment via apply_town_command") {
         g.town_submenu = 3;
         apply_town_command(g, {PlayerCommandType::Get, 0, 0, 1}); // sell armor
         CHECK(g.hero.armor_id.empty());
-        CHECK(g.hero.ac == 9); // back to unarmored
+        CHECK(g.hero.ac == 10); // unarmored ascending AC
         CHECK(g.total_gold == 10);
     }
 
@@ -8548,8 +8734,8 @@ TEST_CASE("chargen rules: class menu mapping and rule tables") {
     CHECK(mu_armor[0] == 0);
     CHECK(mu_armor[1] == 1); // leather only
     std::vector<int> fighter_armor = class_armor_options(CharacterClass::Fighter);
-    CHECK(fighter_armor.size() == 5); // none + 4 armor items (incl. shield)
-    CHECK(fighter_armor.back() == 4);
+    CHECK(fighter_armor.size() == 4); // none + three body armors; shield is separate
+    CHECK(fighter_armor.back() == 3);
 }
 
 TEST_CASE("chargen rules: class weapon lists") {
@@ -8615,7 +8801,7 @@ TEST_CASE("chargen rules: buying starting armor applies AC with DEX modifier") {
     CHECK(purse == 10);
     CHECK(hero.armor_id == std::string("chain-mail"));
     CHECK(hero.armor_counts[1] == 1);
-    CHECK(hero.ac == 5 + dex_mod);
+    CHECK(hero.ac == 14 + dex_mod);
 
     CHECK_FALSE(buy_starting_armor(hero, 2, purse, dex_mod)); // plate 60 gp
     CHECK(purse == 10);
@@ -8628,7 +8814,8 @@ TEST_CASE("chargen rules: shield purchase") {
     CHECK(purse == 0);
     CHECK(hero.has_shield);
     CHECK(hero.armor_counts[3] == 1);
-    CHECK(hero.ac == -1);
+    CHECK(hero.ac == 0); // shield is derived, not baked into base AC
+    CHECK(equipped_armor_class(hero) == 1);
 
     CHECK_FALSE(buy_starting_shield(hero, purse)); // no money left
 }

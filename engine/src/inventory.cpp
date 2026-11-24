@@ -3,6 +3,7 @@
 #include "inventory.hpp"
 #include "item_catalog.hpp"
 #include "bx_data.hpp"
+#include "armor_class.hpp"
 
 #include <cctype>
 #include <cstdlib>
@@ -13,12 +14,6 @@ namespace {
 
 void log_event(Game& g, const std::string& msg) {
     game_internal::emit_log_event(g, msg);
-}
-
-bool current_weapon_two_handed(const Entity& hero) {
-    for (const auto& w : bx::weapons)
-        if (w.id == hero.weapon_id) return w.two_handed;
-    return false;
 }
 
 } // namespace
@@ -84,7 +79,7 @@ void equip_owned_weapon(Game& g, int inventory_index) {
 void equip_owned_armor(Game& g, int armor_index) {
     if (armor_index == -1) {
         g.hero.armor_id.clear();
-        g.hero.ac = 9;
+        g.hero.ac = unarmored_armor_class(g.hero);
         log_event(g, "Unequipped armor.");
         return;
     }
@@ -98,9 +93,7 @@ void equip_owned_armor(Game& g, int armor_index) {
     }
     const auto& a = bx::armor_items[static_cast<std::size_t>(armor_index)];
     if (std::string_view(a.id) == "shield") {
-        if (g.hero.weapon_id.empty()) {
-            log_event(g, "You need a weapon to use a shield.");
-        } else if (current_weapon_two_handed(g.hero)) {
+        if (!weapon_allows_shield(g.hero)) {
             log_event(g, "You can't use a shield with a two-handed weapon.");
         } else {
             g.hero.has_shield = true;
@@ -109,7 +102,7 @@ void equip_owned_armor(Game& g, int armor_index) {
         return;
     }
     g.hero.armor_id = a.id;
-    g.hero.ac = a.ac;
+    g.hero.ac = ascending_armor_class(a.ac) + dexterity_armor_bonus(g.hero);
     log_event(g, std::string("Equipped ") + a.name + ".");
 }
 

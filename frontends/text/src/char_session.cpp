@@ -1,6 +1,7 @@
 #include "char_session.hpp"
 
 #include "chargen.hpp"
+#include "armor_class.hpp"
 #include "game.hpp"
 #include "bx_data.hpp"
 
@@ -275,7 +276,7 @@ Entity create_hero_interactive(Game& g) {
             int ai = armor_choices[i] - 1;
             const auto& a = bx::armor_items[static_cast<std::size_t>(ai)];
             std::cout << "  " << (i + 1) << ". " << a.name
-                      << " (AC " << a.ac << ")"
+                      << " (ascending AC " << ascending_armor_class(a.ac) << ")"
                       << " [" << price_status(a.cost_gp, purse_gp) << "]\n";
         }
         while (true) {
@@ -307,7 +308,7 @@ Entity create_hero_interactive(Game& g) {
                 if (buy_starting_shield(hero, purse_gp)) {
                     std::cout << "Shield equipped. Purse: " << format_purse(purse_gp) << "\n";
                 } else {
-                    std::cout << "You can't afford a shield.\n";
+                    std::cout << "You cannot equip a shield: check your purse and two-handed weapon.\n";
                 }
             }
         }
@@ -400,7 +401,7 @@ Entity create_hero_interactive(Game& g) {
         std::cout << "Armor: " << aname
                   << (hero.has_shield ? " + Shield" : "") << "\n";
     }
-    std::cout << "AC (ascending): " << hero.ac << "\n";
+    std::cout << "AC (ascending): " << effective_armor_class(hero) << "\n";
     std::cout << "XP bonus: "
               << (xp_bonus_val > 0 ? "+" : "")
               << xp_bonus_val << "%\n\n";

@@ -148,6 +148,14 @@ rations and hunger status.
 
 ## Save Data
 
+The game uses **ascending Armor Class** (higher is better). For example, chain
+mail is AC 14 and chain mail plus shield is AC 15 before Dexterity or spells.
+Monster reference tools label original descending values as `AC (B/X)`.
+
+Save format v8 records the corrected AC convention. Older v1-v7 characters load
+with AC reconstructed from equipment and Dexterity; new v8 saves require the
+updated executable. See [AC consistency and migration](docs/armor-class-consistency.md).
+
 Camp saves to a per-hero file:
 
 ```text
